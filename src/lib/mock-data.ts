@@ -19,13 +19,15 @@ export interface HistoryPoint {
   value: number;
 }
 
+export type RaceCategory = 'Formula Car' | 'Sports Car' | 'Prototype' | 'Oval' | 'Dirt Oval';
+
 export interface RecentRace {
   id: string;
   trackName: string;
   date: string;
   year: number;
   season: string;
-  category: 'Formula Car' | 'Sports Car' | 'Prototype';
+  category: RaceCategory;
   startPosition: number;
   finishPosition: number;
   incidents: number;
@@ -160,6 +162,7 @@ export const DRIVER_DATA: Record<string, Driver> = {
       { id: 'race-4', trackName: 'Red Bull Ring', date: '2024-06-30', year: 2024, season: '2024 S2', category: 'Formula Car', startPosition: 12, finishPosition: 10, incidents: 1, strengthOfField: 3900, lapsLed: 0, fastestLap: '1:05.999', car: 'Formula Vee', avgLapTime: '1:06.500', iratingChange: 15, safetyRatingChange: '+0.05', avgRaceIncidents: 4.2, avgRaceLapTime: '1:06.800', participants: [] },
       { id: 'race-9', trackName: 'Okayama', date: '2024-06-23', year: 2024, season: '2024 S2', category: 'Formula Car', startPosition: 4, finishPosition: 2, incidents: 0, strengthOfField: 4300, lapsLed: 8, fastestLap: '1:28.123', car: 'Dallara F3', avgLapTime: '1:28.500', iratingChange: 80, safetyRatingChange: '+0.20', avgRaceIncidents: 2.5, avgRaceLapTime: '1:28.800', participants: [] },
       { id: 'race-10', trackName: 'Zandvoort', date: '2024-06-16', year: 2024, season: '2024 S2', category: 'Sports Car', startPosition: 10, finishPosition: 12, incidents: 5, strengthOfField: 4600, lapsLed: 0, fastestLap: '1:34.555', car: 'Porsche 911 GT3 R', avgLapTime: '1:35.000', iratingChange: -40, safetyRatingChange: '-0.12', avgRaceIncidents: 4.8, avgRaceLapTime: '1:35.200', participants: [] },
+      { id: 'race-13', trackName: 'Bristol', date: '2023-04-10', year: 2023, season: '2023 S2', category: 'Oval', startPosition: 15, finishPosition: 5, incidents: 3, strengthOfField: 3500, lapsLed: 20, fastestLap: '0:15.123', car: 'NASCAR Cup Series Car', avgLapTime: '0:15.500', iratingChange: 90, safetyRatingChange: '-0.01', avgRaceIncidents: 8.5, avgRaceLapTime: '0:15.800', participants: [] },
     ]
   },
   'Lando Norris': {
@@ -208,6 +211,7 @@ export const DRIVER_DATA: Record<string, Driver> = {
       { id: 'race-8', trackName: 'Daytona (Road)', date: '2024-06-29', year: 2024, season: '2024 S2', category: 'Sports Car', startPosition: 10, finishPosition: 15, incidents: 8, strengthOfField: 4900, lapsLed: 0, fastestLap: '1:35.123', car: 'Mercedes-AMG GT3', avgLapTime: '1:36.000', iratingChange: -88, safetyRatingChange: '-0.35', avgRaceIncidents: 6.8, avgRaceLapTime: '1:36.400', participants: [] },
       { id: 'race-11', trackName: 'Le Mans', date: '2024-06-22', year: 2024, season: '2024 S2', category: 'Prototype', startPosition: 3, finishPosition: 1, incidents: 2, strengthOfField: 5500, lapsLed: 10, fastestLap: '3:25.111', car: 'Dallara P217', avgLapTime: '3:26.000', iratingChange: 150, safetyRatingChange: '+0.05', avgRaceIncidents: 4.1, avgRaceLapTime: '3:26.500', participants: [] },
       { id: 'race-12', trackName: 'Nurburgring', date: '2024-06-15', year: 2024, season: '2024 S2', category: 'Sports Car', startPosition: 5, finishPosition: 8, incidents: 3, strengthOfField: 5300, lapsLed: 0, fastestLap: '1:54.987', car: 'Mercedes-AMG GT3', avgLapTime: '1:55.500', iratingChange: -20, safetyRatingChange: '-0.02', avgRaceIncidents: 3.9, avgRaceLapTime: '1:55.800', participants: [] },
+      { id: 'race-14', trackName: 'Eldora', date: '2023-08-20', year: 2023, season: '2023 S3', category: 'Dirt Oval', startPosition: 8, finishPosition: 3, incidents: 1, strengthOfField: 2800, lapsLed: 15, fastestLap: '0:20.456', car: 'Dirt Late Model', avgLapTime: '0:21.100', iratingChange: 120, safetyRatingChange: '+0.08', avgRaceIncidents: 6.2, avgRaceLapTime: '0:21.500', participants: [] },
     ]
   },
 };
