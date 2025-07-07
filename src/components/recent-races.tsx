@@ -86,11 +86,11 @@ export function RecentRaces({ races }: RecentRacesProps) {
                   className="cursor-pointer"
                 >
                   <TableCell className="font-medium">{race.trackName}</TableCell>
-                  <TableCell>{new Date(race.date).toLocaleDateString()}</TableCell>
+                  <TableCell>{new Date(race.date).toLocaleDateString('en-US')}</TableCell>
                   <TableCell className="text-right">{race.startPosition}</TableCell>
                   <TableCell className="text-right">{race.finishPosition}</TableCell>
                   <TableCell className="text-right">{race.incidents}</TableCell>
-                  <TableCell className="text-right">{race.strengthOfField.toLocaleString()}</TableCell>
+                  <TableCell className="text-right">{race.strengthOfField.toLocaleString('en-US')}</TableCell>
                   <TableCell className="text-right">{formatChange(race.iratingChange)}</TableCell>
                   <TableCell className="text-right">{formatChange(race.safetyRatingChange, true)}</TableCell>
                 </TableRow>
@@ -109,7 +109,7 @@ export function RecentRaces({ races }: RecentRacesProps) {
                 <Badge variant="outline">{selectedRace.car}</Badge>
               </DialogTitle>
               <DialogDescription>
-                Race held on {new Date(selectedRace.date).toLocaleDateString()} with a Strength of Field of {selectedRace.strengthOfField.toLocaleString()}.
+                Race held on {new Date(selectedRace.date).toLocaleDateString('en-US')} with a Strength of Field of {selectedRace.strengthOfField.toLocaleString('en-US')}.
               </DialogDescription>
             </DialogHeader>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 py-4">

@@ -53,7 +53,15 @@ export function HistoryChart({ data, title, description, dataKey, color, yAxisFo
             />
             <ChartTooltip
               cursor={false}
-              content={<ChartTooltipContent indicator="dot" />}
+              content={<ChartTooltipContent indicator="dot" formatter={(value, name, props) => {
+                if (typeof value === 'number' && yAxisFormatter) {
+                  return yAxisFormatter(value)
+                }
+                if (typeof value === 'number') {
+                  return value.toLocaleString('en-US');
+                }
+                return value;
+              }} />}
             />
             <Line
               dataKey={dataKey}

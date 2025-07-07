@@ -48,7 +48,7 @@ export default function DriverDashboard({ driver }: { driver: Driver }) {
       <section>
         <h2 className="text-2xl font-headline font-bold tracking-tight mb-4">Current Stats for {driver.name}</h2>
         <div className="grid gap-4 md:grid-cols-3">
-          <StatCard title="iRating" value={driver.currentIRating.toLocaleString()} icon={TrendingUp} description="Driver skill rating" />
+          <StatCard title="iRating" value={driver.currentIRating.toLocaleString('en-US')} icon={TrendingUp} description="Driver skill rating" />
           <StatCard title="Safety Rating" value={driver.currentSafetyRating} icon={ShieldCheck} description="On-track cleanliness" />
           <StatCard title="Avg. Race Pace" value={driver.avgRacePace} icon={Timer} description="Typical lap time" />
         </div>
@@ -71,7 +71,7 @@ export default function DriverDashboard({ driver }: { driver: Driver }) {
               description="Progression over the selected period."
               dataKey="value"
               color="--primary"
-              yAxisFormatter={(value) => value.toLocaleString()}
+              yAxisFormatter={(value) => value.toLocaleString('en-US')}
             />
             <HistoryChart
               data={filteredData.safetyRatingHistory}
