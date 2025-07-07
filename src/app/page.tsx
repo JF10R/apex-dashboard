@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { Loader2, Search, Trophy } from 'lucide-react';
+import Link from 'next/link';
+import { Loader2, Search, Trophy, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -64,6 +65,12 @@ export default function Home() {
           <Button type="submit" disabled={isSearching}>
             {isSearching && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Search
+          </Button>
+          <Button variant="outline" asChild>
+            <Link href="/compare">
+              <Users />
+              Compare
+            </Link>
           </Button>
         </form>
       </div>
