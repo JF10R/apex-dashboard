@@ -14,6 +14,8 @@ export interface RecentRace {
   fastestLap: string;
   car: string;
   avgLapTime: string;
+  iratingChange: number;
+  safetyRatingChange: string;
 }
 
 export interface Driver {
@@ -64,10 +66,10 @@ export const DRIVER_DATA: Record<string, Driver> = {
       { month: 'Jul', value: 92.1 },
     ],
     recentRaces: [
-      { trackName: 'Silverstone', date: '2024-07-21', startPosition: 5, finishPosition: 3, incidents: 2, strengthOfField: 4500, lapsLed: 5, fastestLap: '1:29.876', car: 'Dallara F3', avgLapTime: '1:30.543' },
-      { trackName: 'Spa-Francorchamps', date: '2024-07-14', startPosition: 8, finishPosition: 6, incidents: 0, strengthOfField: 4800, lapsLed: 0, fastestLap: '2:01.112', car: 'Porsche 911 GT3 R', avgLapTime: '2:01.950' },
-      { trackName: 'Monza', date: '2024-07-07', startPosition: 3, finishPosition: 5, incidents: 4, strengthOfField: 4200, lapsLed: 2, fastestLap: '1:22.345', car: 'Ferrari 488 GT3 Evo', avgLapTime: '1:23.010' },
-      { trackName: 'Red Bull Ring', date: '2024-06-30', startPosition: 12, finishPosition: 10, incidents: 1, strengthOfField: 3900, lapsLed: 0, fastestLap: '1:05.999', car: 'Formula Vee', avgLapTime: '1:06.500' },
+      { trackName: 'Silverstone', date: '2024-07-21', startPosition: 5, finishPosition: 3, incidents: 2, strengthOfField: 4500, lapsLed: 5, fastestLap: '1:29.876', car: 'Dallara F3', avgLapTime: '1:30.543', iratingChange: 75, safetyRatingChange: '+0.10' },
+      { trackName: 'Spa-Francorchamps', date: '2024-07-14', startPosition: 8, finishPosition: 6, incidents: 0, strengthOfField: 4800, lapsLed: 0, fastestLap: '2:01.112', car: 'Porsche 911 GT3 R', avgLapTime: '2:01.950', iratingChange: 42, safetyRatingChange: '+0.15' },
+      { trackName: 'Monza', date: '2024-07-07', startPosition: 3, finishPosition: 5, incidents: 4, strengthOfField: 4200, lapsLed: 2, fastestLap: '1:22.345', car: 'Ferrari 488 GT3 Evo', avgLapTime: '1:23.010', iratingChange: -25, safetyRatingChange: '-0.08' },
+      { trackName: 'Red Bull Ring', date: '2024-06-30', startPosition: 12, finishPosition: 10, incidents: 1, strengthOfField: 3900, lapsLed: 0, fastestLap: '1:05.999', car: 'Formula Vee', avgLapTime: '1:06.500', iratingChange: 15, safetyRatingChange: '+0.05' },
     ]
   },
   'Lando Norris': {
@@ -105,10 +107,10 @@ export const DRIVER_DATA: Record<string, Driver> = {
       { month: 'Jul', value: 91.89 },
     ],
     recentRaces: [
-      { trackName: 'Watkins Glen', date: '2024-07-20', startPosition: 2, finishPosition: 1, incidents: 0, strengthOfField: 5100, lapsLed: 25, fastestLap: '1:42.101', car: 'Dallara P217', avgLapTime: '1:42.800' },
-      { trackName: 'Road America', date: '2024-07-13', startPosition: 1, finishPosition: 1, incidents: 0, strengthOfField: 5000, lapsLed: 30, fastestLap: '2:00.050', car: 'Dallara P217', avgLapTime: '2:00.700' },
-      { trackName: 'VIR', date: '2024-07-06', startPosition: 4, finishPosition: 2, incidents: 1, strengthOfField: 5250, lapsLed: 0, fastestLap: '1:55.555', car: 'Mercedes-AMG GT3', avgLapTime: '1:56.200' },
-      { trackName: 'Daytona (Road)', date: '2024-06-29', startPosition: 10, finishPosition: 15, incidents: 8, strengthOfField: 4900, lapsLed: 0, fastestLap: '1:35.123', car: 'Mercedes-AMG GT3', avgLapTime: '1:36.000' },
+      { trackName: 'Watkins Glen', date: '2024-07-20', startPosition: 2, finishPosition: 1, incidents: 0, strengthOfField: 5100, lapsLed: 25, fastestLap: '1:42.101', car: 'Dallara P217', avgLapTime: '1:42.800', iratingChange: 110, safetyRatingChange: '+0.12' },
+      { trackName: 'Road America', date: '2024-07-13', startPosition: 1, finishPosition: 1, incidents: 0, strengthOfField: 5000, lapsLed: 30, fastestLap: '2:00.050', car: 'Dallara P217', avgLapTime: '2:00.700', iratingChange: 95, safetyRatingChange: '+0.18' },
+      { trackName: 'VIR', date: '2024-07-06', startPosition: 4, finishPosition: 2, incidents: 1, strengthOfField: 5250, lapsLed: 0, fastestLap: '1:55.555', car: 'Mercedes-AMG GT3', avgLapTime: '1:56.200', iratingChange: 65, safetyRatingChange: '+0.03' },
+      { trackName: 'Daytona (Road)', date: '2024-06-29', startPosition: 10, finishPosition: 15, incidents: 8, strengthOfField: 4900, lapsLed: 0, fastestLap: '1:35.123', car: 'Mercedes-AMG GT3', avgLapTime: '1:36.000', iratingChange: -88, safetyRatingChange: '-0.35' },
     ]
   },
 };

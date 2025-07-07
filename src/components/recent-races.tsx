@@ -48,6 +48,13 @@ export function RecentRaces({ races }: RecentRacesProps) {
     if (change < 0) return <span className="flex items-center gap-1 text-red-500"><ChevronsDown className="w-4 h-4" /> {change}</span>;
     return <span className="text-muted-foreground">-</span>;
   };
+  
+  const formatChange = (change: number | string, isRating: boolean = false) => {
+    const value = typeof change === 'string' ? parseFloat(change) : change;
+    if (value > 0) return <span className="flex items-center justify-end gap-1 text-green-500">+{isRating ? value.toFixed(2) : value}</span>;
+    if (value < 0) return <span className="flex items-center justify-end gap-1 text-red-500">{isRating ? value.toFixed(2) : value}</span>;
+    return <span className="text-muted-foreground text-right">{isRating ? '0.00' : '-'}</span>;
+  };
 
   return (
     <>
@@ -67,6 +74,8 @@ export function RecentRaces({ races }: RecentRacesProps) {
                 <TableHead className="text-right">Finish</TableHead>
                 <TableHead className="text-right">Incidents</TableHead>
                 <TableHead className="text-right">SOF</TableHead>
+                <TableHead className="text-right">iRating +/-</TableHead>
+                <TableHead className="text-right">SR +/-</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -82,6 +91,8 @@ export function RecentRaces({ races }: RecentRacesProps) {
                   <TableCell className="text-right">{race.finishPosition}</TableCell>
                   <TableCell className="text-right">{race.incidents}</TableCell>
                   <TableCell className="text-right">{race.strengthOfField.toLocaleString()}</TableCell>
+                  <TableCell className="text-right">{formatChange(race.iratingChange)}</TableCell>
+                  <TableCell className="text-right">{formatChange(race.safetyRatingChange, true)}</TableCell>
                 </TableRow>
               ))}
             </TableBody>

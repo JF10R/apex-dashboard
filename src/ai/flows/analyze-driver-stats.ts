@@ -53,6 +53,7 @@ const prompt = ai.definePrompt({
     *   **Performance vs. Field:** Compare the driver's finishing position to their starting position. A positive gain is a sign of good racecraft.
     *   **Incidents & Safety:** Analyze the number of incidents ('incidents'). In iRacing, incidents negatively impact Safety Rating. A high number of incidents, especially in races where the driver finished poorly, indicates a need to focus on cleaner driving.
     *   **Context is Key:** Consider the 'strengthOfField' (SOF). A good result in a high SOF race is more impressive than in a low SOF race. Conversely, high incidents in a high SOF race might be more understandable.
+    *   **Rating Changes:** Look at the \`iratingChange\` and \`safetyRatingChange\` for each race. A large positive iRating gain confirms a strong performance against the field. A negative Safety Rating change, even with few incidents, might point to aggressive but fair racing, but when combined with high incidents, it's a clear area for improvement.
 
 3.  **Synthesize and Advise:**
     *   Based on your analysis, provide a concise summary of the driver's key **strengths** (e.g., "Consistent iRating growth," "Excellent racecraft, often gaining positions") and **weaknesses** (e.g., "Struggles with consistency, indicated by fluctuating iRating," "High incident counts suggest a need for better risk assessment").
