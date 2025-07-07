@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useTransition } from 'react';
-import { Rocket, ShieldCheck, Timer, TrendingUp, Bot, Loader2 } from 'lucide-react';
+import { useState, useTransition, useMemo } from 'react';
+import { Bot, Loader2, Rocket, ShieldCheck, Timer, TrendingUp } from 'lucide-react';
 import { type Driver } from '@/lib/mock-data';
 import { StatCard } from './stat-card';
 import { HistoryChart } from './history-chart';
@@ -9,10 +9,13 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { getAnalysis } from '@/app/actions';
 import { Skeleton } from './ui/skeleton';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { RecentRaces } from './recent-races';
 
 export default function DriverDashboard({ driver }: { driver: Driver }) {
   const [isPending, startTransition] = useTransition();
   const [analysis, setAnalysis] = useState<{ summary: string | null; error: string | null } | null>(null);
+  const [timeRange, setTimeRange] = useState('all');
 
   const handleAnalysis = () => {
     startTransition(async () => {
@@ -27,6 +30,19 @@ export default function DriverDashboard({ driver }: { driver: Driver }) {
     return `${minutes}:${remainingSeconds.padStart(6, '0')}`;
   };
 
+  const filteredData = useMemo(() => {
+    const sliceData = (data: any[]) => {
+      if (timeRange === 'all') return data;
+      return data.slice(-parseInt(timeRange, 10));
+    };
+
+    return {
+      iratingHistory: sliceData(driver.iratingHistory),
+      safetyRatingHistory: sliceData(driver.safetyRatingHistory),
+      racePaceHistory: sliceData(driver.racePaceHistory),
+    };
+  }, [driver, timeRange]);
+
   return (
     <div className="flex flex-col gap-8">
       <section>
@@ -39,35 +55,48 @@ export default function DriverDashboard({ driver }: { driver: Driver }) {
       </section>
       
       <section>
-        <h2 className="text-2xl font-headline font-bold tracking-tight mb-4">Performance History</h2>
-        <div className="grid gap-4 md:grid-cols-1 lg:grid-cols-2">
-          <HistoryChart
-            data={driver.iratingHistory}
-            title="iRating History"
-            description="Progression over the last 7 months."
-            dataKey="value"
-            color="--primary"
-            yAxisFormatter={(value) => value.toLocaleString()}
-          />
-          <HistoryChart
-            data={driver.safetyRatingHistory}
-            title="Safety Rating History"
-            description="Progression over the last 7 months."
-            dataKey="value"
-            color="--chart-2"
-            yAxisFormatter={(value) => value.toFixed(2)}
-          />
-          <div className="lg:col-span-2">
-            <HistoryChart
-              data={driver.racePaceHistory}
-              title="Race Pace History"
-              description="Average lap time progression (lower is better)."
-              dataKey="value"
-              color="--chart-4"
-              yAxisFormatter={formatRacePace}
-            />
+        <Tabs defaultValue="all" onValueChange={setTimeRange} className="w-full">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-2xl font-headline font-bold tracking-tight">Performance History</h2>
+            <TabsList>
+              <TabsTrigger value="3">3 Months</TabsTrigger>
+              <TabsTrigger value="6">6 Months</TabsTrigger>
+              <TabsTrigger value="all">All Time</TabsTrigger>
+            </TabsList>
           </div>
-        </div>
+          <div className="grid gap-4 md:grid-cols-1 lg:grid-cols-2">
+            <HistoryChart
+              data={filteredData.iratingHistory}
+              title="iRating History"
+              description="Progression over the selected period."
+              dataKey="value"
+              color="--primary"
+              yAxisFormatter={(value) => value.toLocaleString()}
+            />
+            <HistoryChart
+              data={filteredData.safetyRatingHistory}
+              title="Safety Rating History"
+              description="Progression over the selected period."
+              dataKey="value"
+              color="--chart-2"
+              yAxisFormatter={(value) => value.toFixed(2)}
+            />
+            <div className="lg:col-span-2">
+              <HistoryChart
+                data={filteredData.racePaceHistory}
+                title="Race Pace History"
+                description="Average lap time progression (lower is better)."
+                dataKey="value"
+                color="--chart-4"
+                yAxisFormatter={formatRacePace}
+              />
+            </div>
+          </div>
+        </Tabs>
+      </section>
+
+      <section>
+        <RecentRaces races={driver.recentRaces} />
       </section>
 
       <section>
@@ -76,7 +105,7 @@ export default function DriverDashboard({ driver }: { driver: Driver }) {
           <CardHeader>
             <CardTitle className="flex items-center gap-2 font-headline"><Bot className="w-5 h-5" /> AI-Powered Analysis</CardTitle>
             <CardDescription>
-              Get an AI-generated summary of this driver's strengths and weaknesses based on their historical data.
+              Get an AI-generated summary of this driver's strengths and weaknesses based on their historical data and recent races.
             </CardDescription>
           </CardHeader>
           <CardContent>

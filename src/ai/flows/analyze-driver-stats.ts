@@ -16,6 +16,7 @@ const AnalyzeDriverStatsInputSchema = z.object({
   iratingHistory: z.string().describe('The iRating history of the driver as a stringified JSON array of numbers.'),
   safetyRatingHistory: z.string().describe('The Safety Rating history of the driver as a stringified JSON array of numbers.'),
   racePaceHistory: z.string().describe('The Race Pace history of the driver as a stringified JSON array of numbers.'),
+  recentRaces: z.string().describe('The recent race results for the driver as a stringified JSON array of objects.'),
 });
 export type AnalyzeDriverStatsInput = z.infer<typeof AnalyzeDriverStatsInputSchema>;
 
@@ -38,8 +39,9 @@ Driver Name: {{{driverName}}}
 iRating History: {{{iratingHistory}}}
 Safety Rating History: {{{safetyRatingHistory}}}
 Race Pace History: {{{racePaceHistory}}}
+Recent Races: {{{recentRaces}}}
 
-Analyze these stats and provide a summary of the driver's performance, identifying key strengths and weaknesses based on the historical data provided. Focus on trends and patterns over time.
+Analyze these stats and provide a summary of the driver's performance, identifying key strengths and weaknesses based on the historical data and recent race results provided. Focus on trends, patterns over time, and recent race performance (like finishing compared to starting position, and number of incidents).
 `,
 });
 

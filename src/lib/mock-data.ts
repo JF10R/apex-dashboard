@@ -3,6 +3,15 @@ export interface HistoryPoint {
   value: number;
 }
 
+export interface RecentRace {
+  trackName: string;
+  date: string;
+  startPosition: number;
+  finishPosition: number;
+  incidents: number;
+  strengthOfField: number;
+}
+
 export interface Driver {
   id: number;
   name: string;
@@ -12,6 +21,7 @@ export interface Driver {
   iratingHistory: HistoryPoint[];
   safetyRatingHistory: HistoryPoint[];
   racePaceHistory: HistoryPoint[]; // As seconds for charting
+  recentRaces: RecentRace[];
 }
 
 export const DRIVER_DATA: Record<string, Driver> = {
@@ -49,6 +59,12 @@ export const DRIVER_DATA: Record<string, Driver> = {
       { month: 'Jun', value: 92.5 },
       { month: 'Jul', value: 92.1 },
     ],
+    recentRaces: [
+      { trackName: 'Silverstone', date: '2024-07-21', startPosition: 5, finishPosition: 3, incidents: 2, strengthOfField: 4500 },
+      { trackName: 'Spa-Francorchamps', date: '2024-07-14', startPosition: 8, finishPosition: 6, incidents: 0, strengthOfField: 4800 },
+      { trackName: 'Monza', date: '2024-07-07', startPosition: 3, finishPosition: 5, incidents: 4, strengthOfField: 4200 },
+      { trackName: 'Red Bull Ring', date: '2024-06-30', startPosition: 12, finishPosition: 10, incidents: 1, strengthOfField: 3900 },
+    ]
   },
   'Lando Norris': {
     id: 4,
@@ -84,5 +100,11 @@ export const DRIVER_DATA: Record<string, Driver> = {
       { month: 'Jun', value: 92.0 },
       { month: 'Jul', value: 91.89 },
     ],
+    recentRaces: [
+      { trackName: 'Watkins Glen', date: '2024-07-20', startPosition: 2, finishPosition: 1, incidents: 0, strengthOfField: 5100 },
+      { trackName: 'Road America', date: '2024-07-13', startPosition: 1, finishPosition: 1, incidents: 0, strengthOfField: 5000 },
+      { trackName: 'VIR', date: '2024-07-06', startPosition: 4, finishPosition: 2, incidents: 1, strengthOfField: 5250 },
+      { trackName: 'Daytona (Road)', date: '2024-06-29', startPosition: 10, finishPosition: 15, incidents: 8, strengthOfField: 4900 },
+    ]
   },
 };

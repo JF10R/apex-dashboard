@@ -10,6 +10,7 @@ export async function getAnalysis(driver: Driver) {
       iratingHistory: JSON.stringify(driver.iratingHistory.map(d => d.value)),
       safetyRatingHistory: JSON.stringify(driver.safetyRatingHistory.map(d => d.value)),
       racePaceHistory: JSON.stringify(driver.racePaceHistory.map(d => d.value)),
+      recentRaces: JSON.stringify(driver.recentRaces),
     });
     return { summary: result.summary, error: null };
   } catch (e) {
