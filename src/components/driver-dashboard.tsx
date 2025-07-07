@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useTransition, useMemo, useEffect, useCallback } from 'react';
-import { Bot, Loader2, Rocket, ShieldCheck, Timer, TrendingUp } from 'lucide-react';
+import { Bot, Loader2, ShieldCheck, Timer, TrendingUp } from 'lucide-react';
 import { type Driver, type HistoryPoint } from '@/lib/mock-data';
 import { StatCard } from './stat-card';
 import { HistoryChart } from './history-chart';
@@ -11,8 +11,8 @@ import { getAnalysis } from '@/app/actions';
 import { Skeleton } from './ui/skeleton';
 import { RecentRaces } from './recent-races';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { Separator } from './ui/separator';
 import { lapTimeToSeconds } from '@/lib/utils';
+import SeriesPerformanceSummary from './series-performance-summary';
 
 export default function DriverDashboard({ driver }: { driver: Driver }) {
   const [isPending, startTransition] = useTransition();
@@ -151,6 +151,32 @@ export default function DriverDashboard({ driver }: { driver: Driver }) {
     return "Average lap time progression (lower is better)."
   }, [track, car]);
 
+  const seriesPerformanceStats = useMemo(() => {
+    if (filteredRaces.length === 0) {
+      return [];
+    }
+
+    const statsBySeries = filteredRaces.reduce((acc, race) => {
+      const seriesName = race.car;
+      if (!acc[seriesName]) {
+        acc[seriesName] = {
+          car: seriesName,
+          raceCount: 0,
+          totalIRatingChange: 0,
+          totalSRChange: 0,
+        };
+      }
+
+      acc[seriesName].raceCount += 1;
+      acc[seriesName].totalIRatingChange += race.iratingChange;
+      acc[seriesName].totalSRChange += parseFloat(race.safetyRatingChange) || 0;
+
+      return acc;
+    }, {} as Record<string, { car: string; raceCount: number; totalIRatingChange: number; totalSRChange: number }>);
+
+    return Object.values(statsBySeries).sort((a, b) => b.raceCount - a.raceCount);
+  }, [filteredRaces]);
+
   return (
     <div className="flex flex-col gap-8">
       <section>
@@ -243,6 +269,10 @@ export default function DriverDashboard({ driver }: { driver: Driver }) {
             <RecentRaces races={filteredRaces} />
           </CardContent>
         </Card>
+      </section>
+      
+      <section>
+        <SeriesPerformanceSummary seriesStats={seriesPerformanceStats} />
       </section>
 
       <section>
