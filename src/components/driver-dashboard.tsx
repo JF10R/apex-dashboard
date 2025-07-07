@@ -11,11 +11,17 @@ import { getAnalysis } from '@/app/actions';
 import { Skeleton } from './ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { RecentRaces } from './recent-races';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
+import { Separator } from './ui/separator';
 
 export default function DriverDashboard({ driver }: { driver: Driver }) {
   const [isPending, startTransition] = useTransition();
   const [analysis, setAnalysis] = useState<{ summary: string | null; error: string | null } | null>(null);
   const [timeRange, setTimeRange] = useState('all');
+
+  const [category, setCategory] = useState('all');
+  const [year, setYear] = useState('all');
+  const [season, setSeason] = useState('all');
 
   const handleAnalysis = () => {
     startTransition(async () => {
@@ -29,6 +35,22 @@ export default function DriverDashboard({ driver }: { driver: Driver }) {
     const remainingSeconds = (seconds % 60).toFixed(3);
     return `${minutes}:${remainingSeconds.padStart(6, '0')}`;
   };
+
+  const { years, seasons, categories } = useMemo(() => {
+    const years = ['all', ...Array.from(new Set(driver.recentRaces.map(r => r.year.toString()))).sort((a,b) => Number(b) - Number(a))];
+    const seasons = ['all', ...Array.from(new Set(driver.recentRaces.map(r => r.season)))];
+    const categories = ['all', ...Array.from(new Set(driver.recentRaces.map(r => r.category)))];
+    return { years, seasons, categories };
+  }, [driver]);
+
+  const filteredRaces = useMemo(() => {
+    return driver.recentRaces.filter(race => {
+      const categoryMatch = category === 'all' || race.category === category;
+      const yearMatch = year === 'all' || race.year.toString() === year;
+      const seasonMatch = season === 'all' || race.season === season;
+      return categoryMatch && yearMatch && seasonMatch;
+    });
+  }, [driver.recentRaces, category, year, season]);
 
   const filteredData = useMemo(() => {
     const sliceData = (data: any[]) => {
@@ -96,7 +118,39 @@ export default function DriverDashboard({ driver }: { driver: Driver }) {
       </section>
 
       <section>
-        <RecentRaces races={driver.recentRaces} />
+         <Card>
+          <CardHeader>
+            <CardTitle className="font-headline">Recent Races</CardTitle>
+            <CardDescription>Filter and review recent race performance. Click a race for full details.</CardDescription>
+          </CardHeader>
+          <CardContent className='flex flex-col gap-4'>
+            <div className="flex flex-col md:flex-row gap-4">
+              <div className='flex-1'>
+                <label className='text-sm font-medium'>Category</label>
+                <Select value={category} onValueChange={setCategory}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>{categories.map(c => <SelectItem key={c} value={c}>{c === 'all' ? 'All Categories' : c}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+              <div className='flex-1'>
+                <label className='text-sm font-medium'>Year</label>
+                <Select value={year} onValueChange={setYear}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>{years.map(y => <SelectItem key={y} value={y}>{y === 'all' ? 'All Years' : y}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+               <div className='flex-1'>
+                <label className='text-sm font-medium'>Season</label>
+                <Select value={season} onValueChange={setSeason}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>{seasons.map(s => <SelectItem key={s} value={s}>{s === 'all' ? 'All Seasons' : s}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+            </div>
+            <Separator />
+            <RecentRaces races={filteredRaces} />
+          </CardContent>
+        </Card>
       </section>
 
       <section>
