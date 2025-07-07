@@ -1,20 +1,28 @@
 'use client';
 
 import { useState, useTransition, useMemo } from 'react';
-import { Bot, Loader2, ShieldCheck, TrendingUp, User, Users } from 'lucide-react';
+import { Bot, Loader2, ShieldCheck, TrendingUp, Users } from 'lucide-react';
 import { type Driver, type RecentRace } from '@/lib/mock-data';
-import { StatCard } from './stat-card';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { getComparisonAnalysis } from '@/app/actions';
 import { Skeleton } from './ui/skeleton';
 import { ComparisonHistoryChart } from './comparison-history-chart';
 import CommonRacesTable from './common-races-table';
+import { Separator } from './ui/separator';
 
 interface CommonRace {
   raceA: RecentRace;
   raceB: RecentRace;
 }
+
+const TaleOfTheTapeStat = ({ label, valueA, valueB, highlight }: { label: string; valueA: string | number; valueB: string | number; highlight: 'A' | 'B' | 'NONE' }) => (
+  <div className="grid grid-cols-3 items-center text-center">
+    <div className={`text-lg font-bold ${highlight === 'A' ? 'text-primary' : ''}`}>{valueA}</div>
+    <div className="text-sm text-muted-foreground">{label}</div>
+    <div className={`text-lg font-bold ${highlight === 'B' ? 'text-accent' : ''}`}>{valueB}</div>
+  </div>
+);
 
 export default function DriverComparisonDashboard({ driverA, driverB }: { driverA: Driver; driverB: Driver }) {
   const [isPending, startTransition] = useTransition();
@@ -48,17 +56,27 @@ export default function DriverComparisonDashboard({ driverA, driverB }: { driver
               <Users className="w-6 h-6"/>
               Tale of the Tape
             </CardTitle>
-             <div className="grid grid-cols-2 gap-4 w-full items-center pt-2">
-                <h3 className="text-lg font-bold text-primary text-center">{driverA.name}</h3>
-                <h3 className="text-lg font-bold text-accent text-center">{driverB.name}</h3>
-            </div>
           </CardHeader>
-          <CardContent className="p-0">
-            <div className="grid md:grid-cols-2">
-                <StatCard title={driverA.name} value={driverA.currentIRating.toLocaleString('en-US')} icon={TrendingUp} description="iRating" />
-                <StatCard title={driverB.name} value={driverB.currentIRating.toLocaleString('en-US')} icon={TrendingUp} description="iRating" />
-                 <StatCard title={driverA.name} value={driverA.currentSafetyRating} icon={ShieldCheck} description="Safety Rating" />
-                <StatCard title={driverB.name} value={driverB.currentSafetyRating} icon={ShieldCheck} description="Safety Rating" />
+          <CardContent className="space-y-4">
+             <div className="grid grid-cols-[1fr_auto_1fr] gap-4 w-full items-center pt-2">
+                <h3 className="text-xl font-bold text-primary text-center">{driverA.name}</h3>
+                <div className="text-sm text-muted-foreground font-bold">VS</div>
+                <h3 className="text-xl font-bold text-accent text-center">{driverB.name}</h3>
+            </div>
+            <Separator />
+            <div className="space-y-2">
+              <TaleOfTheTapeStat
+                label="iRating"
+                valueA={driverA.currentIRating.toLocaleString('en-US')}
+                valueB={driverB.currentIRating.toLocaleString('en-US')}
+                highlight={driverA.currentIRating > driverB.currentIRating ? 'A' : 'B'}
+              />
+              <TaleOfTheTapeStat
+                label="Safety Rating"
+                valueA={driverA.currentSafetyRating}
+                valueB={driverB.currentSafetyRating}
+                highlight={'NONE'}
+              />
             </div>
           </CardContent>
         </Card>

@@ -1,6 +1,19 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
+import { Orbitron, Inter } from 'next/font/google';
+
+const fontHeadline = Orbitron({
+  subsets: ['latin'],
+  weight: ['700'],
+  variable: '--font-headline',
+});
+
+const fontBody = Inter({
+  subsets: ['latin'],
+  variable: '--font-body',
+});
+
 
 export const metadata: Metadata = {
   title: 'Apex Stats',
@@ -14,12 +27,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="dark">
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link href="https://fonts.googleapis.com/css2?family=Inter&display=swap" rel="stylesheet" />
-      </head>
-      <body className="font-body antialiased min-h-screen bg-background text-foreground">
+      <body className={`${fontHeadline.variable} ${fontBody.variable} font-body antialiased min-h-screen bg-background text-foreground`}>
         {children}
         <Toaster />
       </body>

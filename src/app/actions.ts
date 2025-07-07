@@ -4,7 +4,27 @@ import { analyzeDriverStats } from '@/ai/flows/analyze-driver-stats';
 import { compareDrivers } from '@/ai/flows/compare-drivers-flow';
 import type { Driver } from '@/lib/mock-data';
 
+/**
+ * TODO: Integrate the real iRacing API here.
+ *
+ * This file contains the Server Actions that power the AI analysis features.
+ * Currently, they use mock data from `@/lib/mock-data`. To connect your app
+ * to the real iRacing API, you'll need to:
+ *
+ * 1. Initialize your iRacing API client (e.g., from the `iracing-api` package)
+ *    in a separate service file (e.g., `src/services/iracing.ts`).
+ *
+ * 2. In the functions below, replace the mock `driver` object with data fetched
+ *    from your iRacing API client. You'll need to fetch the driver's stats,
+ *    historical data, and recent race results.
+ *
+ * 3. Adapt the fetched data to match the schema expected by the Genkit flows
+ *    (`AnalyzeDriverStatsInput` and `CompareDriversInput`).
+ */
+
 export async function getAnalysis(driver: Driver) {
+  // TODO: Replace the 'driver' parameter with a call to your iRacing API
+  // to fetch live data for a given driver ID or name.
   try {
     const result = await analyzeDriverStats({
       driverName: driver.name,
@@ -22,6 +42,8 @@ export async function getAnalysis(driver: Driver) {
 }
 
 export async function getComparisonAnalysis(driverA: Driver, driverB: Driver) {
+  // TODO: Replace the 'driverA' and 'driverB' parameters with calls to your
+  // iRacing API to fetch live data for the two drivers being compared.
   try {
     const result = await compareDrivers({
       driverA: {
