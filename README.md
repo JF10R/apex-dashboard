@@ -43,15 +43,14 @@ Apex Stats is a modern, data-driven web application designed to analyze and visu
 
 ## Connecting to the iRacing API
 
-By default, Apex Stats uses mock data. To connect it to the live iRacing API, follow these steps.
+Apex Stats is fully wired to connect to the iRacing API for live data. Follow these steps to enable it.
 
-### 1. Environment Variables
+### 1. Set Environment Variables
 
 The application requires your iRacing credentials to make API calls.
 
-1. Create a new file named `.env.local` in the root of the project.
-2. Copy the contents of `.env.example` into your new `.env.local` file.
-3. Replace the placeholder values with your actual iRacing email and password.
+1.  Create a new file named `.env.local` in the root of the project.
+2.  Add your iRacing email and password to this file:
 
 ```.env.local
 # iRacing credentials
@@ -59,24 +58,20 @@ IRACING_EMAIL=your_iracing_email@example.com
 IRACING_PASSWORD=your_iracing_password
 ```
 
-### 2. Install the iRacing API Client
+### 2. Install the iRacing API Package
 
-This project is set up to use the [`iracing-api`](https://github.com/TheMich4/iracing-api) package. To use it, you will need to install it manually by running the following command:
+Due to potential environment conflicts, the `iracing-api` package is not listed in `package.json`. You must install it manually.
 
 ```bash
 npm install iracing-api
 ```
 
-### 3. Update Server Actions
+### 3. Enable Live Data in the Code
 
-The core logic for fetching data and passing it to the AI flows is located in `src/app/actions.ts`. This file currently uses mock data. You need to replace the mock data logic with calls to the iRacing API.
+To prevent build errors, the code that calls the iRacing API is currently disabled. You need to re-enable it.
 
-Open `src/app/actions.ts` and modify the `getAnalysis` and `getComparisonAnalysis` functions. The comments in the file will guide you on where to replace the mock `driver` objects with data fetched from your iRacing API client.
+1.  Open the file `src/lib/iracing-api.ts`.
+2.  **Delete or comment out** the "STUBBED IMPLEMENTATION" block.
+3.  **Uncomment** the entire "LIVE IMPLEMENTATION" block at the bottom of the file.
 
-The process will look something like this:
-
-1. **Import your API functions:** You'll need functions to get a driver's stats, lookup their ID, and fetch their race history.
-2. **Fetch Live Data:** In the actions, call your API functions to get the data for the requested driver(s).
-3. **Map Data to Schema:** The most critical step is to transform the data you receive from the iRacing API into the exact structure that the Genkit AI flows expect (`AnalyzeDriverStatsInput` and `CompareDriversInput`). The schemas are defined in the flow files (`src/ai/flows/`).
-
-This step is crucial because the AI prompts are engineered to understand the specific data structure provided by the mock data. You must ensure your live data matches this structure for the analysis to work correctly.
+After completing these steps, restart your development server (`npm run dev`). The application will now fetch and display live data from the iRacing API.

@@ -1,42 +1,25 @@
 'use server'
 
-// NOTE: The live iRacing API integration has been temporarily disabled 
-// to resolve a recurring installation error in this development environment.
-// To re-enable live data, please follow these steps:
-// 1. Run `npm install iracing-api` in your terminal.
-// 2. Delete the stub functions directly below this comment block.
-// 3. Uncomment the full code block at the bottom of this file.
-// 4. Ensure your .env.local file has your iRacing credentials.
-
-import {
-  type Driver,
-  type RecentRace,
-} from '@/lib/mock-data'
-
-export const searchDriversByName = async (
-  query: string
-): Promise<{ name: string; custId: number }[]> => {
-  console.warn("Live iRacing API call for 'searchDriversByName' is disabled.");
-  return [];
-}
-
-export const getRaceResultData = async (
-  subsessionId: number
-): Promise<RecentRace | null> => {
-  console.warn("Live iRacing API call for 'getRaceResultData' is disabled.");
-  return null;
-}
-
-export const getDriverData = async (custId: number): Promise<Driver | null> => {
-  console.warn("Live iRacing API call for 'getDriverData' is disabled.");
-  return null;
-}
-
-
 /*
-// --- UNCOMMENT THIS ENTIRE BLOCK TO RE-ENABLE LIVE IRACING API DATA ---
+IMPORTANT: iRACING API CONNECTION
+This file is designed to connect to the live iRacing API. However, due to a
+persistent issue with installing the 'iracing-api' package in the current
+development environment, the live API calls have been temporarily disabled
+to ensure the application can build and run.
 
-import { iRacingAPI } from 'iracing-api'
+To enable the live iRacing API:
+1. Manually install the package in your terminal:
+   npm install iracing-api
+
+2. Uncomment the "LIVE IMPLEMENTATION" block of code at the bottom of this file.
+
+3. Comment out or delete the "STUBBED IMPLEMENTATION" block.
+
+4. Ensure your iRacing credentials are in a .env.local file:
+   IRACING_EMAIL=your_email@example.com
+   IRACING_PASSWORD=your_password
+*/
+
 import {
   type Driver,
   type RecentRace,
@@ -45,8 +28,44 @@ import {
   type RaceCategory,
   type Lap,
 } from '@/lib/mock-data'
+// import { iRacingAPI } from 'iracing-api'
 
-// This will be null on the client-side, but that's okay because this file is 'use server'
+
+// ##################################################################
+// #                  STUBBED IMPLEMENTATION                        #
+// ##################################################################
+// This code returns empty data to prevent build errors.
+// Comment this out and uncomment the live implementation below.
+
+export const searchDriversByName = async (
+  query: string
+): Promise<{ name: string; custId: number }[]> => {
+  console.warn('[STUB] searchDriversByName called. Returning empty array. Uncomment live API code in src/lib/iracing-api.ts to enable.');
+  return []
+}
+
+export const getRaceResultData = async (
+  subsessionId: number
+): Promise<RecentRace | null> => {
+  console.warn('[STUB] getRaceResultData called. Returning null. Uncomment live API code in src/lib/iracing-api.ts to enable.');
+  return null;
+}
+
+export const getDriverData = async (custId: number): Promise<Driver | null> => {
+  console.warn('[STUB] getDriverData called. Returning null. Uncomment live API code in src/lib/iracing-api.ts to enable.');
+  return null
+}
+// ##################################################################
+// #                END STUBBED IMPLEMENTATION                      #
+// ##################################################################
+
+
+// ##################################################################
+// #                   LIVE IMPLEMENTATION                          #
+// ##################################################################
+// Uncomment the code below to connect to the live iRacing API.
+
+/*
 const email = process.env.IRACING_EMAIL ?? null
 const password = process.env.IRACING_PASSWORD ?? null
 
@@ -154,7 +173,8 @@ export const getRaceResultData = async (
 
         const avgIncidents = participants.reduce((acc, p) => acc + p.incidents, 0) / participants.length;
         const validLaps = participants.flatMap(p => p.laps.filter(l => !l.invalid && l.time !== 'N/A'));
-        const avgLapTimeMs = validLaps.reduce((acc, l) => acc + (l.time !== 'N/A' ? (parseFloat(l.time.split(':')[0]) * 60 + parseFloat(l.time.split(':')[1])) * 1000 : 0), 0) / validLaps.length;
+        const avgLapTimeMs = validLaps.reduce((acc, l) => acc + (l.time !== 'N/A' ? lapTimeToSeconds(l.time) * 1000 : 0), 0) / validLaps.length;
+
 
         const raceData: RecentRace = {
             id: subsessionId.toString(),
@@ -262,5 +282,7 @@ export const getDriverData = async (custId: number): Promise<Driver | null> => {
     return null
   }
 }
-
 */
+// ##################################################################
+// #                  END LIVE IMPLEMENTATION                       #
+// ##################################################################
