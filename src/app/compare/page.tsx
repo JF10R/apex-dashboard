@@ -9,6 +9,7 @@ import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/ca
 import { DRIVER_DATA, type Driver } from '@/lib/mock-data';
 import DriverComparisonDashboard from '@/components/driver-comparison-dashboard';
 import DriverSearch from '@/components/driver-search';
+import { ThemeToggle } from '@/components/theme-toggle';
 
 function CompareView() {
   const searchParams = useSearchParams();
@@ -32,7 +33,10 @@ function CompareView() {
   };
 
   return (
-    <main className="container mx-auto p-4 md:p-8">
+    <main className="container mx-auto p-4 md:p-8 relative">
+       <div className="absolute top-4 right-4 z-10">
+        <ThemeToggle />
+      </div>
       <div className="mb-6">
         <Button asChild variant="outline" size="sm">
           <Link href="/">

@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
 import { Orbitron, Inter } from 'next/font/google';
+import { ThemeProvider } from '@/components/theme-provider';
 
 const fontHeadline = Orbitron({
   subsets: ['latin'],
@@ -28,8 +29,15 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`${fontHeadline.variable} ${fontBody.variable} font-body antialiased min-h-screen bg-background text-foreground`}>
-        {children}
-        <Toaster />
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          {children}
+          <Toaster />
+        </ThemeProvider>
       </body>
     </html>
   );

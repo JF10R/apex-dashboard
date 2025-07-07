@@ -6,6 +6,7 @@ import { StatCard } from '@/components/stat-card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import RaceResultsTable from '@/components/race-results-table';
+import { ThemeToggle } from '@/components/theme-toggle';
 
 export async function generateStaticParams() {
   const raceIds: { raceId: string }[] = [];
@@ -65,7 +66,10 @@ export default function RaceDetailsPage({ params }: { params: { raceId: string }
   const overallFastestLap = getOverallFastestLap(race.participants);
 
   return (
-    <main className="container mx-auto p-4 md:p-8 animate-in fade-in duration-500">
+    <main className="container mx-auto p-4 md:p-8 animate-in fade-in duration-500 relative">
+      <div className="absolute top-4 right-4 z-10">
+        <ThemeToggle />
+      </div>
       <div className="mb-6">
         <Button asChild variant="outline" size="sm">
           <Link href="/">
