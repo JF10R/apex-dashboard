@@ -16,6 +16,10 @@ export default function Home() {
     setSearchedDriver(driver);
   };
 
+  const compareHref = searchedDriver
+    ? `/compare?driverA=${encodeURIComponent(searchedDriver.name)}`
+    : '/compare';
+
   return (
     <main className="container mx-auto p-4 md:p-8">
       <header className="flex flex-col items-center text-center mb-8">
@@ -30,7 +34,7 @@ export default function Home() {
           initialDriver={searchedDriver}
         />
         <Button variant="outline" asChild>
-          <Link href="/compare">
+          <Link href={compareHref}>
             <Users />
             Compare
           </Link>

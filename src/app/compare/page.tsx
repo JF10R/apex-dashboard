@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, Suspense } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { ArrowLeft, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -9,8 +10,17 @@ import { DRIVER_DATA, type Driver } from '@/lib/mock-data';
 import DriverComparisonDashboard from '@/components/driver-comparison-dashboard';
 import DriverSearch from '@/components/driver-search';
 
-export default function ComparePage() {
-  const [driverA, setDriverA] = useState<Driver | null>(() => DRIVER_DATA['Daniel Ricciardo']);
+function CompareView() {
+  const searchParams = useSearchParams();
+
+  const [driverA, setDriverA] = useState<Driver | null>(() => {
+    const driverAName = searchParams.get('driverA');
+    if (driverAName && DRIVER_DATA[driverAName]) {
+      return DRIVER_DATA[driverAName];
+    }
+    return DRIVER_DATA['Daniel Ricciardo'];
+  });
+
   const [driverB, setDriverB] = useState<Driver | null>(() => DRIVER_DATA['Lando Norris']);
 
   const handleSelectA = (driver: Driver | null) => {
@@ -58,4 +68,12 @@ export default function ComparePage() {
       </div>
     </main>
   );
+}
+
+export default function ComparePage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <CompareView />
+    </Suspense>
+  )
 }
