@@ -23,7 +23,6 @@ export default function DriverDashboard({ driver }: { driver: Driver }) {
   const [season, setSeason] = useState('all');
   const [track, setTrack] = useState('all');
   const [car, setCar] = useState('all');
-  const [availableSeasons, setAvailableSeasons] = useState<string[]>([]);
 
   const handleAnalysis = () => {
     startTransition(async () => {
@@ -39,31 +38,43 @@ export default function DriverDashboard({ driver }: { driver: Driver }) {
     return `${minutes}:${remainingSeconds.padStart(6, '0')}`;
   }, []);
 
-  // Memoize all possible filter values from the full dataset
-  const { allYears, allSeasons, allCategories, allTracks, allCars } = useMemo(() => {
+  // Memoize master lists for filters that don't change
+  const { allYears, allCategories, allSeasons } = useMemo(() => {
     const races = driver.recentRaces;
     const years = ['all', ...Array.from(new Set(races.map(r => r.year.toString()))).sort((a, b) => Number(b) - Number(a))];
-    const seasons = ['all', ...Array.from(new Set(races.map(r => r.season)))];
     const categories = ['all', ...Array.from(new Set(races.map(r => r.category)))];
-    const tracks = ['all', ...Array.from(new Set(races.map(r => r.trackName)))];
-    const cars = ['all', ...Array.from(new Set(races.map(r => r.car)))];
-    return { allYears: years, allSeasons: seasons, allCategories: categories, allTracks: tracks, allCars: cars };
+    const seasons = ['all', ...Array.from(new Set(races.map(r => r.season)))];
+    return { allYears: years, allCategories: categories, allSeasons: seasons };
   }, [driver]);
 
-  // Update available seasons when the selected year changes
-  useEffect(() => {
-    if (year === 'all') {
-      setAvailableSeasons(allSeasons);
-    } else {
-      const seasonsInYear = ['all', ...Array.from(new Set(driver.recentRaces
-        .filter(r => r.year.toString() === year)
-        .map(r => r.season)
-      ))];
-      setAvailableSeasons(seasonsInYear);
-    }
-    // Reset season selection when year changes
-    setSeason('all');
+  // Kaskading Filter Logic
+  const availableSeasons = useMemo(() => {
+    if (year === 'all') return allSeasons;
+    return ['all', ...Array.from(new Set(driver.recentRaces.filter(r => r.year.toString() === year).map(r => r.season)))];
   }, [year, driver.recentRaces, allSeasons]);
+
+  const { availableTracks, availableCars } = useMemo(() => {
+    const relevantRaces = driver.recentRaces.filter(race => {
+      const yearMatch = year === 'all' || race.year.toString() === year;
+      const seasonMatch = season === 'all' || race.season === season;
+      const categoryMatch = category === 'all' || race.category === category;
+      return yearMatch && seasonMatch && categoryMatch;
+    });
+    const tracks = ['all', ...Array.from(new Set(relevantRaces.map(r => r.trackName)))];
+    const cars = ['all', ...Array.from(new Set(relevantRaces.map(r => r.car)))];
+    return { availableTracks: tracks, availableCars: cars };
+  }, [driver.recentRaces, year, season, category]);
+
+  // Reset dependent filters when a broader filter changes
+  useEffect(() => {
+    setSeason('all');
+  }, [year]);
+
+  useEffect(() => {
+    setTrack('all');
+    setCar('all');
+  }, [year, season, category]);
+
 
   const filteredRaces = useMemo(() => {
     return driver.recentRaces.filter(race => {
@@ -208,14 +219,14 @@ export default function DriverDashboard({ driver }: { driver: Driver }) {
                 <label className='text-sm font-medium'>Track</label>
                 <Select value={track} onValueChange={setTrack}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>{allTracks.map(t => <SelectItem key={t} value={t}>{t === 'all' ? 'All Tracks' : t}</SelectItem>)}</SelectContent>
+                  <SelectContent>{availableTracks.map(t => <SelectItem key={t} value={t}>{t === 'all' ? 'All Tracks' : t}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
               <div>
                 <label className='text-sm font-medium'>Car</label>
                 <Select value={car} onValueChange={setCar}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>{allCars.map(c => <SelectItem key={c} value={c}>{c === 'all' ? 'All Cars' : c}</SelectItem>)}</SelectContent>
+                  <SelectContent>{availableCars.map(c => <SelectItem key={c} value={c}>{c === 'all' ? 'All Cars' : c}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
           </CardContent>
