@@ -1,3 +1,9 @@
+export interface Lap {
+  lapNumber: number;
+  time: string;
+  invalid: boolean;
+}
+
 export interface RaceParticipant {
   name: string;
   startPosition: number;
@@ -5,6 +11,7 @@ export interface RaceParticipant {
   incidents: number;
   fastestLap: string;
   irating: number;
+  laps: Lap[];
 }
 
 export interface HistoryPoint {
@@ -83,13 +90,22 @@ export const DRIVER_DATA: Record<string, Driver> = {
         avgRaceIncidents: 3.5,
         avgRaceLapTime: '1:30.800',
         participants: [
-          { name: 'Max Verstappen', startPosition: 1, finishPosition: 1, incidents: 0, fastestLap: '1:29.550', irating: 6200 },
-          { name: 'Charles Leclerc', startPosition: 2, finishPosition: 2, incidents: 1, fastestLap: '1:29.750', irating: 5800 },
-          { name: 'Daniel Ricciardo', startPosition: 5, finishPosition: 3, incidents: 2, fastestLap: '1:29.876', irating: 4850 },
-          { name: 'Sergio Perez', startPosition: 4, finishPosition: 4, incidents: 3, fastestLap: '1:30.100', irating: 4600 },
-          { name: 'Carlos Sainz', startPosition: 3, finishPosition: 5, incidents: 4, fastestLap: '1:30.200', irating: 5100 },
-          { name: 'George Russell', startPosition: 7, finishPosition: 6, incidents: 1, fastestLap: '1:30.300', irating: 5300 },
-          { name: 'Lando Norris', startPosition: 6, finishPosition: 7, incidents: 0, fastestLap: '1:30.150', irating: 5200 },
+          { name: 'Max Verstappen', startPosition: 1, finishPosition: 1, incidents: 0, fastestLap: '1:29.550', irating: 6200, laps: [] },
+          { name: 'Charles Leclerc', startPosition: 2, finishPosition: 2, incidents: 1, fastestLap: '1:29.750', irating: 5800, laps: [] },
+          { name: 'Daniel Ricciardo', startPosition: 5, finishPosition: 3, incidents: 2, fastestLap: '1:29.876', irating: 4850, 
+            laps: [
+              { lapNumber: 1, time: '1:31.500', invalid: false },
+              { lapNumber: 2, time: '1:30.800', invalid: false },
+              { lapNumber: 3, time: '1:30.500', invalid: false },
+              { lapNumber: 4, time: '1:30.100', invalid: true },
+              { lapNumber: 5, time: '1:29.876', invalid: false },
+              { lapNumber: 6, time: '1:30.200', invalid: false },
+            ]
+          },
+          { name: 'Sergio Perez', startPosition: 4, finishPosition: 4, incidents: 3, fastestLap: '1:30.100', irating: 4600, laps: [] },
+          { name: 'Carlos Sainz', startPosition: 3, finishPosition: 5, incidents: 4, fastestLap: '1:30.200', irating: 5100, laps: [] },
+          { name: 'George Russell', startPosition: 7, finishPosition: 6, incidents: 1, fastestLap: '1:30.300', irating: 5300, laps: [] },
+          { name: 'Lando Norris', startPosition: 6, finishPosition: 7, incidents: 0, fastestLap: '1:30.150', irating: 5200, laps: [] },
         ],
       },
       { id: 'race-2', trackName: 'Spa-Francorchamps', date: '2024-07-14', startPosition: 8, finishPosition: 6, incidents: 0, strengthOfField: 4800, lapsLed: 0, fastestLap: '2:01.112', car: 'Porsche 911 GT3 R', avgLapTime: '2:01.950', iratingChange: 42, safetyRatingChange: '+0.15', avgRaceIncidents: 2.1, avgRaceLapTime: '2:02.100', participants: [] },

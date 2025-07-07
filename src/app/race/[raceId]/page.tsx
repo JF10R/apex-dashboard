@@ -3,17 +3,9 @@ import { notFound } from 'next/navigation';
 import { ArrowLeft, Award, ShieldAlert, Timer, Users } from 'lucide-react';
 import { DRIVER_DATA, type RecentRace } from '@/lib/mock-data';
 import { StatCard } from '@/components/stat-card';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import RaceResultsTable from '@/components/race-results-table';
 
 export async function generateStaticParams() {
   const raceIds: { raceId: string }[] = [];
@@ -76,44 +68,7 @@ export default function RaceDetailsPage({ params }: { params: { raceId: string }
       </section>
 
       <section>
-        <Card>
-          <CardHeader>
-            <CardTitle className="font-headline">Full Results</CardTitle>
-            <CardDescription>Detailed results for all participants in this subsession.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {race.participants && race.participants.length > 0 ? (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="text-center w-[50px]">Fin</TableHead>
-                    <TableHead className="text-center w-[50px]">St</TableHead>
-                    <TableHead>Driver</TableHead>
-                    <TableHead className="text-right">Fastest Lap</TableHead>
-                    <TableHead className="text-right">Incidents</TableHead>
-                    <TableHead className="text-right">iRating</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {race.participants.sort((a, b) => a.finishPosition - b.finishPosition).map((p) => (
-                    <TableRow key={p.name}>
-                      <TableCell className="text-center font-bold">{p.finishPosition}</TableCell>
-                      <TableCell className="text-center text-muted-foreground">{p.startPosition}</TableCell>
-                      <TableCell className="font-medium">{p.name}</TableCell>
-                      <TableCell className="text-right font-mono">{p.fastestLap}</TableCell>
-                      <TableCell className="text-right">{p.incidents}</TableCell>
-                      <TableCell className="text-right font-mono">{p.irating.toLocaleString('en-US')}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            ) : (
-              <div className="text-center text-muted-foreground py-8">
-                Full participant data is not available for this race.
-              </div>
-            )}
-          </CardContent>
-        </Card>
+        <RaceResultsTable participants={race.participants} />
       </section>
     </main>
   )
