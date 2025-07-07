@@ -1,5 +1,41 @@
 'use server'
 
+// NOTE: The live iRacing API integration has been temporarily disabled 
+// to resolve a recurring installation error in this development environment.
+// To re-enable live data, please follow these steps:
+// 1. Run `npm install iracing-api` in your terminal.
+// 2. Delete the stub functions directly below this comment block.
+// 3. Uncomment the full code block at the bottom of this file.
+// 4. Ensure your .env.local file has your iRacing credentials.
+
+import {
+  type Driver,
+  type RecentRace,
+} from '@/lib/mock-data'
+
+export const searchDriversByName = async (
+  query: string
+): Promise<{ name: string; custId: number }[]> => {
+  console.warn("Live iRacing API call for 'searchDriversByName' is disabled.");
+  return [];
+}
+
+export const getRaceResultData = async (
+  subsessionId: number
+): Promise<RecentRace | null> => {
+  console.warn("Live iRacing API call for 'getRaceResultData' is disabled.");
+  return null;
+}
+
+export const getDriverData = async (custId: number): Promise<Driver | null> => {
+  console.warn("Live iRacing API call for 'getDriverData' is disabled.");
+  return null;
+}
+
+
+/*
+// --- UNCOMMENT THIS ENTIRE BLOCK TO RE-ENABLE LIVE IRACING API DATA ---
+
 import { iRacingAPI } from 'iracing-api'
 import {
   type Driver,
@@ -63,6 +99,17 @@ const getSeasonFromDate = (date: Date): { year: number, season: string } => {
     const quarter = Math.floor(month / 3) + 1;
     return { year, season: `${year} S${quarter}` };
 }
+
+const lapTimeToSeconds = (time: string): number => {
+  if (!time || !time.includes(':') || !time.includes('.')) return NaN;
+  const parts = time.split(':');
+  const minutes = parseInt(parts[0], 10);
+  const secondsParts = parts[1].split('.');
+  const seconds = parseInt(secondsParts[0], 10);
+  const ms = parseInt(secondsParts[1], 10);
+  if (isNaN(minutes) || isNaN(seconds) || isNaN(ms)) return NaN;
+  return minutes * 60 + seconds + ms / 1000;
+};
 
 
 export const searchDriversByName = async (
@@ -215,3 +262,5 @@ export const getDriverData = async (custId: number): Promise<Driver | null> => {
     return null
   }
 }
+
+*/
