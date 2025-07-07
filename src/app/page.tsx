@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Search, Trophy } from 'lucide-react';
+import { Loader2, Search, Trophy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -12,14 +12,24 @@ export default function Home() {
   const [searchQuery, setSearchQuery] = useState('Daniel Ricciardo');
   const [searchedDriver, setSearchedDriver] = useState<Driver | null>(() => DRIVER_DATA[searchQuery] || null);
   const [error, setError] = useState<string | null>(null);
+  const [isSearching, setIsSearching] = useState(false);
 
-  const handleSearch = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSearch = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (!searchQuery.trim()) return;
+
+    setIsSearching(true);
+    setError(null);
+
+    // This is where you would place your real API call.
+    // For now, we'll simulate a delay and use mock data.
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
     const driverKey = Object.keys(DRIVER_DATA).find(
       (key) => key.toLowerCase() === searchQuery.toLowerCase().trim()
     );
     const driver = driverKey ? DRIVER_DATA[driverKey] : undefined;
-    
+
     if (driver) {
       setSearchedDriver(driver);
       setError(null);
@@ -27,6 +37,7 @@ export default function Home() {
       setSearchedDriver(null);
       setError(`Driver "${searchQuery}" not found. Try "Daniel Ricciardo" or "Lando Norris".`);
     }
+    setIsSearching(false);
   };
 
   return (
@@ -50,12 +61,27 @@ export default function Home() {
               aria-label="Driver Name"
             />
           </div>
-          <Button type="submit">Search</Button>
+          <Button type="submit" disabled={isSearching}>
+            {isSearching && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Search
+          </Button>
         </form>
       </div>
 
       <div className="animate-in fade-in duration-500">
-        {searchedDriver ? (
+        {isSearching ? (
+          <Card className="text-center py-12">
+            <CardHeader>
+              <CardTitle className="flex items-center justify-center gap-2">
+                <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                <span>Searching for driver...</span>
+              </CardTitle>
+              <CardDescription>
+                Please wait while we look up the driver data.
+              </CardDescription>
+            </CardHeader>
+          </Card>
+        ) : searchedDriver ? (
           <DriverDashboard driver={searchedDriver} />
         ) : (
           <Card className="text-center py-12">

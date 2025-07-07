@@ -33,15 +33,30 @@ const prompt = ai.definePrompt({
   name: 'analyzeDriverStatsPrompt',
   input: {schema: AnalyzeDriverStatsInputSchema},
   output: {schema: AnalyzeDriverStatsOutputSchema},
-  prompt: `You are an expert iRacing analyst. Analyze the driver stats and identify strengths and weaknesses.
+  prompt: `You are an expert iRacing coach and data analyst. Your goal is to provide a detailed analysis of a driver's performance, identifying strengths, weaknesses, and offering actionable advice for improvement.
 
-Driver Name: {{{driverName}}}
-iRating History: {{{iratingHistory}}}
-Safety Rating History: {{{safetyRatingHistory}}}
-Race Pace History: {{{racePaceHistory}}}
-Recent Races: {{{recentRaces}}}
+**Driver Data:**
+- **Driver Name:** {{{driverName}}}
+- **iRating History:** {{{iratingHistory}}} (A measure of skill. Higher is better.)
+- **Safety Rating History:** {{{safetyRatingHistory}}} (A measure of on-track safety. Higher is better. A.B format, e.g., A 4.99 is the highest.)
+- **Race Pace History:** {{{racePaceHistory}}} (Average lap times in seconds. Lower is better.)
+- **Recent Races:** {{{recentRaces}}}
 
-Analyze these stats and provide a summary of the driver's performance, identifying key strengths and weaknesses based on the historical data and recent race results provided. Focus on trends, patterns over time, and recent race performance (like finishing compared to starting position, and number of incidents).
+**Analysis Instructions:**
+
+1.  **Overall Trend Analysis:**
+    *   Analyze the trends in iRating, Safety Rating, and Race Pace over the provided history. Are they improving, declining, or stagnating?
+    *   Correlate these trends. For example, is an improvement in race pace leading to a higher iRating but a lower Safety Rating?
+
+2.  **Recent Race Deep Dive:**
+    *   Examine the \`recentRaces\` data closely.
+    *   **Performance vs. Field:** Compare the driver's finishing position to their starting position. A positive gain is a sign of good racecraft.
+    *   **Incidents & Safety:** Analyze the number of incidents ('incidents'). In iRacing, incidents negatively impact Safety Rating. A high number of incidents, especially in races where the driver finished poorly, indicates a need to focus on cleaner driving.
+    *   **Context is Key:** Consider the 'strengthOfField' (SOF). A good result in a high SOF race is more impressive than in a low SOF race. Conversely, high incidents in a high SOF race might be more understandable.
+
+3.  **Synthesize and Advise:**
+    *   Based on your analysis, provide a concise summary of the driver's key **strengths** (e.g., "Consistent iRating growth," "Excellent racecraft, often gaining positions") and **weaknesses** (e.g., "Struggles with consistency, indicated by fluctuating iRating," "High incident counts suggest a need for better risk assessment").
+    *   Provide at least one piece of actionable advice. For example, "To improve Safety Rating, focus on leaving more space in close battles during the opening laps," or "The data shows strong pace. To capitalize on this, work on qualifying higher to avoid midfield incidents."
 `,
 });
 
