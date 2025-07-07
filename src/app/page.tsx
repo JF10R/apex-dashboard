@@ -5,20 +5,20 @@ import Link from 'next/link';
 import { Trophy, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { DRIVER_DATA, type Driver } from '@/lib/mock-data';
+import { type SearchedDriver } from '@/lib/mock-data';
 import DriverDashboard from '@/components/driver-dashboard';
 import DriverSearch from '@/components/driver-search';
 import { ThemeToggle } from '@/components/theme-toggle';
 
 export default function Home() {
-  const [searchedDriver, setSearchedDriver] = useState<Driver | null>(() => DRIVER_DATA['Daniel Ricciardo'] || null);
+  const [searchedDriver, setSearchedDriver] = useState<SearchedDriver | null>(null);
 
-  const handleDriverSelect = (driver: Driver | null) => {
+  const handleDriverSelect = (driver: SearchedDriver | null) => {
     setSearchedDriver(driver);
   };
 
   const compareHref = searchedDriver
-    ? `/compare?driverA=${encodeURIComponent(searchedDriver.name)}`
+    ? `/compare?driverA=${encodeURIComponent(searchedDriver.name)}&custIdA=${searchedDriver.custId}`
     : '/compare';
 
   return (
@@ -35,7 +35,7 @@ export default function Home() {
       <div className="max-w-2xl mx-auto mb-8 grid grid-cols-1 md:grid-cols-[1fr_auto] gap-2 items-end">
         <DriverSearch
           onDriverSelect={handleDriverSelect}
-          initialDriver={searchedDriver}
+          initialDriverName={searchedDriver?.name}
         />
         <Button variant="outline" asChild>
           <Link href={compareHref}>
@@ -47,13 +47,13 @@ export default function Home() {
 
       <div className="animate-in fade-in duration-500">
         {searchedDriver ? (
-          <DriverDashboard driver={searchedDriver} />
+          <DriverDashboard custId={searchedDriver.custId} driverName={searchedDriver.name} />
         ) : (
           <Card className="text-center py-12">
             <CardHeader>
               <CardTitle>Welcome to Apex Stats</CardTitle>
               <CardDescription>
-                Enter a driver's name above to see their stats. Try "Daniel Ricciardo" or "Lando Norris" to get started.
+                Enter a driver's name above to see their stats.
               </CardDescription>
             </CardHeader>
           </Card>

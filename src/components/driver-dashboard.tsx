@@ -13,8 +13,50 @@ import { RecentRaces } from './recent-races';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { lapTimeToSeconds } from '@/lib/utils';
 import SeriesPerformanceSummary from './series-performance-summary';
+import { getDriverPageData } from '../app/data-actions';
+import { useToast } from '@/hooks/use-toast';
 
-export default function DriverDashboard({ driver }: { driver: Driver }) {
+function DashboardSkeleton() {
+  return (
+    <div className="flex flex-col gap-8">
+      <section>
+        <h2 className="text-2xl font-headline font-bold tracking-tight mb-4"><Skeleton className="h-8 w-48" /></h2>
+        <Card className="mb-4">
+          <CardContent className='p-4 grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4'>
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-full" />
+          </CardContent>
+        </Card>
+        <div className="grid gap-4 md:grid-cols-3">
+          <Skeleton className="h-24 w-full" />
+          <Skeleton className="h-24 w-full" />
+          <Skeleton className="h-24 w-full" />
+        </div>
+      </section>
+      <section>
+        <h2 className="text-2xl font-headline font-bold tracking-tight mb-4"><Skeleton className="h-8 w-64" /></h2>
+        <div className="grid gap-4 md:grid-cols-1 lg:grid-cols-2">
+            <Skeleton className="h-80 w-full" />
+            <Skeleton className="h-80 w-full" />
+            <div className="lg:col-span-2"><Skeleton className="h-80 w-full" /></div>
+        </div>
+      </section>
+      <section>
+        <Card><CardContent className="p-6"><Skeleton className="h-96 w-full" /></CardContent></Card>
+      </section>
+    </div>
+  )
+}
+
+
+export default function DriverDashboard({ custId, driverName }: { custId: number; driverName: string }) {
+  const { toast } = useToast();
+  const [driver, setDriver] = useState<Driver | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
   const [isPending, startTransition] = useTransition();
   const [analysis, setAnalysis] = useState<{ summary: string | null; error: string | null } | null>(null);
 
@@ -24,7 +66,25 @@ export default function DriverDashboard({ driver }: { driver: Driver }) {
   const [track, setTrack] = useState('all');
   const [car, setCar] = useState('all');
 
+  useEffect(() => {
+    if (!custId) return;
+    const fetchData = async () => {
+        setIsLoading(true);
+        setDriver(null);
+        const { data, error } = await getDriverPageData(custId);
+        if (error) {
+            toast({ variant: 'destructive', title: 'Error fetching driver data', description: error });
+        } else {
+            setDriver(data);
+        }
+        setIsLoading(false);
+    }
+    fetchData();
+  }, [custId, toast]);
+
+
   const handleAnalysis = () => {
+    if (!driver) return;
     startTransition(async () => {
       const result = await getAnalysis(driver);
       setAnalysis(result);
@@ -40,6 +100,7 @@ export default function DriverDashboard({ driver }: { driver: Driver }) {
 
   // Memoize master lists for filters that don't change
   const { allYears, allCategories, allSeasons } = useMemo(() => {
+    if (!driver) return { allYears: ['all'], allCategories: ['all'], allSeasons: ['all'] };
     const races = driver.recentRaces;
     const years = ['all', ...Array.from(new Set(races.map(r => r.year.toString()))).sort((a, b) => Number(b) - Number(a))];
     const categories = ['all', ...Array.from(new Set(races.map(r => r.category)))];
@@ -49,11 +110,12 @@ export default function DriverDashboard({ driver }: { driver: Driver }) {
 
   // Kaskading Filter Logic
   const availableSeasons = useMemo(() => {
-    if (year === 'all') return allSeasons;
+    if (year === 'all' || !driver) return allSeasons;
     return ['all', ...Array.from(new Set(driver.recentRaces.filter(r => r.year.toString() === year).map(r => r.season)))];
-  }, [year, driver.recentRaces, allSeasons]);
+  }, [year, driver, allSeasons]);
 
   const { availableTracks, availableCars } = useMemo(() => {
+    if (!driver) return { availableTracks: ['all'], availableCars: ['all'] };
     const relevantRaces = driver.recentRaces.filter(race => {
       const yearMatch = year === 'all' || race.year.toString() === year;
       const seasonMatch = season === 'all' || race.season === season;
@@ -63,7 +125,7 @@ export default function DriverDashboard({ driver }: { driver: Driver }) {
     const tracks = ['all', ...Array.from(new Set(relevantRaces.map(r => r.trackName)))];
     const cars = ['all', ...Array.from(new Set(relevantRaces.map(r => r.car)))];
     return { availableTracks: tracks, availableCars: cars };
-  }, [driver.recentRaces, year, season, category]);
+  }, [driver, year, season, category]);
 
   // Reset dependent filters when a broader filter changes
   useEffect(() => {
@@ -77,6 +139,7 @@ export default function DriverDashboard({ driver }: { driver: Driver }) {
 
 
   const filteredRaces = useMemo(() => {
+    if (!driver) return [];
     return driver.recentRaces.filter(race => {
       const categoryMatch = category === 'all' || race.category === category;
       const yearMatch = year === 'all' || race.year.toString() === year;
@@ -85,11 +148,12 @@ export default function DriverDashboard({ driver }: { driver: Driver }) {
       const carMatch = car === 'all' || race.car === car;
       return categoryMatch && yearMatch && seasonMatch && trackMatch && carMatch;
     });
-  }, [driver.recentRaces, category, year, season, track, car]);
+  }, [driver, category, year, season, track, car]);
 
   const areFiltersActive = useMemo(() => year !== 'all' || season !== 'all' || category !== 'all' || track !== 'all' || car !== 'all', [year, season, category, track, car]);
 
   const filteredStats = useMemo(() => {
+    if (!driver) return { iRating: 'N/A', avgRacePace: 'N/A' };
     if (!areFiltersActive) {
       return {
         iRating: driver.currentIRating.toLocaleString('en-US'),
@@ -121,6 +185,8 @@ export default function DriverDashboard({ driver }: { driver: Driver }) {
 
 
   const filteredHistory = useMemo(() => {
+    if (!driver) return { iratingHistory: [], safetyRatingHistory: [], racePaceHistory: [] };
+    
     const filterByDate = (data: HistoryPoint[]) => {
       if (!areFiltersActive) return data;
       const getMonthFromDate = (dateStr: string) => new Date(dateStr).toLocaleString('en-US', { month: 'short', timeZone: 'UTC' });
@@ -163,7 +229,7 @@ export default function DriverDashboard({ driver }: { driver: Driver }) {
   }, [track, car]);
 
   const seriesPerformanceStats = useMemo(() => {
-    if (filteredRaces.length === 0) {
+    if (!driver || filteredRaces.length === 0) {
       return [];
     }
 
@@ -180,13 +246,31 @@ export default function DriverDashboard({ driver }: { driver: Driver }) {
 
       acc[seriesName].raceCount += 1;
       acc[seriesName].totalIRatingChange += race.iratingChange;
-      acc[seriesName].totalSRChange += parseFloat(race.safetyRatingChange) || 0;
+      acc[seriesName].totalSRChange += typeof race.safetyRatingChange === 'string' ? (parseFloat(race.safetyRatingChange) || 0) : race.safetyRatingChange;
 
       return acc;
     }, {} as Record<string, { car: string; raceCount: number; totalIRatingChange: number; totalSRChange: number }>);
 
     return Object.values(statsBySeries).sort((a, b) => b.raceCount - a.raceCount);
-  }, [filteredRaces]);
+  }, [filteredRaces, driver]);
+
+  if (isLoading) {
+    return <DashboardSkeleton />;
+  }
+  
+  if (!driver) {
+    return (
+        <Card className="text-center py-12">
+            <CardHeader>
+                <CardTitle>Could not load driver data</CardTitle>
+                <CardDescription>
+                Please try searching again or check your iRacing credentials in .env.local.
+                </CardDescription>
+            </CardHeader>
+        </Card>
+    );
+  }
+
 
   return (
     <div className="flex flex-col gap-8">
@@ -315,7 +399,7 @@ export default function DriverDashboard({ driver }: { driver: Driver }) {
               )}
             </div>
 
-            <Button onClick={handleAnalysis} disabled={isPending} className="mt-4">
+            <Button onClick={handleAnalysis} disabled={isPending || !driver} className="mt-4">
               {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {isPending ? 'Analyzing...' : 'Analyze with AI'}
             </Button>

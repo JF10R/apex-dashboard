@@ -2,23 +2,29 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Loader2, Search } from 'lucide-react';
-import { DRIVER_DATA, type Driver } from '@/lib/mock-data';
+import { type SearchedDriver } from '@/lib/mock-data';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverAnchor } from '@/components/ui/popover';
 import { Button } from './ui/button';
+import { searchDriversAction } from '@/app/data-actions';
 
 interface DriverSearchProps {
-  onDriverSelect: (driver: Driver | null) => void;
-  initialDriver?: Driver | null;
+  onDriverSelect: (driver: SearchedDriver | null) => void;
+  initialDriverName?: string;
   label?: string;
 }
 
-export default function DriverSearch({ onDriverSelect, initialDriver, label }: DriverSearchProps) {
-  const [searchQuery, setSearchQuery] = useState(initialDriver?.name || '');
-  const [results, setResults] = useState<Driver[]>([]);
+export default function DriverSearch({ onDriverSelect, initialDriverName, label }: DriverSearchProps) {
+  const [searchQuery, setSearchQuery] = useState(initialDriverName || '');
+  const [results, setResults] = useState<SearchedDriver[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isPopoverOpen, setPopoverOpen] = useState(false);
   const triggerRef = useRef<HTMLDivElement>(null);
+
+  // Set search query when initial driver name changes (e.g. from URL param)
+  useEffect(() => {
+    setSearchQuery(initialDriverName || '');
+  }, [initialDriverName]);
 
   const debounce = (func: Function, delay: number) => {
     let timeout: NodeJS.Timeout;
@@ -30,7 +36,7 @@ export default function DriverSearch({ onDriverSelect, initialDriver, label }: D
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const debouncedSearch = useCallback(
-    debounce((query: string) => {
+    debounce(async (query: string) => {
       if (!query.trim()) {
         setResults([]);
         setIsLoading(false);
@@ -38,13 +44,14 @@ export default function DriverSearch({ onDriverSelect, initialDriver, label }: D
         return;
       }
       
-      const driverKeys = Object.keys(DRIVER_DATA).filter(key =>
-        key.toLowerCase().includes(query.toLowerCase().trim())
-      );
-      const foundDrivers = driverKeys.map(key => DRIVER_DATA[key]);
-      setResults(foundDrivers);
+      const { data, error } = await searchDriversAction(query);
+      if (error) {
+        console.error(error); // Maybe show a toast later
+      }
+
+      setResults(data || []);
       setIsLoading(false);
-      setPopoverOpen(foundDrivers.length > 0);
+      setPopoverOpen((data || []).length > 0);
     }, 300),
     []
   );
@@ -56,10 +63,11 @@ export default function DriverSearch({ onDriverSelect, initialDriver, label }: D
     } else {
       setResults([]);
       setPopoverOpen(false);
+      onDriverSelect(null);
     }
-  }, [searchQuery, debouncedSearch]);
+  }, [searchQuery, debouncedSearch, onDriverSelect]);
   
-  const handleSelectDriver = (driver: Driver) => {
+  const handleSelectDriver = (driver: SearchedDriver) => {
     setSearchQuery(driver.name);
     onDriverSelect(driver);
     setPopoverOpen(false);
@@ -91,7 +99,7 @@ export default function DriverSearch({ onDriverSelect, initialDriver, label }: D
                 <ul className="max-h-60 overflow-y-auto">
                     {results.length > 0 ? (
                         results.map(driver => (
-                            <li key={driver.id}>
+                            <li key={driver.custId}>
                                 <Button
                                     variant="ghost"
                                     className="w-full justify-start"

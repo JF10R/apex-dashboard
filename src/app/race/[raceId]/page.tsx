@@ -1,32 +1,14 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { ArrowLeft, Award, ShieldAlert, Timer, Users } from 'lucide-react';
-import { DRIVER_DATA, type RecentRace, type RaceParticipant } from '@/lib/mock-data';
 import { StatCard } from '@/components/stat-card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import RaceResultsTable from '@/components/race-results-table';
 import { ThemeToggle } from '@/components/theme-toggle';
+import { getRaceResultAction } from '@/app/data-actions';
+import { type RaceParticipant } from '@/lib/mock-data';
 
-export async function generateStaticParams() {
-  const raceIds: { raceId: string }[] = [];
-  for (const driver of Object.values(DRIVER_DATA)) {
-    for (const race of driver.recentRaces) {
-      raceIds.push({ raceId: race.id });
-    }
-  }
-  return raceIds;
-}
-
-const findRaceById = (raceId: string): RecentRace | null => {
-  for (const driver of Object.values(DRIVER_DATA)) {
-    const race = driver.recentRaces.find((r) => r.id === raceId);
-    if (race) return race;
-  }
-  return null;
-};
-
-// Helper to convert M:SS.mmm to milliseconds for comparison
 const lapTimeToMs = (time: string): number => {
   if (!time || !time.includes(':') || !time.includes('.')) return Infinity;
   const parts = time.split(':');
@@ -55,10 +37,15 @@ const getOverallFastestLap = (participants: RaceParticipant[]): string => {
 };
 
 
-export default function RaceDetailsPage({ params }: { params: { raceId: string } }) {
-  const race = findRaceById(params.raceId);
+export default async function RaceDetailsPage({ params }: { params: { raceId: string } }) {
+  const subsessionId = parseInt(params.raceId, 10);
+  if (isNaN(subsessionId)) {
+    notFound();
+  }
 
-  if (!race) {
+  const { data: race, error } = await getRaceResultAction(subsessionId);
+
+  if (error || !race) {
     notFound();
   }
 

@@ -1,12 +1,12 @@
 'use client';
 
-import { useState, Suspense } from 'react';
+import { useState, Suspense, useEffect } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { ArrowLeft, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { DRIVER_DATA, type Driver } from '@/lib/mock-data';
+import { type SearchedDriver } from '@/lib/mock-data';
 import DriverComparisonDashboard from '@/components/driver-comparison-dashboard';
 import DriverSearch from '@/components/driver-search';
 import { ThemeToggle } from '@/components/theme-toggle';
@@ -14,21 +14,22 @@ import { ThemeToggle } from '@/components/theme-toggle';
 function CompareView() {
   const searchParams = useSearchParams();
 
-  const [driverA, setDriverA] = useState<Driver | null>(() => {
+  const [driverA, setDriverA] = useState<SearchedDriver | null>(null);
+  const [driverB, setDriverB] = useState<SearchedDriver | null>(null);
+
+  useEffect(() => {
     const driverAName = searchParams.get('driverA');
-    if (driverAName && DRIVER_DATA[driverAName]) {
-      return DRIVER_DATA[driverAName];
+    const driverACustId = searchParams.get('custIdA');
+    if (driverAName && driverACustId) {
+        setDriverA({ name: driverAName, custId: parseInt(driverACustId) });
     }
-    return DRIVER_DATA['Daniel Ricciardo'];
-  });
+  }, [searchParams]);
 
-  const [driverB, setDriverB] = useState<Driver | null>(() => DRIVER_DATA['Lando Norris']);
-
-  const handleSelectA = (driver: Driver | null) => {
+  const handleSelectA = (driver: SearchedDriver | null) => {
     setDriverA(driver);
   };
 
-  const handleSelectB = (driver: Driver | null) => {
+  const handleSelectB = (driver: SearchedDriver | null) => {
     setDriverB(driver);
   };
 
@@ -52,8 +53,8 @@ function CompareView() {
       </header>
 
       <div className="max-w-4xl mx-auto mb-8 grid md:grid-cols-2 gap-8">
-        <DriverSearch onDriverSelect={handleSelectA} initialDriver={driverA} label="Driver A"/>
-        <DriverSearch onDriverSelect={handleSelectB} initialDriver={driverB} label="Driver B" />
+        <DriverSearch onDriverSelect={handleSelectA} initialDriverName={driverA?.name} label="Driver A"/>
+        <DriverSearch onDriverSelect={handleSelectB} initialDriverName={driverB?.name} label="Driver B" />
       </div>
 
       <div className="animate-in fade-in duration-500">
@@ -64,7 +65,7 @@ function CompareView() {
             <CardHeader>
               <CardTitle>Select Two Drivers</CardTitle>
               <CardDescription>
-                Use the search boxes above to select two drivers to compare. Try "Daniel Ricciardo" and "Lando Norris".
+                Use the search boxes above to select two drivers to compare.
               </CardDescription>
             </CardHeader>
           </Card>
