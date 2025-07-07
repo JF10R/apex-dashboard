@@ -20,8 +20,17 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { ScrollArea } from './ui/scroll-area';
+import { cn } from '@/lib/utils';
 
-function LapTimesDialog({ driverName, laps }: { driverName: string; laps: Lap[] }) {
+function LapTimesDialog({
+  driverName,
+  laps,
+  driverFastestLap,
+}: {
+  driverName: string;
+  laps: Lap[];
+  driverFastestLap: string;
+}) {
   if (!laps || laps.length === 0) {
     return (
       <Button variant="outline" size="sm" disabled>
@@ -53,9 +62,11 @@ function LapTimesDialog({ driverName, laps }: { driverName: string; laps: Lap[] 
             </TableHeader>
             <TableBody>
               {laps.map((lap) => (
-                <TableRow key={lap.lapNumber} className={lap.invalid ? 'bg-destructive/10' : ''}>
+                <TableRow key={lap.lapNumber} className={cn(lap.invalid && 'bg-destructive/10')}>
                   <TableCell className="font-medium">{lap.lapNumber}</TableCell>
-                  <TableCell className="font-mono">{lap.time}</TableCell>
+                  <TableCell className={cn('font-mono', !lap.invalid && lap.time === driverFastestLap && 'text-purple-400 font-bold')}>
+                    {lap.time}
+                  </TableCell>
                   <TableCell className="text-right">
                     {lap.invalid ? <span className="text-destructive">Invalid</span> : <span className="text-green-500">Valid</span>}
                   </TableCell>
@@ -69,7 +80,13 @@ function LapTimesDialog({ driverName, laps }: { driverName: string; laps: Lap[] 
   );
 }
 
-export default function RaceResultsTable({ participants }: { participants: RaceParticipant[] }) {
+export default function RaceResultsTable({
+  participants,
+  overallFastestLap,
+}: {
+  participants: RaceParticipant[];
+  overallFastestLap: string;
+}) {
   return (
     <Card>
       <CardHeader>
@@ -96,11 +113,22 @@ export default function RaceResultsTable({ participants }: { participants: RaceP
                   <TableCell className="text-center font-bold">{p.finishPosition}</TableCell>
                   <TableCell className="text-center text-muted-foreground">{p.startPosition}</TableCell>
                   <TableCell className="font-medium">{p.name}</TableCell>
-                  <TableCell className="text-right font-mono">{p.fastestLap}</TableCell>
+                  <TableCell
+                    className={cn(
+                      'text-right font-mono',
+                      p.fastestLap === overallFastestLap && 'text-purple-400 font-bold'
+                    )}
+                  >
+                    {p.fastestLap}
+                  </TableCell>
                   <TableCell className="text-right">{p.incidents}</TableCell>
                   <TableCell className="text-right font-mono">{p.irating.toLocaleString('en-US')}</TableCell>
                   <TableCell className="text-center">
-                    <LapTimesDialog driverName={p.name} laps={p.laps} />
+                    <LapTimesDialog
+                      driverName={p.name}
+                      laps={p.laps}
+                      driverFastestLap={p.fastestLap}
+                    />
                   </TableCell>
                 </TableRow>
               ))}

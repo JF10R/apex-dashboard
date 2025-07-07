@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { ArrowLeft, Award, ShieldAlert, Timer, Users } from 'lucide-react';
-import { DRIVER_DATA, type RecentRace } from '@/lib/mock-data';
+import { DRIVER_DATA, type RecentRace, type RaceParticipant } from '@/lib/mock-data';
 import { StatCard } from '@/components/stat-card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -25,6 +25,35 @@ const findRaceById = (raceId: string): RecentRace | null => {
   return null;
 };
 
+// Helper to convert M:SS.mmm to milliseconds for comparison
+const lapTimeToMs = (time: string): number => {
+  if (!time || !time.includes(':') || !time.includes('.')) return Infinity;
+  const parts = time.split(':');
+  const minutes = parseInt(parts[0], 10);
+  const secondsParts = parts[1].split('.');
+  const seconds = parseInt(secondsParts[0], 10);
+  const ms = parseInt(secondsParts[1], 10);
+  return (minutes * 60 + seconds) * 1000 + ms;
+}
+
+const getOverallFastestLap = (participants: RaceParticipant[]): string => {
+  let fastestLap = '99:99.999';
+  let fastestMs = Infinity;
+
+  participants.forEach(p => {
+    if (p.fastestLap) {
+      const currentMs = lapTimeToMs(p.fastestLap);
+      if (currentMs < fastestMs) {
+        fastestMs = currentMs;
+        fastestLap = p.fastestLap;
+      }
+    }
+  });
+
+  return fastestLap === '99:99.999' ? 'N/A' : fastestLap;
+};
+
+
 export default function RaceDetailsPage({ params }: { params: { raceId: string } }) {
   const race = findRaceById(params.raceId);
 
@@ -33,6 +62,7 @@ export default function RaceDetailsPage({ params }: { params: { raceId: string }
   }
 
   const winner = race.participants.find((p) => p.finishPosition === 1);
+  const overallFastestLap = getOverallFastestLap(race.participants);
 
   return (
     <main className="container mx-auto p-4 md:p-8 animate-in fade-in duration-500">
@@ -68,7 +98,7 @@ export default function RaceDetailsPage({ params }: { params: { raceId: string }
       </section>
 
       <section>
-        <RaceResultsTable participants={race.participants} />
+        <RaceResultsTable participants={race.participants} overallFastestLap={overallFastestLap} />
       </section>
     </main>
   )

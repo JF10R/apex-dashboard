@@ -90,8 +90,23 @@ export const DRIVER_DATA: Record<string, Driver> = {
         avgRaceIncidents: 3.5,
         avgRaceLapTime: '1:30.800',
         participants: [
-          { name: 'Max Verstappen', startPosition: 1, finishPosition: 1, incidents: 0, fastestLap: '1:29.550', irating: 6200, laps: [] },
-          { name: 'Charles Leclerc', startPosition: 2, finishPosition: 2, incidents: 1, fastestLap: '1:29.750', irating: 5800, laps: [] },
+          { name: 'Max Verstappen', startPosition: 1, finishPosition: 1, incidents: 0, fastestLap: '1:29.550', irating: 6200, 
+            laps: [
+              { lapNumber: 1, time: '1:31.000', invalid: false },
+              { lapNumber: 2, time: '1:30.200', invalid: false },
+              { lapNumber: 3, time: '1:29.900', invalid: false },
+              { lapNumber: 4, time: '1:29.550', invalid: false },
+              { lapNumber: 5, time: '1:29.600', invalid: false },
+            ] 
+          },
+          { name: 'Charles Leclerc', startPosition: 2, finishPosition: 2, incidents: 1, fastestLap: '1:29.750', irating: 5800, 
+            laps: [
+              { lapNumber: 1, time: '1:31.200', invalid: false },
+              { lapNumber: 2, time: '1:30.500', invalid: false },
+              { lapNumber: 3, time: '1:29.750', invalid: false },
+              { lapNumber: 4, time: '1:29.800', invalid: false },
+            ]
+          },
           { name: 'Daniel Ricciardo', startPosition: 5, finishPosition: 3, incidents: 2, fastestLap: '1:29.876', irating: 4850, 
             laps: [
               { lapNumber: 1, time: '1:31.500', invalid: false },
@@ -102,8 +117,20 @@ export const DRIVER_DATA: Record<string, Driver> = {
               { lapNumber: 6, time: '1:30.200', invalid: false },
             ]
           },
-          { name: 'Sergio Perez', startPosition: 4, finishPosition: 4, incidents: 3, fastestLap: '1:30.100', irating: 4600, laps: [] },
-          { name: 'Carlos Sainz', startPosition: 3, finishPosition: 5, incidents: 4, fastestLap: '1:30.200', irating: 5100, laps: [] },
+          { name: 'Sergio Perez', startPosition: 4, finishPosition: 4, incidents: 3, fastestLap: '1:30.100', irating: 4600, 
+            laps: [
+              { lapNumber: 1, time: '1:31.800', invalid: false },
+              { lapNumber: 2, time: '1:30.100', invalid: false },
+              { lapNumber: 3, time: '1:30.300', invalid: false },
+            ]
+          },
+          { name: 'Carlos Sainz', startPosition: 3, finishPosition: 5, incidents: 4, fastestLap: '1:30.200', irating: 5100, 
+            laps: [
+              { lapNumber: 1, time: '1:31.400', invalid: false },
+              { lapNumber: 2, time: '1:30.200', invalid: false },
+              { lapNumber: 3, time: '1:30.400', invalid: true },
+            ]
+          },
           { name: 'George Russell', startPosition: 7, finishPosition: 6, incidents: 1, fastestLap: '1:30.300', irating: 5300, laps: [] },
           { name: 'Lando Norris', startPosition: 6, finishPosition: 7, incidents: 0, fastestLap: '1:30.150', irating: 5200, laps: [] },
         ],
