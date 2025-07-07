@@ -1,27 +1,19 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useState, useTransition, useMemo } from 'react';
 import { Bot, Loader2, ShieldCheck, TrendingUp, User, Users } from 'lucide-react';
-import { type Driver } from '@/lib/mock-data';
+import { type Driver, type RecentRace } from '@/lib/mock-data';
 import { StatCard } from './stat-card';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { getComparisonAnalysis } from '@/app/actions';
 import { Skeleton } from './ui/skeleton';
 import { ComparisonHistoryChart } from './comparison-history-chart';
+import CommonRacesTable from './common-races-table';
 
-function StatRow({ title, valueA, valueB, icon }: { title: string, valueA: string | number, valueB: string | number, icon: React.ElementType }) {
-  const Icon = icon;
-  return (
-    <div className="flex flex-col items-center text-center p-4 border-b md:border-b-0 md:border-r last:border-0">
-      <Icon className="w-6 h-6 text-muted-foreground mb-2" />
-      <h3 className="text-sm font-medium text-muted-foreground">{title}</h3>
-      <div className="grid grid-cols-2 gap-4 w-full mt-2 items-center">
-        <p className="text-xl font-bold text-primary">{valueA}</p>
-        <p className="text-xl font-bold text-accent">{valueB}</p>
-      </div>
-    </div>
-  )
+interface CommonRace {
+  raceA: RecentRace;
+  raceB: RecentRace;
 }
 
 export default function DriverComparisonDashboard({ driverA, driverB }: { driverA: Driver; driverB: Driver }) {
@@ -35,11 +27,17 @@ export default function DriverComparisonDashboard({ driverA, driverB }: { driver
     });
   };
 
-  const formatRacePace = (seconds: number) => {
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = (seconds % 60).toFixed(3);
-    return `${minutes}:${remainingSeconds.padStart(6, '0')}`;
-  };
+  const commonRaces = useMemo(() => {
+    const raceMapA = new Map(driverA.recentRaces.map(r => [r.id, r]));
+    const commonRacesData: CommonRace[] = driverB.recentRaces
+      .filter(raceB => raceMapA.has(raceB.id))
+      .map(raceB => ({
+        raceA: raceMapA.get(raceB.id)!,
+        raceB: raceB,
+      }));
+    return commonRacesData;
+  }, [driverA, driverB]);
+
 
   return (
     <div className="flex flex-col gap-8">
@@ -65,6 +63,12 @@ export default function DriverComparisonDashboard({ driverA, driverB }: { driver
           </CardContent>
         </Card>
       </section>
+
+      {commonRaces.length > 0 && (
+        <section>
+          <CommonRacesTable commonRaces={commonRaces} driverAName={driverA.name} driverBName={driverB.name} />
+        </section>
+      )}
       
       <section>
         <h2 className="text-2xl font-headline font-bold tracking-tight mb-4">Performance History</h2>
@@ -92,7 +96,7 @@ export default function DriverComparisonDashboard({ driverA, driverB }: { driver
           <CardHeader>
             <CardTitle className="flex items-center gap-2 font-headline"><Bot className="w-5 h-5" /> AI-Powered Comparison</CardTitle>
             <CardDescription>
-              Get an AI-generated comparison of these drivers based on their historical data and recent races.
+              Get an AI-generated comparison of these drivers, including an analysis of any races they've competed in together.
             </CardDescription>
           </CardHeader>
           <CardContent>
