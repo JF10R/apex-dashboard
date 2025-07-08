@@ -541,6 +541,7 @@ export const getRaceResultData = async (
         year,
         season,
         category,
+        seriesName: result.seriesName,
         startPosition: 0,
         finishPosition: 0,
         incidents: 0,
@@ -683,14 +684,31 @@ export const getDriverData = async (custId: number): Promise<Driver | null> => {
         ? racePaceHistory.reduce((acc, p) => acc + p.value, 0) / racePaceHistory.length
         : NaN; // Use NaN if no valid history points, formatLapTime will handle it
 
+    // Get the most recent iRating from history, fallback to current stats if no history
+    const mostRecentIRating = iratingHistory.length > 0 
+        ? iratingHistory[iratingHistory.length - 1].value
+        : (memberStatsResponse?.stats?.iRating ?? 0);
+
+    // Get the most recent Safety Rating from history, fallback to current stats if no history
+    const mostRecentSafetyRating = safetyRatingHistory.length > 0
+        ? safetyRatingHistory[safetyRatingHistory.length - 1].value
+        : (memberStatsResponse?.stats?.srPrime ? memberStatsResponse.stats.srPrime + (memberStatsResponse.stats.srSub / 100) : 0);
+
+    // Format the most recent Safety Rating with license class
+    const formatSafetyRating = (srValue: number): string => {
+        if (srValue < 2.0) return `R ${srValue.toFixed(2)}`;
+        if (srValue < 3.0) return `D ${srValue.toFixed(2)}`;
+        if (srValue < 4.0) return `C ${srValue.toFixed(2)}`;
+        if (srValue < 5.0) return `B ${srValue.toFixed(2)}`;
+        return `A ${srValue.toFixed(2)}`;
+    };
+
     const currentStats = memberStatsResponse?.stats;
     const driver: Driver = {
       id: custId,
       name: driverName,
-      currentIRating: currentStats?.iRating ?? 0,
-      currentSafetyRating: currentStats
-        ? `${currentStats.licenseClass} ${currentStats.srPrime}.${String(currentStats.srSub).padStart(2, '0')}`
-        : 'N/A',
+      currentIRating: mostRecentIRating,
+      currentSafetyRating: formatSafetyRating(mostRecentSafetyRating),
       avgRacePace: formatLapTime(avgRacePaceSeconds * 1000), // convert seconds to ms for formatting
       iratingHistory,
       safetyRatingHistory,

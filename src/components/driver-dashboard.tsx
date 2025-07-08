@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useTransition, useMemo, useEffect, useCallback } from 'react';
-import { Bot, Loader2, ShieldCheck, Timer, TrendingUp } from 'lucide-react';
+import { Bot, Loader2, ShieldCheck, TrendingUp } from 'lucide-react';
 import { type Driver, type HistoryPoint } from '@/lib/mock-data';
 import { StatCard } from './stat-card';
 import { HistoryChart } from './history-chart';
@@ -153,15 +153,14 @@ export default function DriverDashboard({ custId, driverName }: { custId: number
   const areFiltersActive = useMemo(() => year !== 'all' || season !== 'all' || category !== 'all' || track !== 'all' || car !== 'all', [year, season, category, track, car]);
 
   const filteredStats = useMemo(() => {
-    if (!driver) return { iRating: 'N/A', avgRacePace: 'N/A' };
+    if (!driver) return { iRating: 'N/A' };
     if (!areFiltersActive) {
       return {
         iRating: driver.currentIRating.toLocaleString('en-US'),
-        avgRacePace: driver.avgRacePace,
       };
     }
     if (filteredRaces.length === 0) {
-      return { iRating: 'N/A', avgRacePace: 'N/A' };
+      return { iRating: 'N/A' };
     }
 
     const sortedRaces = [...filteredRaces].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
@@ -169,19 +168,10 @@ export default function DriverDashboard({ custId, driverName }: { custId: number
     const driverParticipant = latestRace.participants.find(p => p.name === driver.name);
     const iRating = driverParticipant ? driverParticipant.irating : driver.currentIRating;
 
-    const totalPaceSeconds = filteredRaces.reduce((acc, race) => {
-        const seconds = lapTimeToSeconds(race.avgLapTime);
-        return acc + (isNaN(seconds) ? 0 : seconds);
-    }, 0);
-    const avgPaceSeconds = totalPaceSeconds / filteredRaces.length;
-    const avgRacePace = isNaN(avgPaceSeconds) ? 'N/A' : formatRacePace(avgPaceSeconds);
-
-
     return {
       iRating: iRating.toLocaleString('en-US'),
-      avgRacePace,
     };
-  }, [filteredRaces, driver, areFiltersActive, formatRacePace]);
+  }, [filteredRaces, driver, areFiltersActive]);
 
 
   const filteredHistory = useMemo(() => {
@@ -320,10 +310,9 @@ export default function DriverDashboard({ custId, driverName }: { custId: number
               </div>
           </CardContent>
         </Card>
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-2">
           <StatCard title="iRating" value={filteredStats.iRating} icon={TrendingUp} description={areFiltersActive ? "Based on latest filtered race" : "Driver skill rating"} />
           <StatCard title="Safety Rating" value={driver.currentSafetyRating} icon={ShieldCheck} description={areFiltersActive ? "Overall safety rating" : "On-track cleanliness"} />
-          <StatCard title="Avg. Race Pace" value={filteredStats.avgRacePace} icon={Timer} description={areFiltersActive ? "Based on filtered races" : "Overall average pace"} />
         </div>
       </section>
       
