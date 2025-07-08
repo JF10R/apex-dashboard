@@ -1,9 +1,8 @@
-'use server'
-
 /**
- * iRacing API Integration
+ * iRacing API Integration - Core Module
  * 
  * This module handles authentication and data retrieval from the iRacing API.
+ * This is NOT a server component file so it can export classes and constants.
  * 
  * IMPORTANT: CAPTCHA Requirements
  * ================================
@@ -34,7 +33,7 @@ globalThis.fetch = (url, options) => {
 // END FETCH PATCH
 
 // Error types for better error handling
-enum ApiErrorType {
+export enum ApiErrorType {
   CAPTCHA_REQUIRED = 'CAPTCHA_REQUIRED',
   INVALID_CREDENTIALS = 'INVALID_CREDENTIALS',
   NOT_CONFIGURED = 'NOT_CONFIGURED',
@@ -42,7 +41,7 @@ enum ApiErrorType {
   NETWORK_ERROR = 'NETWORK_ERROR'
 }
 
-class ApiError extends Error {
+export class ApiError extends Error {
   constructor(
     public type: ApiErrorType,
     message: string,
