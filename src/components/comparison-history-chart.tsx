@@ -128,18 +128,20 @@ export function ComparisonHistoryChart({ seriesA, seriesB, title, description, y
             <Line
               dataKey={keyA}
               name={seriesA.name}
-              type="monotone"
+              type="linear"
               stroke={chartConfig[keyA].color}
-              strokeWidth={3}
-              dot={false}
+              strokeWidth={2}
+              dot={{ fill: chartConfig[keyA].color, strokeWidth: 2, r: 3 }}
+              activeDot={{ r: 5, stroke: chartConfig[keyA].color, strokeWidth: 2 }}
             />
             <Line
               dataKey={keyB}
               name={seriesB.name}
-              type="monotone"
+              type="linear"
               stroke={chartConfig[keyB].color}
-              strokeWidth={3}
-              dot={false}
+              strokeWidth={2}
+              dot={{ fill: chartConfig[keyB].color, strokeWidth: 2, r: 3 }}
+              activeDot={{ r: 5, stroke: chartConfig[keyB].color, strokeWidth: 2 }}
             />
           </RechartsLineChart>
         </ChartContainer>

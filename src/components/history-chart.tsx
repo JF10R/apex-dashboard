@@ -117,10 +117,11 @@ export function HistoryChart({ data, title, description, dataKey, color, yAxisFo
             />
             <Line
               dataKey={dataKey}
-              type="monotone"
+              type="linear"
               stroke={`hsl(var(${color}))`}
-              strokeWidth={3}
-              dot={false}
+              strokeWidth={2}
+              dot={{ fill: `hsl(var(${color}))`, strokeWidth: 2, r: 3 }}
+              activeDot={{ r: 5, stroke: `hsl(var(${color}))`, strokeWidth: 2 }}
             />
           </RechartsLineChart>
         </ChartContainer>
