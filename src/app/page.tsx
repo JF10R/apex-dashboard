@@ -8,6 +8,7 @@ import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/ca
 import { type SearchedDriver } from '@/lib/mock-data';
 import DriverDashboard from '@/components/driver-dashboard';
 import DriverSearch from '@/components/driver-search';
+import TrackedDrivers from '@/components/tracked-drivers';
 import { ThemeToggle } from '@/components/theme-toggle';
 
 export default function Home() {
@@ -49,14 +50,17 @@ export default function Home() {
         {searchedDriver ? (
           <DriverDashboard custId={searchedDriver.custId} driverName={searchedDriver.name} />
         ) : (
-          <Card className="text-center py-12">
-            <CardHeader>
-              <CardTitle>Welcome to Apex Stats</CardTitle>
-              <CardDescription>
-                Enter a driver's name above to see their stats.
-              </CardDescription>
-            </CardHeader>
-          </Card>
+          <div className="grid gap-6 max-w-4xl mx-auto">
+            <TrackedDrivers onDriverSelect={handleDriverSelect} currentDriver={searchedDriver} />
+            <Card className="text-center py-12">
+              <CardHeader>
+                <CardTitle>Welcome to Apex Stats</CardTitle>
+                <CardDescription>
+                  Enter a driver's name above to see their stats, or click the star icon to track drivers for quick access.
+                </CardDescription>
+              </CardHeader>
+            </Card>
+          </div>
         )}
       </div>
     </main>

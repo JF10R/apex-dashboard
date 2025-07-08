@@ -2,12 +2,13 @@
 
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Trophy } from 'lucide-react';
+import { ArrowLeft, Trophy, Star, StarOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import DriverDashboard from '@/components/driver-dashboard';
 import { ThemeToggle } from '@/components/theme-toggle';
+import { useTrackedDrivers } from '@/hooks/use-tracked-drivers';
 import { type Driver } from '@/lib/mock-data';
 
 export default function CustomerPage() {
@@ -19,6 +20,23 @@ export default function CustomerPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [driverName, setDriverName] = useState<string>('');
+  
+  const { addTrackedDriver, removeTrackedDriver, isDriverTracked } = useTrackedDrivers();
+
+  const handleToggleTracking = () => {
+    if (driverData) {
+      const driver = {
+        name: driverData.name,
+        custId: driverData.id
+      };
+      
+      if (isDriverTracked(driverData.id)) {
+        removeTrackedDriver(driverData.id);
+      } else {
+        addTrackedDriver(driver);
+      }
+    }
+  };
 
   useEffect(() => {
     const fetchDriverData = async () => {
@@ -116,14 +134,33 @@ export default function CustomerPage() {
       </header>
 
       <div className="max-w-2xl mx-auto mb-8">
-        <Button 
-          variant="outline" 
-          onClick={() => router.push('/')}
-          className="mb-4"
-        >
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          Back to Search
-        </Button>
+        <div className="flex items-center justify-between mb-4">
+          <Button 
+            variant="outline" 
+            onClick={() => router.push('/')}
+          >
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back to Search
+          </Button>
+          {driverData && (
+            <Button
+              variant={isDriverTracked(driverData.id) ? "default" : "outline"}
+              onClick={handleToggleTracking}
+            >
+              {isDriverTracked(driverData.id) ? (
+                <>
+                  <StarOff className="w-4 h-4 mr-2" />
+                  Untrack Driver
+                </>
+              ) : (
+                <>
+                  <Star className="w-4 h-4 mr-2" />
+                  Track Driver
+                </>
+              )}
+            </Button>
+          )}
+        </div>
       </div>
 
       <div className="animate-in fade-in duration-500">

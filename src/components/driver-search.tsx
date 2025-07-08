@@ -1,12 +1,13 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Loader2, Search } from 'lucide-react';
+import { Loader2, Search, Star, StarOff } from 'lucide-react';
 import { type SearchedDriver } from '@/lib/mock-data';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverAnchor } from '@/components/ui/popover';
 import { Button } from './ui/button';
 import { searchDriversAction } from '@/app/data-actions';
+import { useTrackedDrivers } from '@/hooks/use-tracked-drivers';
 
 interface DriverSearchProps {
   onDriverSelect: (driver: SearchedDriver | null) => void;
@@ -20,6 +21,7 @@ export default function DriverSearch({ onDriverSelect, initialDriverName, label 
   const [isLoading, setIsLoading] = useState(false);
   const [isPopoverOpen, setPopoverOpen] = useState(false);
   const triggerRef = useRef<HTMLDivElement>(null);
+  const { addTrackedDriver, removeTrackedDriver, isDriverTracked } = useTrackedDrivers();
 
   // Set search query when initial driver name changes (e.g. from URL param)
   useEffect(() => {
@@ -73,6 +75,15 @@ export default function DriverSearch({ onDriverSelect, initialDriverName, label 
     setPopoverOpen(false);
   };
 
+  const handleToggleTracking = (driver: SearchedDriver, event: React.MouseEvent) => {
+    event.stopPropagation();
+    if (isDriverTracked(driver.custId)) {
+      removeTrackedDriver(driver.custId);
+    } else {
+      addTrackedDriver(driver);
+    }
+  };
+
   return (
     <div>
         {label && <h2 className="text-lg font-semibold mb-2">{label}</h2>}
@@ -99,13 +110,26 @@ export default function DriverSearch({ onDriverSelect, initialDriverName, label 
                 <ul className="max-h-60 overflow-y-auto">
                     {results.length > 0 ? (
                         results.map(driver => (
-                            <li key={driver.custId}>
+                            <li key={driver.custId} className="flex items-center">
                                 <Button
                                     variant="ghost"
-                                    className="w-full justify-start"
+                                    className="flex-1 justify-start rounded-none"
                                     onClick={() => handleSelectDriver(driver)}
                                 >
                                     {driver.name}
+                                </Button>
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-full px-3 rounded-none"
+                                    onClick={(e) => handleToggleTracking(driver, e)}
+                                    title={isDriverTracked(driver.custId) ? "Remove from tracked" : "Add to tracked"}
+                                >
+                                    {isDriverTracked(driver.custId) ? (
+                                        <Star className="w-4 h-4 fill-current" />
+                                    ) : (
+                                        <Star className="w-4 h-4" />
+                                    )}
                                 </Button>
                             </li>
                         ))
