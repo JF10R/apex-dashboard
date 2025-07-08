@@ -21,6 +21,7 @@ Apex Stats is a modern, data-driven web application designed to analyze and visu
 - **UI Components:** shadcn/ui
 - **Generative AI:** Google AI & Genkit
 - **Language:** TypeScript
+- **iRacing Data:** `iracing-api` package
 
 ## Getting Started
 
@@ -34,44 +35,17 @@ Apex Stats is a modern, data-driven web application designed to analyze and visu
    ```bash
    npm install
    ```
+   
+3. **Set Environment Variables (Connect to iRacing API):**
+   Create a new file named `.env.local` in the root of the project and add your iRacing email and password:
+   ```.env.local
+   # iRacing credentials
+   IRACING_EMAIL=your_iracing_email@example.com
+   IRACING_PASSWORD=your_iracing_password
+   ```
 
-3. **Run the development server:**
+4. **Run the development server:**
    ```bash
    npm run dev
    ```
-   The application will be available at `http://localhost:9002`.
-
-## Connecting to the iRacing API
-
-Apex Stats is fully wired to connect to the iRacing API for live data. Follow these steps to enable it.
-
-### 1. Set Environment Variables
-
-The application requires your iRacing credentials to make API calls.
-
-1.  Create a new file named `.env.local` in the root of the project.
-2.  Add your iRacing email and password to this file:
-
-```.env.local
-# iRacing credentials
-IRACING_EMAIL=your_iracing_email@example.com
-IRACING_PASSWORD=your_iracing_password
-```
-
-### 2. Install the iRacing API Package
-
-Due to potential environment conflicts, the `iracing-api` package is not listed in `package.json`. You must install it manually.
-
-```bash
-npm install iracing-api
-```
-
-### 3. Enable Live Data in the Code
-
-To prevent build errors, the code that calls the iRacing API is currently disabled. You need to re-enable it.
-
-1.  Open the file `src/lib/iracing-api.ts`.
-2.  **Delete or comment out** the "STUBBED IMPLEMENTATION" block.
-3.  **Uncomment** the entire "LIVE IMPLEMENTATION" block at the bottom of the file.
-
-After completing these steps, restart your development server (`npm run dev`). The application will now fetch and display live data from the iRacing API.
+   The application will be available at `http://localhost:9002`. After starting the server, the app will use your credentials to fetch and display live data from the iRacing API.
