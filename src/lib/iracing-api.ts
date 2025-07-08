@@ -8,17 +8,12 @@ import {
   type RaceCategory,
   type Lap,
 } from '@/lib/mock-data'
-import { iRacingAPI } from 'iracing-api'
-
-
-// ##################################################################
-// #                   LIVE IMPLEMENTATION                          #
-// ##################################################################
+import IracingAPI from 'iracing-api'
 
 const email = process.env.IRACING_EMAIL ?? null;
 const password = process.env.IRACING_PASSWORD ?? null;
 
-let api: iRacingAPI | null = null;
+let api: IracingAPI | null = null;
 let apiInitializationPromise: Promise<void> | null = null;
 let apiInitializedSuccessfully = false;
 
@@ -33,7 +28,7 @@ async function initializeAndLogin() {
 
   try {
     // Use a temporary instance for login, then assign to the global `api`
-    const tempApi = new iRacingAPI();
+    const tempApi = new IracingAPI();
     console.log('Attempting to log in to iRacing API...');
     await tempApi.login(email, password);
     api = tempApi; // Assign to global 'api' only after successful login
@@ -52,7 +47,7 @@ async function initializeAndLogin() {
 apiInitializationPromise = initializeAndLogin();
 
 // Helper function for API functions to ensure initialization is complete and successful
-async function ensureApiInitialized(): Promise<iRacingAPI> {
+async function ensureApiInitialized(): Promise<IracingAPI> {
   if (!apiInitializationPromise) {
     // This case should ideally not happen if apiInitializationPromise is set at module load.
     // However, as a fallback, attempt initialization again.
@@ -232,8 +227,12 @@ export const searchDriversByName = async (
   try {
     const currentApi = await ensureApiInitialized();
     // Explicitly type the results from the API call
-    const results: IracingDriverSearchResult[] = await currentApi.searchDrivers({ searchTerm: query });
-    return results
+    const apiResponse = await currentApi.lookup.getDrivers({ searchTerm: query });
+    console.log(apiResponse);
+    const results: IracingDriverSearchResult[] = Array.isArray(apiResponse) ? apiResponse as IracingDriverSearchResult[] : [];
+
+    // Ensure results is an array before slicing and mapping
+    return (Array.isArray(results) ? results : [])
       .slice(0, 5) // Limit to 5 results
       .map((d: IracingDriverSearchResult) => ({ name: d.displayName, custId: d.custId }));
   } catch (error) {
@@ -250,7 +249,7 @@ export const searchDriversByName = async (
     console.error('Error during driver search operation (e.g., network, API search specific):', error);
     return []; // Return empty for these other errors, maintaining graceful degradation for this function.
   }
-}
+};
 
 // Cache for getRaceResultData promises to prevent thundering herd and cache results.
 // Using a simple Map; for a production app with many users/subs, a more robust cache (e.g., LRU, TTL, or Next.js specific caching) would be better.
