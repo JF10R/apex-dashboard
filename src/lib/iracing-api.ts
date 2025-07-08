@@ -39,7 +39,8 @@ enum ApiErrorType {
   INVALID_CREDENTIALS = 'INVALID_CREDENTIALS',
   NOT_CONFIGURED = 'NOT_CONFIGURED',
   LOGIN_FAILED = 'LOGIN_FAILED',
-  NETWORK_ERROR = 'NETWORK_ERROR'
+  NETWORK_ERROR = 'NETWORK_ERROR',
+  RATE_LIMITED = 'RATE_LIMITED'
 }
 
 class ApiError extends Error {
@@ -665,10 +666,27 @@ export const getDriverData = async (custId: number): Promise<Driver | null> => {
       value: p.value,
     }));
 
-    const safetyRatingHistory: HistoryPoint[] = (srChart?.data || []).map((p: IracingApiChartPoint) => ({
-      month: new Date(p.when).toLocaleString('en-US', { month: 'short', timeZone: 'UTC' }),
-      value: p.value / 100,
-    }));
+    // Process Safety Rating data - adaptive format handling
+    const safetyRatingHistory: HistoryPoint[] = (srChart?.data || [])
+      .map((p: IracingApiChartPoint) => {
+        // Try different processing based on the raw data format
+        let processedValue = p.value;
+        
+        // If the raw value is > 100, it's likely in format like 240 (representing 2.40)
+        if (p.value > 100) {
+          processedValue = p.value / 100;
+        }
+        // If the raw value is already in decimal format (like 2.40), use as-is
+        else if (p.value >= 0 && p.value <= 4.99) {
+          processedValue = p.value;
+        }
+        
+        return {
+          month: new Date(p.when).toLocaleString('en-US', { month: 'short', timeZone: 'UTC' }),
+          value: processedValue,
+        };
+      })
+      .filter(point => point.value >= 0 && point.value <= 4.99); // Filter out clearly invalid values
 
     const racePaceHistory: HistoryPoint[] = recentRaces
       .map(r => {
@@ -694,21 +712,16 @@ export const getDriverData = async (custId: number): Promise<Driver | null> => {
         ? safetyRatingHistory[safetyRatingHistory.length - 1].value
         : (memberStatsResponse?.stats?.srPrime ? memberStatsResponse.stats.srPrime + (memberStatsResponse.stats.srSub / 100) : 0);
 
-    // Format the most recent Safety Rating with license class
-    const formatSafetyRating = (srValue: number): string => {
-        if (srValue < 2.0) return `R ${srValue.toFixed(2)}`;
-        if (srValue < 3.0) return `D ${srValue.toFixed(2)}`;
-        if (srValue < 4.0) return `C ${srValue.toFixed(2)}`;
-        if (srValue < 5.0) return `B ${srValue.toFixed(2)}`;
-        return `A ${srValue.toFixed(2)}`;
-    };
+    // Format the most recent Safety Rating with actual license class from member stats
+    const actualLicenseClass = memberStatsResponse?.stats?.licenseClass || 'Unknown';
+    const formattedSafetyRating = `${actualLicenseClass} ${mostRecentSafetyRating.toFixed(2)}`;
 
     const currentStats = memberStatsResponse?.stats;
     const driver: Driver = {
       id: custId,
       name: driverName,
       currentIRating: mostRecentIRating,
-      currentSafetyRating: formatSafetyRating(mostRecentSafetyRating),
+      currentSafetyRating: formattedSafetyRating,
       avgRacePace: formatLapTime(avgRacePaceSeconds * 1000), // convert seconds to ms for formatting
       iratingHistory,
       safetyRatingHistory,

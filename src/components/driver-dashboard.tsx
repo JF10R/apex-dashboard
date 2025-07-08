@@ -76,6 +76,30 @@ export default function DriverDashboard({ custId, driverName }: { custId: number
             toast({ variant: 'destructive', title: 'Error fetching driver data', description: error });
         } else {
             setDriver(data);
+            
+            // Set default filters to most recent/most common values
+            if (data && data.recentRaces.length > 0) {
+              // Get the most recent year
+              const mostRecentYear = Math.max(...data.recentRaces.map(r => r.year)).toString();
+              
+              // Get the most recent season from the most recent year
+              const racesByYear = data.recentRaces.filter(r => r.year.toString() === mostRecentYear);
+              const racesByYearSorted = racesByYear.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+              const mostRecentSeason = racesByYearSorted.length > 0 ? racesByYearSorted[0].season : 'all';
+              
+              // Get the most raced category
+              const categoryCount = data.recentRaces.reduce((acc, race) => {
+                acc[race.category] = (acc[race.category] || 0) + 1;
+                return acc;
+              }, {} as Record<string, number>);
+              const mostRacedCategory = Object.entries(categoryCount).reduce((a, b) => 
+                categoryCount[a[0]] > categoryCount[b[0]] ? a : b
+              )[0];
+              
+              setYear(mostRecentYear);
+              setSeason(mostRecentSeason);
+              setCategory(mostRacedCategory);
+            }
         }
         setIsLoading(false);
     }

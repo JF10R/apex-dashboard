@@ -15,16 +15,18 @@ interface HistoryChartProps {
 }
 
 export function HistoryChart({ data, title, description, dataKey, color, yAxisFormatter }: HistoryChartProps) {
+  // Special handling for Safety Rating to show license classes
+  const isSafetyRating = title.toLowerCase().includes('safety');
+  
   // Filter out invalid data (-1 values) and ensure valid numbers
+  // For Safety Rating, allow values >= 0 and <= 4.99, for others require > 0
   const filteredData = data.filter(point => 
     point.value !== -1 && 
     !isNaN(point.value) && 
     isFinite(point.value) && 
-    point.value > 0
+    (isSafetyRating ? (point.value >= 0 && point.value <= 4.99) : point.value > 0)
   );
 
-  // Special handling for Safety Rating to show license classes
-  const isSafetyRating = title.toLowerCase().includes('safety');
   let processedData = filteredData;
   
   if (isSafetyRating) {
@@ -44,11 +46,9 @@ export function HistoryChart({ data, title, description, dataKey, color, yAxisFo
 
   // Custom formatter for Safety Rating
   function formatSafetyRating(value: number): string {
-    if (value < 2.0) return `R ${value.toFixed(2)}`;
-    if (value < 3.0) return `D ${value.toFixed(2)}`;
-    if (value < 4.0) return `C ${value.toFixed(2)}`;
-    if (value < 5.0) return `B ${value.toFixed(2)}`;
-    return `A ${value.toFixed(2)}`;
+    // Safety Rating ranges from 0.00 to 4.99
+    // Just show the numeric value, license class is separate
+    return value.toFixed(2);
   }
 
   // Custom Y-axis formatter for Safety Rating
@@ -98,7 +98,7 @@ export function HistoryChart({ data, title, description, dataKey, color, yAxisFo
               axisLine={false}
               tickMargin={8}
               tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
-              domain={['dataMin', 'dataMax']}
+              domain={isSafetyRating ? [0, 'dataMax'] : ['dataMin', 'dataMax']}
             />
             <ChartTooltip
               cursor={false}
