@@ -2,14 +2,7 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
+import { Card, CardContent } from "@/components/ui/card";
 import { type RecentRace } from "@/lib/mock-data";
 import { ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight } from 'lucide-react';
 import { Button } from './ui/button';
@@ -17,9 +10,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 
 interface RecentRacesProps {
   races: RecentRace[];
+  driverId?: number;
 }
 
-export function RecentRaces({ races }: RecentRacesProps) {
+export function RecentRaces({ races, driverId }: RecentRacesProps) {
   const router = useRouter();
   const [pageIndex, setPageIndex] = useState(0);
   const [pageSize, setPageSize] = useState(5);
@@ -36,12 +30,28 @@ export function RecentRaces({ races }: RecentRacesProps) {
     const end = start + pageSize;
     return races.slice(start, end);
   }, [races, pageIndex, pageSize]);
-  
-  const formatChange = (change: number | string, isRating: boolean = false) => {
-    const value = typeof change === 'string' ? parseFloat(change) : change;
-    if (value > 0) return <span className="flex items-center justify-end gap-1 text-green-500">+{isRating ? value.toFixed(2) : value}</span>;
-    if (value < 0) return <span className="flex items-center justify-end gap-1 text-red-500">{isRating ? value.toFixed(2) : value}</span>;
-    return <span className="text-muted-foreground text-right">{isRating ? '0.00' : '-'}</span>;
+
+  const formatDateTime = (dateString: string) => {
+    const date = new Date(dateString);
+    return {
+      date: date.toLocaleDateString('en-US', { 
+        month: 'short', 
+        day: 'numeric',
+        timeZone: 'UTC'
+      }),
+      time: date.toLocaleTimeString('en-US', { 
+        hour: '2-digit', 
+        minute: '2-digit',
+        timeZone: 'UTC'
+      })
+    };
+  };
+
+  const getPositionColor = (position: number) => {
+    if (position === 1) return 'text-yellow-500 font-bold';
+    if (position <= 3) return 'text-orange-500 font-semibold';
+    if (position <= 10) return 'text-green-500';
+    return 'text-muted-foreground';
   };
 
   if (races.length === 0) {
@@ -54,39 +64,68 @@ export function RecentRaces({ races }: RecentRacesProps) {
 
   return (
     <>
-      <div className="overflow-x-auto">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Track</TableHead>
-              <TableHead>Date</TableHead>
-              <TableHead className="text-right">Start</TableHead>
-              <TableHead className="text-right">Finish</TableHead>
-              <TableHead className="text-right">Incidents</TableHead>
-              <TableHead className="text-right">SOF</TableHead>
-              <TableHead className="text-right">iRating +/-</TableHead>
-              <TableHead className="text-right">SR +/-</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {paginatedRaces.map((race) => (
-              <TableRow
-                key={race.id}
-                onClick={() => router.push(`/race/${race.id}`)}
-                className="cursor-pointer"
-              >
-                <TableCell className="font-medium">{race.trackName}</TableCell>
-                <TableCell>{new Date(race.date).toLocaleDateString('en-US', { timeZone: 'UTC' })}</TableCell>
-                <TableCell className="text-right">{race.startPosition}</TableCell>
-                <TableCell className="text-right">{race.finishPosition}</TableCell>
-                <TableCell className="text-right">{race.incidents}</TableCell>
-                <TableCell className="text-right">{race.strengthOfField.toLocaleString('en-US')}</TableCell>
-                <TableCell className="text-right">{formatChange(race.iratingChange)}</TableCell>
-                <TableCell className="text-right">{formatChange(race.safetyRatingChange, true)}</TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+      <div className="space-y-3">
+        {paginatedRaces.map((race) => {
+          const { date, time } = formatDateTime(race.date);
+          return (
+            <Card 
+              key={race.id}
+              onClick={() => router.push(`/race/${race.id}${driverId ? `?from=${driverId}` : ''}`)}
+              className="cursor-pointer hover:bg-muted/50 transition-colors"
+            >
+              <CardContent className="p-4">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-3 mb-2">
+                      <span className={`text-2xl font-bold ${getPositionColor(race.finishPosition)}`}>
+                        {race.finishPosition}
+                      </span>
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium text-sm truncate">
+                          {race.seriesName}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {date} {time}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-sm text-muted-foreground mb-1 truncate">
+                      {race.car}
+                    </div>
+                    <div className="text-sm font-medium truncate">
+                      {race.trackName}
+                    </div>
+                  </div>
+                  <div className="flex-shrink-0 text-right text-sm space-y-1 min-w-[80px]">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-muted-foreground">iR:</span>
+                      <span className={race.iratingChange > 0 ? 'text-green-500' : race.iratingChange < 0 ? 'text-red-500' : 'text-muted-foreground'}>
+                        {race.iratingChange > 0 ? '+' : ''}{race.iratingChange}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-muted-foreground">SR:</span>
+                      <span className={
+                        typeof race.safetyRatingChange === 'number' 
+                          ? race.safetyRatingChange > 0 ? 'text-green-500' : race.safetyRatingChange < 0 ? 'text-red-500' : 'text-muted-foreground'
+                          : parseFloat(race.safetyRatingChange) > 0 ? 'text-green-500' : parseFloat(race.safetyRatingChange) < 0 ? 'text-red-500' : 'text-muted-foreground'
+                      }>
+                        {typeof race.safetyRatingChange === 'number' 
+                          ? (race.safetyRatingChange > 0 ? '+' : '') + race.safetyRatingChange.toFixed(2)
+                          : (parseFloat(race.safetyRatingChange) > 0 ? '+' : '') + parseFloat(race.safetyRatingChange).toFixed(2)
+                        }
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-muted-foreground">Inc:</span>
+                      <span>{race.incidents}</span>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
       </div>
       <div className="flex items-center justify-between px-2 mt-4">
         <div className="flex-1 text-sm text-muted-foreground">

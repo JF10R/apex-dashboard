@@ -84,6 +84,17 @@ export default function DriverSearch({ onDriverSelect, initialDriverName, label 
     }
   };
 
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      
+      // If there's exactly one result, select it
+      if (results.length === 1) {
+        handleSelectDriver(results[0]);
+      }
+    }
+  };
+
   return (
     <div>
         {label && <h2 className="text-lg font-semibold mb-2">{label}</h2>}
@@ -97,6 +108,7 @@ export default function DriverSearch({ onDriverSelect, initialDriverName, label 
                         className="pl-10"
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
+                        onKeyDown={handleKeyDown}
                         aria-label="Driver Name"
                     />
                     {isLoading && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 animate-spin" />}

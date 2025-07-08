@@ -28,6 +28,7 @@ export interface RecentRace {
   year: number;
   season: string;
   category: RaceCategory;
+  seriesName: string;
   startPosition: number;
   finishPosition: number;
   incidents: number;

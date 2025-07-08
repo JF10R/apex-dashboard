@@ -51,7 +51,7 @@ export default function Home() {
           <DriverDashboard custId={searchedDriver.custId} driverName={searchedDriver.name} />
         ) : (
           <div className="grid gap-6 max-w-4xl mx-auto">
-            <TrackedDrivers onDriverSelect={handleDriverSelect} currentDriver={searchedDriver} />
+            <TrackedDrivers currentDriver={searchedDriver} />
             <Card className="text-center py-12">
               <CardHeader>
                 <CardTitle>Welcome to Apex Stats</CardTitle>

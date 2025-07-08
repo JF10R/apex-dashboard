@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import type { RaceParticipant, Lap } from '@/lib/mock-data';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -21,60 +22,123 @@ import {
 } from '@/components/ui/dialog';
 import { ScrollArea } from './ui/scroll-area';
 import { cn } from '@/lib/utils';
+import { Loader2 } from 'lucide-react';
+
+interface LapData {
+  driverName: string;
+  raceId: number;
+  laps: Lap[];
+  fastestLap: string;
+  totalLaps: number;
+}
 
 function LapTimesDialog({
   driverName,
-  laps,
+  driverId,
+  raceId,
   driverFastestLap,
 }: {
   driverName: string;
-  laps: Lap[];
+  driverId: string;
+  raceId: string;
   driverFastestLap: string;
 }) {
-  if (!laps || laps.length === 0) {
-    return (
-      <Button variant="outline" size="sm" disabled>
-        No Laps
-      </Button>
-    );
-  }
+  const [lapData, setLapData] = useState<LapData | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [isOpen, setIsOpen] = useState(false);
+
+  const fetchLapData = async () => {
+    if (lapData) return; // Already loaded
+    
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const response = await fetch(`/api/race/${raceId}/laps/${driverId}`);
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to fetch lap data');
+      }
+      
+      setLapData(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load lap data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleOpenChange = (open: boolean) => {
+    setIsOpen(open);
+    if (open && !lapData && !loading) {
+      fetchLapData();
+    }
+  };
 
   return (
-    <Dialog>
+    <Dialog open={isOpen} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm">View Laps</Button>
+        <Button variant="outline" size="sm">
+          Laps
+        </Button>
       </DialogTrigger>
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>Lap Times: {driverName}</DialogTitle>
           <DialogDescription>
-            Detailed lap-by-lap breakdown for the race.
+            Fastest lap: {driverFastestLap}
           </DialogDescription>
         </DialogHeader>
-        <ScrollArea className="h-72">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-[80px]">Lap</TableHead>
-                <TableHead>Time</TableHead>
-                <TableHead className="text-right">Status</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {laps.map((lap) => (
-                <TableRow key={lap.lapNumber} className={cn(lap.invalid && 'bg-destructive/10')}>
-                  <TableCell className="font-medium">{lap.lapNumber}</TableCell>
-                  <TableCell className={cn('font-mono', !lap.invalid && lap.time === driverFastestLap && 'text-purple-400 font-bold')}>
-                    {lap.time}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {lap.invalid ? <span className="text-destructive">Invalid</span> : <span className="text-green-500">Valid</span>}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </ScrollArea>
+        <div className="max-h-[400px]">
+          {loading && (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="w-6 h-6 animate-spin mr-2" />
+              Loading lap data...
+            </div>
+          )}
+          
+          {error && (
+            <div className="text-center py-8 text-red-500">
+              {error}
+            </div>
+          )}
+          
+          {lapData && (
+            <ScrollArea className="max-h-[350px]">
+              {lapData.laps && lapData.laps.length > 0 ? (
+                <div className="space-y-1">
+                  {lapData.laps.map((lap) => (
+                    <div
+                      key={lap.lapNumber}
+                      className={cn(
+                        'flex justify-between items-center p-2 rounded text-sm',
+                        lap.invalid && 'bg-red-100 dark:bg-red-900/20',
+                        lap.time === driverFastestLap && !lap.invalid && 'bg-purple-100 dark:bg-purple-900/20'
+                      )}
+                    >
+                      <span className="font-medium">Lap {lap.lapNumber}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono">{lap.time}</span>
+                        {lap.invalid && (
+                          <span className="text-xs text-red-500 font-medium">INVALID</span>
+                        )}
+                        {lap.time === driverFastestLap && !lap.invalid && (
+                          <span className="text-xs text-purple-500 font-medium">FASTEST</span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  No lap data available for this driver.
+                </div>
+              )}
+            </ScrollArea>
+          )}
+        </div>
       </DialogContent>
     </Dialog>
   );
@@ -83,9 +147,11 @@ function LapTimesDialog({
 export default function RaceResultsTable({
   participants,
   overallFastestLap,
+  raceId,
 }: {
   participants: RaceParticipant[];
   overallFastestLap: string;
+  raceId: string;
 }) {
   return (
     <Card>
@@ -126,7 +192,8 @@ export default function RaceResultsTable({
                   <TableCell className="text-center">
                     <LapTimesDialog
                       driverName={p.name}
-                      laps={p.laps}
+                      driverId={encodeURIComponent(p.name)}
+                      raceId={raceId}
                       driverFastestLap={p.fastestLap}
                     />
                   </TableCell>

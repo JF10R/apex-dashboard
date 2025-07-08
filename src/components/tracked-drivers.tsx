@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { Star, StarOff, Eye, Users, Trash2 } from 'lucide-react';
+import { Star, StarOff, Users, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -10,11 +10,10 @@ import { type SearchedDriver } from '@/lib/mock-data';
 import { useTrackedDrivers } from '@/hooks/use-tracked-drivers';
 
 interface TrackedDriversProps {
-  onDriverSelect?: (driver: SearchedDriver) => void;
   currentDriver?: SearchedDriver | null;
 }
 
-export default function TrackedDrivers({ onDriverSelect, currentDriver }: TrackedDriversProps) {
+export default function TrackedDrivers({ currentDriver }: TrackedDriversProps) {
   const { trackedDrivers, isLoading, removeTrackedDriver, clearAllTrackedDrivers } = useTrackedDrivers();
   const [showConfirmClear, setShowConfirmClear] = useState(false);
 
@@ -89,28 +88,25 @@ export default function TrackedDrivers({ onDriverSelect, currentDriver }: Tracke
           {trackedDrivers.map((driver) => (
             <div
               key={driver.custId}
-              className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors"
+              className="relative border rounded-lg hover:bg-muted/50 transition-colors"
             >
-              <div className="flex items-center gap-3">
-                <div>
-                  <div className="font-medium">{driver.name}</div>
-                  <div className="text-sm text-muted-foreground">
-                    ID: {driver.custId}
+              <Link
+                href={`/${driver.custId}`}
+                className="block p-3 pr-32" // Add right padding to leave space for buttons
+              >
+                <div className="flex items-center gap-3">
+                  <div>
+                    <div className="font-medium">{driver.name}</div>
+                    <div className="text-sm text-muted-foreground">
+                      ID: {driver.custId}
+                    </div>
                   </div>
+                  {currentDriver?.custId === driver.custId && (
+                    <Badge variant="default">Currently Viewing</Badge>
+                  )}
                 </div>
-                {currentDriver?.custId === driver.custId && (
-                  <Badge variant="default">Currently Viewing</Badge>
-                )}
-              </div>
-              <div className="flex items-center gap-1">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => onDriverSelect?.(driver)}
-                  title="View dashboard"
-                >
-                  <Eye className="w-4 h-4" />
-                </Button>
+              </Link>
+              <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1">
                 <Button
                   variant="ghost"
                   size="sm"

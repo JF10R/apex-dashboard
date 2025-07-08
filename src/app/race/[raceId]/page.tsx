@@ -1,5 +1,7 @@
+'use client';
+
 import Link from 'next/link';
-import { notFound } from 'next/navigation';
+import { useRouter, useSearchParams, useParams } from 'next/navigation';
 import { ArrowLeft, Award, ShieldAlert, Timer, Users } from 'lucide-react';
 import { StatCard } from '@/components/stat-card';
 import { Button } from '@/components/ui/button';
@@ -7,7 +9,10 @@ import { Badge } from '@/components/ui/badge';
 import RaceResultsTable from '@/components/race-results-table';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { getRaceResultAction } from '@/app/data-actions';
-import { type RaceParticipant } from '@/lib/mock-data';
+import { type RaceParticipant, type RecentRace } from '@/lib/mock-data';
+import { useState, useEffect } from 'react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
 const lapTimeToMs = (time: string): number => {
   if (!time || !time.includes(':') || !time.includes('.')) return Infinity;
@@ -36,17 +41,86 @@ const getOverallFastestLap = (participants: RaceParticipant[]): string => {
   return fastestLap === '99:99.999' ? 'N/A' : fastestLap;
 };
 
+export default function RaceDetailsPage() {
+  const router = useRouter();
+  const params = useParams();
+  const searchParams = useSearchParams();
+  const [race, setRace] = useState<RecentRace | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-export default async function RaceDetailsPage({ params }: { params: { raceId: string } }) {
-  const subsessionId = parseInt(params.raceId, 10);
-  if (isNaN(subsessionId)) {
-    notFound();
+  const raceId = params.raceId as string;
+  const fromDriver = searchParams.get('from');
+
+  useEffect(() => {
+    const fetchRace = async () => {
+      try {
+        const subsessionId = parseInt(raceId, 10);
+        if (isNaN(subsessionId)) {
+          setError('Invalid race ID');
+          return;
+        }
+
+        const { data, error } = await getRaceResultAction(subsessionId);
+        if (error || !data) {
+          setError(error || 'Race not found');
+          return;
+        }
+
+        setRace(data);
+      } catch (err) {
+        setError('Failed to load race data');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchRace();
+  }, [raceId]);
+
+  const handleBack = () => {
+    if (fromDriver) {
+      router.push(`/${fromDriver}`);
+    } else {
+      router.push('/');
+    }
+  };
+
+  if (loading) {
+    return (
+      <main className="container mx-auto p-4 md:p-8 relative">
+        <div className="absolute top-4 right-4">
+          <ThemeToggle />
+        </div>
+        <Card className="max-w-md mx-auto">
+          <CardHeader>
+            <CardTitle>Loading Race Data...</CardTitle>
+            <CardDescription>Please wait while we fetch the race information.</CardDescription>
+          </CardHeader>
+        </Card>
+      </main>
+    );
   }
 
-  const { data: race, error } = await getRaceResultAction(subsessionId);
-
   if (error || !race) {
-    notFound();
+    return (
+      <main className="container mx-auto p-4 md:p-8 relative">
+        <div className="absolute top-4 right-4">
+          <ThemeToggle />
+        </div>
+        <div className="max-w-2xl mx-auto">
+          <Button variant="outline" onClick={handleBack} className="mb-4">
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back
+          </Button>
+          <Alert>
+            <AlertDescription>
+              Error loading race data: {error}
+            </AlertDescription>
+          </Alert>
+        </div>
+      </main>
+    );
   }
 
   const winner = race.participants.find((p) => p.finishPosition === 1);
@@ -58,11 +132,9 @@ export default async function RaceDetailsPage({ params }: { params: { raceId: st
         <ThemeToggle />
       </div>
       <div className="mb-6">
-        <Button asChild variant="outline" size="sm">
-          <Link href="/">
-            <ArrowLeft />
-            Back to Dashboard
-          </Link>
+        <Button variant="outline" size="sm" onClick={handleBack}>
+          <ArrowLeft />
+          Back to Dashboard
         </Button>
       </div>
 
@@ -89,7 +161,11 @@ export default async function RaceDetailsPage({ params }: { params: { raceId: st
       </section>
 
       <section>
-        <RaceResultsTable participants={race.participants} overallFastestLap={overallFastestLap} />
+        <RaceResultsTable 
+          participants={race.participants} 
+          overallFastestLap={overallFastestLap} 
+          raceId={raceId}
+        />
       </section>
     </main>
   )

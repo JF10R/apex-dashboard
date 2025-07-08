@@ -187,8 +187,12 @@ export default function DriverDashboard({ custId, driverName }: { custId: number
   const filteredHistory = useMemo(() => {
     if (!driver) return { iratingHistory: [], safetyRatingHistory: [], racePaceHistory: [] };
     
+    // iRating and Safety Rating history should always show the full progression
+    // Only filter them if no filters are active at all
+    const shouldFilterHistoryCharts = !areFiltersActive;
+    
     const filterByDate = (data: HistoryPoint[]) => {
-      if (!areFiltersActive) return data;
+      if (shouldFilterHistoryCharts) return data;
       const getMonthFromDate = (dateStr: string) => new Date(dateStr).toLocaleString('en-US', { month: 'short', timeZone: 'UTC' });
       const yearNum = year !== 'all' ? parseInt(year, 10) : null;
       
@@ -214,8 +218,9 @@ export default function DriverDashboard({ custId, driverName }: { custId: number
     }
 
     return {
-      iratingHistory: filterByDate(driver.iratingHistory),
-      safetyRatingHistory: filterByDate(driver.safetyRatingHistory),
+      // Always show full progression for iRating and Safety Rating history
+      iratingHistory: driver.iratingHistory,
+      safetyRatingHistory: driver.safetyRatingHistory,
       racePaceHistory: racePaceData,
     };
   }, [driver, filteredRaces, areFiltersActive, year, track, car]);
@@ -328,7 +333,7 @@ export default function DriverDashboard({ custId, driverName }: { custId: number
           <HistoryChart
             data={filteredHistory.iratingHistory}
             title="iRating History"
-            description="Progression over the selected period."
+            description="Full progression over time (unfiltered)."
             dataKey="value"
             color="--primary"
             yAxisFormatter={(value) => value.toLocaleString('en-US')}
@@ -336,7 +341,7 @@ export default function DriverDashboard({ custId, driverName }: { custId: number
           <HistoryChart
             data={filteredHistory.safetyRatingHistory}
             title="Safety Rating History"
-            description="Progression over the selected period."
+            description="Full progression over time (unfiltered)."
             dataKey="value"
             color="--chart-2"
             yAxisFormatter={(value) => value.toFixed(2)}
@@ -361,7 +366,7 @@ export default function DriverDashboard({ custId, driverName }: { custId: number
             <CardDescription>Filtered race performance. Click a race for full details.</CardDescription>
           </CardHeader>
           <CardContent>
-            <RecentRaces races={filteredRaces} />
+            <RecentRaces races={filteredRaces} driverId={custId} />
           </CardContent>
         </Card>
       </section>

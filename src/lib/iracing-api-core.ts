@@ -516,7 +516,7 @@ export const getRaceResultData = async (
         incidents: p.incidents,
         fastestLap: formatLapTime(p.bestLapTime),
         irating: p.newiRating,
-        laps: p.laps ? p.laps.map((l: RawLapData, index: number) => ({
+        laps: (p.laps && Array.isArray(p.laps)) ? p.laps.map((l: RawLapData, index: number) => ({
           lapNumber: index + 1,
           time: formatLapTime(l.lapTime),
           invalid: l.lapEvents ? l.lapEvents.includes('invalid') : false,
@@ -540,14 +540,15 @@ export const getRaceResultData = async (
         year,
         season,
         category,
+        seriesName: result.seriesName,
         startPosition: 0,
         finishPosition: 0,
         incidents: 0,
         strengthOfField: result.eventStrengthOfField,
         lapsLed: 0,
         fastestLap: '',
-        car: result.carClassName,
-        avgLapTime: '',
+        car: result.carClassName || result.car_class_name || result.seriesName || 'Unknown Car',
+        avgLapTime: isNaN(avgLapTimeMs) ? '' : formatLapTime(avgLapTimeMs),
         iratingChange: 0,
         safetyRatingChange: '',
         participants,
@@ -651,17 +652,39 @@ export const getDriverData = async (custId: number): Promise<Driver | null> => {
           const srChange = (raceSummary.newSubLevel - raceSummary.oldSubLevel) / 100;
           raceResult.safetyRatingChange = srChange.toFixed(2);
           raceResult.lapsLed = raceSummary.lapsLed;
-          raceResult.avgLapTime = formatLapTime(raceSummary.averageLap); // averageLap from summary is in ms
+          raceResult.avgLapTime = raceSummary.averageLap 
+            ? formatLapTime(raceSummary.averageLap)
+            : (raceSummary.average_lap ? formatLapTime(raceSummary.average_lap) : '');
 
           return raceResult;
         })
       )
     ).filter((r): r is RecentRace => r !== null);
 
-    const iratingHistory: HistoryPoint[] = (iratingChart?.data || []).map((p: IracingApiChartPoint) => ({
+    // Generate more detailed history from recent races
+    const iratingHistoryFromApi: HistoryPoint[] = (iratingChart?.data || []).map((p: IracingApiChartPoint) => ({
       month: new Date(p.when).toLocaleString('en-US', { month: 'short', timeZone: 'UTC' }),
       value: p.value,
     }));
+
+    const iratingHistoryFromRaces: HistoryPoint[] = recentRaces
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+      .map(race => {
+        const participant = race.participants.find(p => p.name === driverName);
+        if (participant) {
+          return {
+            month: new Date(race.date).toLocaleString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' }),
+            value: participant.irating
+          };
+        }
+        return null;
+      })
+      .filter((point): point is HistoryPoint => point !== null);
+
+    // Combine API chart data with race-based data, preferring more detailed race data
+    const iratingHistory = iratingHistoryFromRaces.length > iratingHistoryFromApi.length 
+      ? iratingHistoryFromRaces 
+      : iratingHistoryFromApi;
 
     const safetyRatingHistory: HistoryPoint[] = (srChart?.data || []).map((p: IracingApiChartPoint) => ({
       month: new Date(p.when).toLocaleString('en-US', { month: 'short', timeZone: 'UTC' }),
@@ -682,14 +705,55 @@ export const getDriverData = async (custId: number): Promise<Driver | null> => {
         ? racePaceHistory.reduce((acc, p) => acc + p.value, 0) / racePaceHistory.length
         : NaN; // Use NaN if no valid history points, formatLapTime will handle it
 
-    const currentStats = memberStatsResponse?.stats;
+    // Get current stats, fallback to most recent race data if API stats not available
+    const memberStatsData = memberStatsResponseFromPromise;
+    console.log('memberStatsData structure for debugging:', JSON.stringify(memberStatsData, null, 2));
+    
+    // Try to get current iRating from most recent race data first (as it's most up-to-date)
+    let currentIRating = 0;
+    
+    // Prioritize latest race participant data as it's most current
+    const latestRaceWithParticipant = recentRaces.find(race => 
+      race.participants.some(p => p.name === driverName)
+    );
+    const latestParticipant = latestRaceWithParticipant?.participants.find(p => p.name === driverName);
+    
+    if (latestParticipant?.irating && latestParticipant.irating > 0) {
+      currentIRating = latestParticipant.irating;
+      console.log('Using most recent race iRating:', currentIRating);
+    }
+    
+    // Fallback to member data if race data not available
+    if (currentIRating === 0 && memberData?.members?.[0]?.irating) {
+      currentIRating = memberData.members[0].irating;
+      console.log('Found current iRating from member data:', currentIRating);
+    }
+    
+    // If not found, check memberStatsData
+    if (currentIRating === 0 && memberStatsData) {
+      const currentStats = memberStatsData.stats;
+      
+      if (currentStats && Array.isArray(currentStats)) {
+        // If stats is an array of categories, find Sports Car category (category 2)
+        const sportsCarStats = currentStats.find(stat => stat.categoryId === 2);
+        currentIRating = sportsCarStats?.iRating ?? currentStats[0]?.iRating ?? 0;
+        console.log('Found current iRating from stats array:', currentIRating);
+      } else if (currentStats?.iRating) {
+        // If stats is a single object
+        currentIRating = currentStats.iRating;
+        console.log('Found current iRating from single stats object:', currentIRating);
+      }
+    }
+
+    const currentSafetyRating = memberStatsData?.stats
+      ? `${memberStatsData.stats.licenseClass || memberStatsData.stats[0]?.licenseClass || 'N/A'} ${memberStatsData.stats.srPrime || memberStatsData.stats[0]?.srPrime || 0}.${String(memberStatsData.stats.srSub || memberStatsData.stats[0]?.srSub || 0).padStart(2, '0')}`
+      : 'N/A';
+
     const driver: Driver = {
       id: custId,
       name: driverName,
-      currentIRating: currentStats?.iRating ?? 0,
-      currentSafetyRating: currentStats
-        ? `${currentStats.licenseClass} ${currentStats.srPrime}.${String(currentStats.srSub).padStart(2, '0')}`
-        : 'N/A',
+      currentIRating,
+      currentSafetyRating,
       avgRacePace: formatLapTime(avgRacePaceSeconds * 1000), // convert seconds to ms for formatting
       iratingHistory,
       safetyRatingHistory,
