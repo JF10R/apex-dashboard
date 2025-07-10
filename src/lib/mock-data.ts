@@ -6,6 +6,7 @@ export interface Lap {
 
 export interface RaceParticipant {
   name: string;
+  custId: number;
   startPosition: number;
   finishPosition: number;
   incidents: number;

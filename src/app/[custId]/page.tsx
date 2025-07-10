@@ -2,14 +2,16 @@
 
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Trophy, Star, StarOff } from 'lucide-react';
+import { ArrowLeft, Star, StarOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import DriverDashboard from '@/components/driver-dashboard';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { useTrackedDrivers } from '@/hooks/use-tracked-drivers';
+import { useRecentProfiles } from '@/hooks/use-recent-profiles';
 import { type Driver } from '@/lib/mock-data';
+import { AppHeader } from '@/components/app-header';
 
 export default function CustomerPage() {
   const params = useParams();
@@ -22,6 +24,7 @@ export default function CustomerPage() {
   const [driverName, setDriverName] = useState<string>('');
   
   const { addTrackedDriver, removeTrackedDriver, isDriverTracked } = useTrackedDrivers();
+  const { addRecentProfile } = useRecentProfiles();
 
   const handleToggleTracking = () => {
     if (driverData) {
@@ -59,6 +62,14 @@ export default function CustomerPage() {
 
         setDriverData(data.driver);
         setDriverName(data.driver?.name || `Driver ${custId}`);
+        
+        // Add to recent profiles if we have driver data
+        if (data.driver?.name) {
+          addRecentProfile({
+            name: data.driver.name,
+            custId: custId
+          });
+        }
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred';
         setError(errorMessage);
@@ -79,10 +90,7 @@ export default function CustomerPage() {
         <div className="absolute top-4 right-4">
           <ThemeToggle />
         </div>
-        <header className="flex flex-col items-center text-center mb-8">
-          <Trophy className="w-12 h-12 text-primary mb-2" />
-          <h1 className="text-4xl font-headline font-bold tracking-tighter">Apex Stats</h1>
-        </header>
+        <AppHeader />
         <Card className="max-w-md mx-auto">
           <CardHeader>
             <CardTitle>Loading Driver Data...</CardTitle>
@@ -99,10 +107,7 @@ export default function CustomerPage() {
         <div className="absolute top-4 right-4">
           <ThemeToggle />
         </div>
-        <header className="flex flex-col items-center text-center mb-8">
-          <Trophy className="w-12 h-12 text-primary mb-2" />
-          <h1 className="text-4xl font-headline font-bold tracking-tighter">Apex Stats</h1>
-        </header>
+        <AppHeader />
         <div className="max-w-2xl mx-auto">
           <Button 
             variant="outline" 
@@ -127,11 +132,7 @@ export default function CustomerPage() {
       <div className="absolute top-4 right-4">
         <ThemeToggle />
       </div>
-      <header className="flex flex-col items-center text-center mb-8">
-        <Trophy className="w-12 h-12 text-primary mb-2" />
-        <h1 className="text-4xl font-headline font-bold tracking-tighter">Apex Stats</h1>
-        <p className="text-muted-foreground mt-2">Driver profile for {driverName}</p>
-      </header>
+      <AppHeader subtitle={`Driver profile for ${driverName}`} />
 
       <div className="max-w-2xl mx-auto mb-8">
         <div className="flex items-center justify-between mb-4">

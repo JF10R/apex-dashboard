@@ -111,7 +111,7 @@ export default function DriverSearch({ onDriverSelect, initialDriverName, label 
                         onKeyDown={handleKeyDown}
                         aria-label="Driver Name"
                     />
-                    {isLoading && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 animate-spin" />}
+                    {isLoading && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />}
                 </div>
             </PopoverAnchor>
             <PopoverContent 

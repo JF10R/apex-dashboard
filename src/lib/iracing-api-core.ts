@@ -641,6 +641,7 @@ export const getRaceResultData = async (
 
         return {
           name: p.displayName,
+          custId: p.custId,
           startPosition: p.startingPosition !== null ? p.startingPosition + 1 : 0,
           finishPosition: p.finishPosition !== null ? p.finishPosition + 1 : 0,
           incidents: p.incidents,

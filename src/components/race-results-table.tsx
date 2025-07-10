@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import type { RaceParticipant, Lap } from '@/lib/mock-data';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -22,7 +23,7 @@ import {
 } from '@/components/ui/dialog';
 import { ScrollArea } from './ui/scroll-area';
 import { cn } from '@/lib/utils';
-import { Loader2 } from 'lucide-react';
+import { Loader2, ExternalLink } from 'lucide-react';
 
 interface LapData {
   driverName: string;
@@ -30,6 +31,39 @@ interface LapData {
   laps: Lap[];
   fastestLap: string;
   totalLaps: number;
+}
+
+interface ClickableDriverNameProps {
+  name: string;
+  custId: number;
+  className?: string;
+  onDriverClick?: (driverName: string) => void;
+}
+
+function ClickableDriverName({ name, custId, className, onDriverClick }: ClickableDriverNameProps) {
+  const handleClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (onDriverClick) {
+      onDriverClick(name);
+    } else {
+      // Fallback to direct navigation if no callback provided
+      window.open(`/${custId}`, '_blank');
+    }
+  };
+
+  return (
+    <button
+      onClick={handleClick}
+      className={cn(
+        'font-medium text-left hover:text-primary hover:underline transition-colors inline-flex items-center gap-1',
+        className
+      )}
+      title={`Click to view ${name}'s profile`}
+    >
+      {name}
+      <ExternalLink className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+    </button>
+  );
 }
 
 function LapTimesDialog({
@@ -148,10 +182,12 @@ export default function RaceResultsTable({
   participants,
   overallFastestLap,
   raceId,
+  onDriverClick,
 }: {
   participants: RaceParticipant[];
   overallFastestLap: string;
   raceId: string;
+  onDriverClick?: (driverName: string) => void;
 }) {
   return (
     <Card>
@@ -175,10 +211,12 @@ export default function RaceResultsTable({
             </TableHeader>
             <TableBody>
               {participants.sort((a, b) => a.finishPosition - b.finishPosition).map((p) => (
-                <TableRow key={p.name}>
+                <TableRow key={p.name} className="group">
                   <TableCell className="text-center font-bold">{p.finishPosition}</TableCell>
                   <TableCell className="text-center text-muted-foreground">{p.startPosition}</TableCell>
-                  <TableCell className="font-medium">{p.name}</TableCell>
+                  <TableCell>
+                    <ClickableDriverName name={p.name} custId={p.custId} onDriverClick={onDriverClick} />
+                  </TableCell>
                   <TableCell
                     className={cn(
                       'text-right font-mono',

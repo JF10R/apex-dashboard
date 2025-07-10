@@ -10,7 +10,7 @@ import RaceResultsTable from '@/components/race-results-table';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { getRaceResultAction } from '@/app/data-actions';
 import { type RaceParticipant, type RecentRace } from '@/lib/mock-data';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
@@ -126,6 +126,25 @@ export default function RaceDetailsPage() {
   const winner = race.participants.find((p) => p.finishPosition === 1);
   const overallFastestLap = getOverallFastestLap(race.participants);
 
+  // Create a mapping of driver names to customer IDs for easy navigation
+  const driverNameToCustomerId = useMemo(() => {
+    const mapping: Record<string, string> = {};
+    race.participants.forEach(participant => {
+      if (participant.name && participant.custId) {
+        mapping[participant.name] = participant.custId.toString();
+      }
+    });
+    return mapping;
+  }, [race.participants]);
+
+  // Handler for when a driver name is clicked in the results table
+  const handleDriverClick = (driverName: string) => {
+    const customerId = driverNameToCustomerId[driverName];
+    if (customerId) {
+      router.push(`/${customerId}`);
+    }
+  };
+
   return (
     <main className="container mx-auto p-4 md:p-8 animate-in fade-in duration-500 relative">
       <div className="absolute top-4 right-4 z-10">
@@ -165,6 +184,7 @@ export default function RaceDetailsPage() {
           participants={race.participants} 
           overallFastestLap={overallFastestLap} 
           raceId={raceId}
+          onDriverClick={handleDriverClick}
         />
       </section>
     </main>
