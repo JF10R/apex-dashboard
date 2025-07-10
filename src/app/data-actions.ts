@@ -7,11 +7,23 @@ import {
   ApiError,
   ApiErrorType,
 } from '@/lib/iracing-api-core'
+import { cache, cacheKeys, cacheTTL } from '@/lib/cache'
 
 export async function searchDriversAction(query: string) {
   try {
-    const results = await searchDriversByName(query)
-    return { data: results, error: null }
+    // Check cache first
+    const cacheKey = cacheKeys.driverSearch(query);
+    const cachedResults = cache.get(cacheKey);
+    if (cachedResults) {
+      return { data: cachedResults, error: null };
+    }
+
+    const results = await searchDriversByName(query);
+    
+    // Cache the results
+    cache.set(cacheKey, results, cacheTTL.SEARCH_RESULTS);
+    
+    return { data: results, error: null };
   } catch (e) {
     if (e instanceof ApiError) {
       return { data: [], error: e.message }
@@ -21,13 +33,26 @@ export async function searchDriversAction(query: string) {
   }
 }
 
-export async function getDriverPageData(custId: number) {
+export async function getDriverPageData(custId: number, forceRefresh: boolean = false) {
   try {
-    const data = await getDriverData(custId)
-    if (!data) {
-      return { data: null, error: 'Driver data could not be found.' }
+    // Check cache first (unless force refresh is requested)
+    const cacheKey = cacheKeys.driver(custId);
+    if (!forceRefresh) {
+      const cachedData = cache.get(cacheKey);
+      if (cachedData) {
+        return { data: cachedData, error: null };
+      }
     }
-    return { data, error: null }
+
+    const data = await getDriverData(custId);
+    if (!data) {
+      return { data: null, error: 'Driver data could not be found.' };
+    }
+
+    // Cache the fresh data
+    cache.set(cacheKey, data, cacheTTL.DRIVER_PROFILE);
+    
+    return { data, error: null };
   } catch (e) {
     if (e instanceof ApiError) {
       return { data: null, error: e.message }
@@ -39,11 +64,22 @@ export async function getDriverPageData(custId: number) {
 
 export async function getRaceResultAction(subsessionId: number) {
   try {
-    const data = await getRaceResultData(subsessionId)
-    if (!data) {
-      return { data: null, error: 'Race result could not be found.' }
+    // Check cache first
+    const cacheKey = cacheKeys.raceResult(subsessionId);
+    const cachedData = cache.get(cacheKey);
+    if (cachedData) {
+      return { data: cachedData, error: null };
     }
-    return { data, error: null }
+
+    const data = await getRaceResultData(subsessionId);
+    if (!data) {
+      return { data: null, error: 'Race result could not be found.' };
+    }
+
+    // Cache the race result (longer TTL since race results don't change)
+    cache.set(cacheKey, data, cacheTTL.RACE_RESULT);
+    
+    return { data, error: null };
   } catch (e) {
     if (e instanceof ApiError) {
       return { data: null, error: e.message }

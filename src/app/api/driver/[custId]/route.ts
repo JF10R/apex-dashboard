@@ -15,7 +15,11 @@ export async function GET(
       );
     }
 
-    const result = await getDriverPageData(custId);
+    // Check if force refresh is requested
+    const { searchParams } = new URL(request.url);
+    const forceRefresh = searchParams.get('refresh') === 'true';
+
+    const result = await getDriverPageData(custId, forceRefresh);
     
     if (result.error) {
       return NextResponse.json(
@@ -27,7 +31,8 @@ export async function GET(
     return NextResponse.json({
       driver: result.data,
       custId: custId,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      fromCache: !forceRefresh
     });
   } catch (error) {
     console.error('API Error in /api/driver/[custId]:', error);

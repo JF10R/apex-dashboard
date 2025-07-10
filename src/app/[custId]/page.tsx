@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, Star, StarOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -12,6 +12,8 @@ import { useTrackedDrivers } from '@/hooks/use-tracked-drivers';
 import { useRecentProfiles } from '@/hooks/use-recent-profiles';
 import { type Driver } from '@/lib/mock-data';
 import { AppHeader } from '@/components/app-header';
+import { CacheStatus } from '@/components/cache-status';
+import { cacheKeys } from '@/lib/cache';
 
 export default function CustomerPage() {
   const params = useParams();
@@ -41,48 +43,49 @@ export default function CustomerPage() {
     }
   };
 
-  useEffect(() => {
-    const fetchDriverData = async () => {
-      try {
-        setLoading(true);
-        setError(null);
+  const fetchDriverData = useCallback(async (forceRefresh: boolean = false) => {
+    try {
+      setLoading(true);
+      setError(null);
 
-        // First, try to get driver info from our API
-        const response = await fetch(`/api/driver/${custId}`);
-        
-        if (!response.ok) {
-          throw new Error(`Failed to fetch driver data: ${response.status}`);
-        }
-
-        const data = await response.json();
-        
-        if (data.error) {
-          throw new Error(data.error);
-        }
-
-        setDriverData(data.driver);
-        setDriverName(data.driver?.name || `Driver ${custId}`);
-        
-        // Add to recent profiles if we have driver data
-        if (data.driver?.name) {
-          addRecentProfile({
-            name: data.driver.name,
-            custId: custId
-          });
-        }
-      } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred';
-        setError(errorMessage);
-        console.error('Error fetching driver data:', err);
-      } finally {
-        setLoading(false);
+      // Pass forceRefresh parameter to the API
+      const url = `/api/driver/${custId}${forceRefresh ? '?refresh=true' : ''}`;
+      const response = await fetch(url);
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch driver data: ${response.status}`);
       }
-    };
 
+      const data = await response.json();
+      
+      if (data.error) {
+        throw new Error(data.error);
+      }
+
+      setDriverData(data.driver);
+      setDriverName(data.driver?.name || `Driver ${custId}`);
+      
+      // Add to recent profiles if we have driver data
+      if (data.driver?.name) {
+        addRecentProfile({
+          name: data.driver.name,
+          custId: custId
+        });
+      }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred';
+      setError(errorMessage);
+      console.error('Error fetching driver data:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, [custId, addRecentProfile]);
+
+  useEffect(() => {
     if (custId) {
       fetchDriverData();
     }
-  }, [custId]);
+  }, [custId, fetchDriverData]);
 
   if (loading) {
     return (
@@ -135,6 +138,15 @@ export default function CustomerPage() {
       <AppHeader subtitle={`Driver profile for ${driverName}`} />
 
       <div className="max-w-2xl mx-auto mb-8">
+        {/* Cache status and refresh button */}
+        <div className="flex items-center justify-center mb-4">
+          <CacheStatus
+            cacheKey={cacheKeys.driver(custId)}
+            onRefresh={() => fetchDriverData(true)}
+            isLoading={loading}
+          />
+        </div>
+        
         <div className="flex items-center justify-between mb-4">
           <Button 
             variant="outline" 
