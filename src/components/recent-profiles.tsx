@@ -15,12 +15,6 @@ interface RecentProfilesProps {
 export default function RecentProfiles({ className }: RecentProfilesProps) {
   const { recentProfiles, removeRecentProfile, clearRecentProfiles } = useRecentProfiles();
 
-  // Debug logging
-  console.log('RecentProfiles component render:', {
-    profilesCount: recentProfiles.length,
-    profiles: recentProfiles
-  });
-
   const formatRelativeTime = (dateString: string) => {
     const date = new Date(dateString);
     const now = new Date();

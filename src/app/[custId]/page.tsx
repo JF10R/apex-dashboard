@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Star, StarOff } from 'lucide-react';
+import { ArrowLeft, Star } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -162,7 +162,7 @@ export default function CustomerPage() {
             >
               {isDriverTracked(driverData.id) ? (
                 <>
-                  <StarOff className="w-4 h-4 mr-2" />
+                  <Star className="w-4 h-4 mr-2 fill-current" />
                   Untrack Driver
                 </>
               ) : (
