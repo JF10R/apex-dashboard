@@ -164,14 +164,16 @@ export default function DriverDashboard({ custId, driverName }: { custId: number
 
   const filteredRaces = useMemo(() => {
     if (!driver) return [];
-    return driver.recentRaces.filter(race => {
-      const categoryMatch = category === 'all' || race.category === category;
-      const yearMatch = year === 'all' || race.year.toString() === year;
-      const seasonMatch = season === 'all' || race.season === season;
-      const trackMatch = track === 'all' || race.trackName === track;
-      const carMatch = car === 'all' || race.car === car;
-      return categoryMatch && yearMatch && seasonMatch && trackMatch && carMatch;
-    });
+    return driver.recentRaces
+      .filter(race => {
+        const categoryMatch = category === 'all' || race.category === category;
+        const yearMatch = year === 'all' || race.year.toString() === year;
+        const seasonMatch = season === 'all' || race.season === season;
+        const trackMatch = track === 'all' || race.trackName === track;
+        const carMatch = car === 'all' || race.car === car;
+        return categoryMatch && yearMatch && seasonMatch && trackMatch && carMatch;
+      })
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()); // Sort by most recent first
   }, [driver, category, year, season, track, car]);
 
   const areFiltersActive = useMemo(() => year !== 'all' || season !== 'all' || category !== 'all' || track !== 'all' || car !== 'all', [year, season, category, track, car]);
