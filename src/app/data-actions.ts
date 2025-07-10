@@ -7,13 +7,14 @@ import {
   ApiError,
   ApiErrorType,
 } from '@/lib/iracing-api-core'
+import { type RecentRace, type Driver, type SearchedDriver } from '@/lib/mock-data'
 import { cache, cacheKeys, cacheTTL } from '@/lib/cache'
 
-export async function searchDriversAction(query: string) {
+export async function searchDriversAction(query: string): Promise<{ data: SearchedDriver[]; error: string | null }> {
   try {
     // Check cache first
     const cacheKey = cacheKeys.driverSearch(query);
-    const cachedResults = cache.get(cacheKey);
+    const cachedResults = cache.get<SearchedDriver[]>(cacheKey);
     if (cachedResults) {
       return { data: cachedResults, error: null };
     }
@@ -33,12 +34,12 @@ export async function searchDriversAction(query: string) {
   }
 }
 
-export async function getDriverPageData(custId: number, forceRefresh: boolean = false) {
+export async function getDriverPageData(custId: number, forceRefresh: boolean = false): Promise<{ data: Driver | null; error: string | null }> {
   try {
     // Check cache first (unless force refresh is requested)
     const cacheKey = cacheKeys.driver(custId);
     if (!forceRefresh) {
-      const cachedData = cache.get(cacheKey);
+      const cachedData = cache.get<Driver>(cacheKey);
       if (cachedData) {
         return { data: cachedData, error: null };
       }
@@ -62,11 +63,11 @@ export async function getDriverPageData(custId: number, forceRefresh: boolean = 
   }
 }
 
-export async function getRaceResultAction(subsessionId: number) {
+export async function getRaceResultAction(subsessionId: number): Promise<{ data: RecentRace | null; error: string | null }> {
   try {
     // Check cache first
     const cacheKey = cacheKeys.raceResult(subsessionId);
-    const cachedData = cache.get(cacheKey);
+    const cachedData = cache.get<RecentRace>(cacheKey);
     if (cachedData) {
       return { data: cachedData, error: null };
     }

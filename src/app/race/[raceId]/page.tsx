@@ -78,6 +78,15 @@ export default function RaceDetailsPage() {
     fetchRace();
   }, [raceId]);
 
+  // Update document title when race data is loaded
+  useEffect(() => {
+    if (race) {
+      document.title = `${race.trackName} - ${race.seriesName} - Apex Stats`;
+    } else {
+      document.title = `Race ${raceId} - Apex Stats`;
+    }
+  }, [race, raceId]);
+
   const handleBack = () => {
     if (fromDriver) {
       router.push(`/${fromDriver}`);

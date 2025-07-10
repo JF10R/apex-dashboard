@@ -25,6 +25,17 @@ function CompareView() {
     }
   }, [searchParams]);
 
+  // Update document title based on selected drivers
+  useEffect(() => {
+    if (driverA && driverB) {
+      document.title = `${driverA.name} vs ${driverB.name} - Apex Stats`;
+    } else if (driverA) {
+      document.title = `Compare ${driverA.name} - Apex Stats`;
+    } else {
+      document.title = `Driver Comparison - Apex Stats`;
+    }
+  }, [driverA, driverB]);
+
   const handleSelectA = (driver: SearchedDriver | null) => {
     setDriverA(driver);
   };

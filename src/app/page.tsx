@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -15,6 +15,15 @@ import { AppHeader } from '@/components/app-header';
 
 export default function Home() {
   const [searchedDriver, setSearchedDriver] = useState<SearchedDriver | null>(null);
+
+  // Update document title
+  useEffect(() => {
+    if (searchedDriver) {
+      document.title = `${searchedDriver.name} Dashboard - Apex Stats`;
+    } else {
+      document.title = `Apex Stats - iRacing Performance Dashboard`;
+    }
+  }, [searchedDriver]);
 
   const handleDriverSelect = (driver: SearchedDriver | null) => {
     setSearchedDriver(driver);

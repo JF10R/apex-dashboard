@@ -87,6 +87,17 @@ export default function CustomerPage() {
     }
   }, [custId, fetchDriverData]);
 
+  // Update document title when driver data is loaded
+  useEffect(() => {
+    if (driverData?.name) {
+      document.title = `${driverData.name} - Apex Stats`;
+    } else if (driverName) {
+      document.title = `${driverName} - Apex Stats`;
+    } else {
+      document.title = `Driver ${custId} - Apex Stats`;
+    }
+  }, [driverData, driverName, custId]);
+
   if (loading) {
     return (
       <main className="container mx-auto p-4 md:p-8 relative">
