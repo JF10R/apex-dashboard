@@ -12,6 +12,7 @@ export interface RaceParticipant {
   fastestLap: string;
   irating: number;
   laps: Lap[];
+  totalTime?: string;
 }
 
 export interface HistoryPoint {

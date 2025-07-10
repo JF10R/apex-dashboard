@@ -1,4 +1,18 @@
 /**
+ * Format lap time from iRacing's 10,000ths of a second format
+ * Based on season-summary implementation
+ */
+function formatLapTimeFrom10000ths(lapTimeIn10000ths: number): string {
+  if (lapTimeIn10000ths <= 0) return "N/A";
+  
+  const totalSeconds = lapTimeIn10000ths / 10000;
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  
+  return `${minutes}:${seconds.toFixed(3).padStart(6, '0')}`;
+}
+
+/**
  * iRacing API Integration - Core Module
  * 
  * This module handles authentication and data retrieval from the iRacing API.
@@ -486,15 +500,29 @@ export const getRaceResultData = async (
       );
 
       if (!raceSession && result.sessionResults?.length) {
-        if (result.sessionResults.length === 1) {
-            raceSession = result.sessionResults[0];
-        } else {
-            console.warn(`No session explicitly named "RACE" found for subsessionId ${subsessionId}. Attempting to find best match.`);
-            // Fallback: pick the session with the most participants, as it's likely the race.
-            raceSession = result.sessionResults.reduce((prev, current) =>
-                (prev.results.length > current.results.length) ? prev : current,
-                result.sessionResults[0]
-            );
+        // Try other common session names for race sessions
+        raceSession = result.sessionResults?.find(
+          (s) => s.simsession_name && (
+            s.simsession_name.toUpperCase().includes('FEATURE') ||
+            s.simsession_name.toUpperCase().includes('MAIN') ||
+            s.simsession_name.toUpperCase() === 'R' ||
+            s.simsession_name.toUpperCase() === 'RACE SESSION'
+          )
+        );
+        
+        if (!raceSession) {
+          if (result.sessionResults.length === 1) {
+              raceSession = result.sessionResults[0];
+          } else {
+              console.warn(`No session explicitly named "RACE" found for subsessionId ${subsessionId}. Available sessions:`, 
+                result.sessionResults.map(s => s.simsession_name));
+              console.warn(`Attempting to find best match by participant count.`);
+              // Fallback: pick the session with the most participants, as it's likely the race.
+              raceSession = result.sessionResults.reduce((prev, current) =>
+                  (prev.results.length > current.results.length) ? prev : current,
+                  result.sessionResults[0]
+              );
+          }
         }
       }
 
@@ -509,19 +537,119 @@ export const getRaceResultData = async (
       const { year, season } = getSeasonFromDate(new Date(result.startTime));
       const category = getCategoryFromSeriesName(result.seriesName);
 
-      const participants: RaceParticipant[] = raceSession.results.map((p: RawParticipantData) => ({
-        name: p.displayName,
-        startPosition: p.startingPosition !== null ? p.startingPosition + 1 : 0,
-        finishPosition: p.finishPosition !== null ? p.finishPosition + 1 : 0,
-        incidents: p.incidents,
-        fastestLap: formatLapTime(p.bestLapTime),
-        irating: p.newiRating,
-        laps: (p.laps && Array.isArray(p.laps)) ? p.laps.map((l: RawLapData, index: number) => ({
-          lapNumber: index + 1,
-          time: formatLapTime(l.lapTime),
-          invalid: l.lapEvents ? l.lapEvents.includes('invalid') : false,
-        })) : [],
-      }));
+      // Fetch lap data for each participant to get accurate fastest laps
+      const lapDataMap = new Map<number, any[]>();
+      
+      try {
+        // Get the session number for the race session
+        const raceSessionNumber = result.sessionResults?.findIndex(s => s === raceSession) ?? 0;
+        console.log(`[LAP DATA DEBUG] Attempting to fetch lap data for subsessionId ${subsessionId}`);
+        console.log(`[LAP DATA DEBUG] Race session found: ${raceSession.simsession_name}`);
+        console.log(`[LAP DATA DEBUG] Race session number (index): ${raceSessionNumber}`);
+        console.log(`[LAP DATA DEBUG] Number of participants: ${raceSession.results.length}`);
+        
+        // Add a test response to verify our debug code is running
+        if (subsessionId === 78090881) {
+          console.log(`🔍 SPECIAL DEBUG FOR SUBSESSION 78090881`);
+          console.log(`Race session details:`, {
+            name: raceSession.simsession_name,
+            type: raceSession.simsession_type,
+            subtype: raceSession.simsession_subtype,
+            number: (raceSession as any).simsession_number || 'undefined'
+          });
+        }
+        
+        // Fetch lap data for first few participants (for debugging)
+        const participantsToDebug = raceSession.results.slice(0, 3);
+        
+        // Fetch lap data for all participants in the race session
+        // Using simsessionNumber: 0 which represents the main race session
+        const MAIN_RACE_SESSION = 0;
+        
+        for (const participant of raceSession.results) {
+          try {
+            const lapData = await currentApi.results.getResultsLapData({ 
+              customerId: participant.custId,
+              subsessionId, 
+              simsessionNumber: MAIN_RACE_SESSION
+            }, { 
+              getAllChunks: true 
+            });
+            
+            // Handle different response formats from the API
+            let actualLapData = null;
+            if ((lapData as any)?.lapData && Array.isArray((lapData as any).lapData)) {
+              // Chunked response format (GetResultsLapDataWithChunksResponse)
+              actualLapData = (lapData as any).lapData;
+            } else if (lapData && Array.isArray(lapData)) {
+              // Direct array format
+              actualLapData = lapData;
+            }
+            
+            if (actualLapData && actualLapData.length > 0) {
+              lapDataMap.set(participant.custId, actualLapData);
+            }
+          } catch (lapError) {
+            // Continue silently if lap data fetch fails for individual participants
+            console.warn(`Failed to fetch lap data for participant ${participant.custId}:`, lapError);
+          }
+        }
+        
+      } catch (lapFetchError) {
+        console.warn(`[LAP DATA DEBUG] Failed to fetch lap data for subsessionId ${subsessionId}:`, lapFetchError);
+        // Continue without lap data
+      }
+
+      const participants: RaceParticipant[] = raceSession.results.map((p: RawParticipantData) => {
+        // Get lap data for this participant
+        const participantLapData = lapDataMap.get(p.custId) || [];
+        
+        let calculatedFastestLap = 'N/A';
+        let fastestMs = Infinity;
+        
+        // Process individual lap data if available
+        const processedLaps = participantLapData.map((lapInfo: any, index: number) => {
+          // Based on season-summary implementation, lapTime is in 10,000ths of a second
+          // Convert to proper time format
+          const lapTimeIn10000ths = lapInfo.lap_time || lapInfo.lapTime;
+          const lapTime = lapTimeIn10000ths > 0 ? formatLapTimeFrom10000ths(lapTimeIn10000ths) : 'N/A';
+          
+          // Check if lap is invalid based on lap events or flags
+          const lapEvents = lapInfo.lap_events || lapInfo.lapEvents || [];
+          const isInvalid = lapInfo.incident || lapEvents.length > 0 || lapTimeIn10000ths <= 0;
+          
+          // Calculate fastest lap from valid laps (using original time value for comparison)
+          if (!isInvalid && lapTimeIn10000ths > 0) {
+            if (lapTimeIn10000ths < fastestMs) {
+              fastestMs = lapTimeIn10000ths;
+              calculatedFastestLap = lapTime;
+            }
+          }
+          
+          return {
+            lapNumber: lapInfo.lap_number || lapInfo.lapNumber || (index + 1),
+            time: lapTime,
+            invalid: isInvalid,
+          };
+        });
+        
+        // Fallback to API bestLapTime if no lap data available
+        if (calculatedFastestLap === 'N/A' && p.bestLapTime && p.bestLapTime > 0 && p.bestLapTime < 999999) {
+          // bestLapTime is already in 10,000ths of a second format
+          calculatedFastestLap = formatLapTimeFrom10000ths(p.bestLapTime);
+        }
+
+        return {
+          name: p.displayName,
+          startPosition: p.startingPosition !== null ? p.startingPosition + 1 : 0,
+          finishPosition: p.finishPosition !== null ? p.finishPosition + 1 : 0,
+          incidents: p.incidents,
+          fastestLap: calculatedFastestLap,
+          irating: p.newiRating,
+          laps: processedLaps,
+          totalTime: p.interval >= 0 ? formatLapTime(p.interval) : 'N/A',
+        };
+      });
 
       const avgIncidents = participants.length > 0
           ? participants.reduce((acc, p) => acc + p.incidents, 0) / participants.length

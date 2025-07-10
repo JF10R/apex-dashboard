@@ -488,15 +488,29 @@ export const getRaceResultData = async (
       );
 
       if (!raceSession && result.sessionResults?.length) {
-        if (result.sessionResults.length === 1) {
-            raceSession = result.sessionResults[0];
-        } else {
-            console.warn(`No session explicitly named "RACE" found for subsessionId ${subsessionId}. Attempting to find best match.`);
-            // Fallback: pick the session with the most participants, as it's likely the race.
-            raceSession = result.sessionResults.reduce((prev, current) =>
-                (prev.results.length > current.results.length) ? prev : current,
-                result.sessionResults[0]
-            );
+        // Try other common session names for race sessions
+        raceSession = result.sessionResults?.find(
+          (s) => s.simsession_name && (
+            s.simsession_name.toUpperCase().includes('FEATURE') ||
+            s.simsession_name.toUpperCase().includes('MAIN') ||
+            s.simsession_name.toUpperCase() === 'R' ||
+            s.simsession_name.toUpperCase() === 'RACE SESSION'
+          )
+        );
+        
+        if (!raceSession) {
+          if (result.sessionResults.length === 1) {
+              raceSession = result.sessionResults[0];
+          } else {
+              console.warn(`No session explicitly named "RACE" found for subsessionId ${subsessionId}. Available sessions:`, 
+                result.sessionResults.map(s => s.simsession_name));
+              console.warn(`Attempting to find best match by participant count.`);
+              // Fallback: pick the session with the most participants, as it's likely the race.
+              raceSession = result.sessionResults.reduce((prev, current) =>
+                  (prev.results.length > current.results.length) ? prev : current,
+                  result.sessionResults[0]
+              );
+          }
         }
       }
 
@@ -511,19 +525,80 @@ export const getRaceResultData = async (
       const { year, season } = getSeasonFromDate(new Date(result.startTime));
       const category = getCategoryFromSeriesName(result.seriesName);
 
-      const participants: RaceParticipant[] = raceSession.results.map((p: RawParticipantData) => ({
-        name: p.displayName,
-        startPosition: p.startingPosition !== null ? p.startingPosition + 1 : 0,
-        finishPosition: p.finishPosition !== null ? p.finishPosition + 1 : 0,
-        incidents: p.incidents,
-        fastestLap: formatLapTime(p.bestLapTime),
-        irating: p.newiRating,
-        laps: p.laps ? p.laps.map((l: RawLapData, index: number) => ({
-          lapNumber: index + 1,
-          time: formatLapTime(l.lapTime),
-          invalid: l.lapEvents ? l.lapEvents.includes('invalid') : false,
-        })) : [],
-      }));
+      // Fetch lap data for each participant to get accurate fastest laps
+      const lapDataMap = new Map<number, any[]>();
+      
+      try {
+        // Get the session number for the race session
+        const raceSessionNumber = result.sessionResults?.findIndex(s => s === raceSession) ?? 0;
+        
+        // Fetch lap data for all participants
+        for (const participant of raceSession.results) {
+          try {
+            const lapData = await currentApi.results.getResultsLapData({ 
+              subsessionId, 
+              simsessionNumber: raceSessionNumber,
+              customerId: participant.custId 
+            });
+            if (lapData && Array.isArray(lapData)) {
+              lapDataMap.set(participant.custId, lapData);
+            }
+          } catch (lapError) {
+            console.warn(`Failed to fetch lap data for participant ${participant.custId}:`, lapError);
+            // Continue without lap data for this participant
+          }
+        }
+      } catch (lapFetchError) {
+        console.warn(`Failed to fetch lap data for subsessionId ${subsessionId}:`, lapFetchError);
+        // Continue without lap data
+      }
+
+      const participants: RaceParticipant[] = raceSession.results.map((p: RawParticipantData) => {
+        // Get lap data for this participant
+        const participantLapData = lapDataMap.get(p.custId) || [];
+        
+        let calculatedFastestLap = 'N/A';
+        let fastestMs = Infinity;
+        
+        // Process individual lap data if available
+        const processedLaps = participantLapData.map((lapInfo: any, index: number) => {
+          const lapTime = formatLapTime(lapInfo.lap_time);
+          const isInvalid = lapInfo.lap_events && lapInfo.lap_events.includes('invalid');
+          
+          // Calculate fastest lap from valid laps
+          if (!isInvalid && lapTime !== 'N/A' && lapInfo.lap_time > 0) {
+            const lapMs = lapInfo.lap_time; // lap_time should already be in milliseconds
+            if (lapMs < fastestMs) {
+              fastestMs = lapMs;
+              calculatedFastestLap = lapTime;
+            }
+          }
+          
+          return {
+            lapNumber: index + 1,
+            time: lapTime,
+            invalid: isInvalid || false,
+          };
+        });
+        
+        // Fallback to API bestLapTime if no lap data available
+        if (calculatedFastestLap === 'N/A' && p.bestLapTime && p.bestLapTime > 0 && p.bestLapTime < 999999) {
+          // Convert from 10,000ths of a second to seconds, then format
+          const lapTimeInSeconds = p.bestLapTime / 10000;
+          calculatedFastestLap = formatLapTime(lapTimeInSeconds * 1000); // formatLapTime expects milliseconds
+        }
+
+        return {
+          name: p.displayName,
+          startPosition: p.startingPosition !== null ? p.startingPosition + 1 : 0,
+          finishPosition: p.finishPosition !== null ? p.finishPosition + 1 : 0,
+          incidents: p.incidents,
+          fastestLap: calculatedFastestLap,
+          irating: p.newiRating,
+          laps: processedLaps,
+          totalTime: p.interval >= 0 ? formatLapTime(p.interval) : 'N/A',
+        };
+      });
 
       const avgIncidents = participants.length > 0
           ? participants.reduce((acc, p) => acc + p.incidents, 0) / participants.length
