@@ -52,6 +52,20 @@ export default function RaceDetailsPage() {
   const raceId = params.raceId as string;
   const fromDriver = searchParams.get('from');
 
+  // Create a mapping of driver names to customer IDs for easy navigation
+  // This hook must be called before any conditional returns
+  const driverNameToCustomerId = useMemo(() => {
+    if (!race?.participants) return {};
+    
+    const mapping: Record<string, string> = {};
+    race.participants.forEach(participant => {
+      if (participant.name && participant.custId) {
+        mapping[participant.name] = participant.custId.toString();
+      }
+    });
+    return mapping;
+  }, [race?.participants]);
+
   useEffect(() => {
     const fetchRace = async () => {
       try {
@@ -134,17 +148,6 @@ export default function RaceDetailsPage() {
 
   const winner = race.participants.find((p) => p.finishPosition === 1);
   const overallFastestLap = getOverallFastestLap(race.participants);
-
-  // Create a mapping of driver names to customer IDs for easy navigation
-  const driverNameToCustomerId = useMemo(() => {
-    const mapping: Record<string, string> = {};
-    race.participants.forEach(participant => {
-      if (participant.name && participant.custId) {
-        mapping[participant.name] = participant.custId.toString();
-      }
-    });
-    return mapping;
-  }, [race.participants]);
 
   // Handler for when a driver name is clicked in the results table
   const handleDriverClick = (driverName: string) => {
