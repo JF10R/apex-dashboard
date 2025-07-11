@@ -96,7 +96,43 @@ describe('CustomerPage', () => {
     render(<CustomerPage />)
 
     expect(screen.getByText(/Loading Driver Data/i)).toBeDefined()
-    expect(screen.getByText(/Please wait while we fetch the driver information/i)).toBeDefined()
+    expect(screen.getByText(/Preparing driver data request/i)).toBeDefined()
+    // Check for progress bar
+    expect(screen.getByRole('progressbar')).toBeDefined()
+  })
+
+  test('shows dynamic loading stages with progress', async () => {
+    // Create a delayed promise to test loading stages
+    let resolvePromise: (value: any) => void
+    const delayedPromise = new Promise((resolve) => {
+      resolvePromise = resolve
+    })
+    
+    mockFetch.mockReturnValue(delayedPromise)
+
+    render(<CustomerPage />)
+
+    // Should start with initializing stage
+    expect(screen.getByText(/Preparing driver data request/i)).toBeDefined()
+    expect(screen.getByText('10%')).toBeDefined()
+    expect(screen.getByText('initializing')).toBeDefined()
+
+    // Resolve the promise after a short delay to allow stages to progress
+    setTimeout(() => {
+      resolvePromise!({
+        ok: true,
+        json: () => Promise.resolve({
+          driver: jeffNoelData,
+          custId: 539129,
+          timestamp: new Date().toISOString()
+        })
+      })
+    }, 100)
+
+    // Wait for the component to finish loading
+    await waitFor(() => {
+      expect(screen.getByText(/Driver profile for Jeff Noel/i)).toBeDefined()
+    }, { timeout: 3000 })
   })
 
   test('successfully loads Jeff Noel driver data', async () => {

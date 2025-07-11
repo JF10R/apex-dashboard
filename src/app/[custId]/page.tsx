@@ -4,8 +4,9 @@ import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, Star } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Progress } from '@/components/ui/progress';
 import DriverDashboard from '@/components/driver-dashboard';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { useTrackedDrivers } from '@/hooks/use-tracked-drivers';
@@ -24,6 +25,15 @@ export default function CustomerPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [driverName, setDriverName] = useState<string>('');
+  const [loadingStage, setLoadingStage] = useState<{
+    stage: string;
+    progress: number;
+    description: string;
+  }>({
+    stage: 'initializing',
+    progress: 0,
+    description: 'Initializing request...'
+  });
   
   const { addTrackedDriver, removeTrackedDriver, isDriverTracked } = useTrackedDrivers();
   const { addRecentProfile } = useRecentProfiles();
@@ -48,9 +58,33 @@ export default function CustomerPage() {
       setLoading(true);
       setError(null);
 
+      // Stage 1: Initializing
+      setLoadingStage({
+        stage: 'initializing',
+        progress: 10,
+        description: 'Preparing driver data request...'
+      });
+
+      // Small delay to show the first stage
+      await new Promise(resolve => setTimeout(resolve, 200));
+
+      // Stage 2: Fetching basic data
+      setLoadingStage({
+        stage: 'fetching',
+        progress: 30,
+        description: `Fetching data for driver ${custId}...`
+      });
+
       // Pass forceRefresh parameter to the API
       const url = `/api/driver/${custId}${forceRefresh ? '?refresh=true' : ''}`;
       const response = await fetch(url);
+      
+      // Stage 3: Processing response
+      setLoadingStage({
+        stage: 'processing',
+        progress: 60,
+        description: 'Processing driver information...'
+      });
       
       if (!response.ok) {
         throw new Error(`Failed to fetch driver data: ${response.status}`);
@@ -62,6 +96,16 @@ export default function CustomerPage() {
         throw new Error(data.error);
       }
 
+      // Stage 4: Finalizing
+      setLoadingStage({
+        stage: 'finalizing',
+        progress: 90,
+        description: 'Finalizing driver profile...'
+      });
+
+      // Small delay to show finalization
+      await new Promise(resolve => setTimeout(resolve, 300));
+
       setDriverData(data.driver);
       setDriverName(data.driver?.name || `Driver ${custId}`);
       
@@ -72,6 +116,14 @@ export default function CustomerPage() {
           custId: custId
         });
       }
+
+      // Stage 5: Complete
+      setLoadingStage({
+        stage: 'complete',
+        progress: 100,
+        description: 'Driver data loaded successfully!'
+      });
+
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred';
       setError(errorMessage);
@@ -107,9 +159,21 @@ export default function CustomerPage() {
         <AppHeader />
         <Card className="max-w-md mx-auto">
           <CardHeader>
-            <CardTitle>Loading Driver Data...</CardTitle>
-            <CardDescription>Please wait while we fetch the driver information.</CardDescription>
+            <CardTitle className="flex items-center gap-2">
+              <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+              Loading Driver Data
+            </CardTitle>
+            <CardDescription>{loadingStage.description}</CardDescription>
           </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              <Progress value={loadingStage.progress} className="w-full" />
+              <div className="flex justify-between text-sm text-muted-foreground">
+                <span className="capitalize">{loadingStage.stage}</span>
+                <span>{Math.round(loadingStage.progress)}%</span>
+              </div>
+            </div>
+          </CardContent>
         </Card>
       </main>
     );
