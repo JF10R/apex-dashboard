@@ -49,7 +49,7 @@ describe('/api/driver/[custId]', () => {
     expect(data.driver).toEqual(jeffNoelData)
     expect(data.custId).toBe(539129)
     expect(data.timestamp).toBeDefined()
-    expect(mockGetDriverPageData).toHaveBeenCalledWith(539129)
+    expect(mockGetDriverPageData).toHaveBeenCalledWith(539129, false)
   })
 
   test('returns error for invalid customer ID', async () => {
@@ -74,7 +74,7 @@ describe('/api/driver/[custId]', () => {
 
     expect(response.status).toBe(400)
     expect(data.error).toBe('Driver not found')
-    expect(mockGetDriverPageData).toHaveBeenCalledWith(999999)
+    expect(mockGetDriverPageData).toHaveBeenCalledWith(999999, false)
   })
 
   test('handles unexpected errors gracefully', async () => {
@@ -86,25 +86,35 @@ describe('/api/driver/[custId]', () => {
 
     expect(response.status).toBe(500)
     expect(data.error).toBe('Internal server error')
-    expect(mockGetDriverPageData).toHaveBeenCalledWith(539129)
+    expect(mockGetDriverPageData).toHaveBeenCalledWith(539129, false)
   })
 
   test('handles zero customer ID', async () => {
+    mockGetDriverPageData.mockResolvedValue({
+      data: { ...jeffNoelData, id: 0 },
+      error: null
+    })
+
     const request = new NextRequest('http://localhost:3000/api/driver/0')
     const response = await GET(request, { params: { custId: '0' } })
     const data = await response.json()
 
     expect(response.status).toBe(200)
-    expect(mockGetDriverPageData).toHaveBeenCalledWith(0)
+    expect(mockGetDriverPageData).toHaveBeenCalledWith(0, false)
   })
 
   test('handles negative customer ID', async () => {
+    mockGetDriverPageData.mockResolvedValue({
+      data: { ...jeffNoelData, id: -1 },
+      error: null
+    })
+
     const request = new NextRequest('http://localhost:3000/api/driver/-1')
     const response = await GET(request, { params: { custId: '-1' } })
     const data = await response.json()
 
     expect(response.status).toBe(200)
-    expect(mockGetDriverPageData).toHaveBeenCalledWith(-1)
+    expect(mockGetDriverPageData).toHaveBeenCalledWith(-1, false)
   })
 
   test('handles large customer ID numbers', async () => {
@@ -120,6 +130,6 @@ describe('/api/driver/[custId]', () => {
 
     expect(response.status).toBe(200)
     expect(data.custId).toBe(9999999999)
-    expect(mockGetDriverPageData).toHaveBeenCalledWith(9999999999)
+    expect(mockGetDriverPageData).toHaveBeenCalledWith(9999999999, false)
   })
 })

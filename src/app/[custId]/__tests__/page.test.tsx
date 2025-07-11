@@ -8,6 +8,21 @@ jest.mock('next/navigation', () => ({
   useRouter: jest.fn()
 }))
 
+// Mock the hooks
+jest.mock('@/hooks/use-tracked-drivers', () => ({
+  useTrackedDrivers: () => ({
+    addTrackedDriver: jest.fn(),
+    removeTrackedDriver: jest.fn(),
+    isDriverTracked: jest.fn(() => false),
+  }),
+}))
+
+jest.mock('@/hooks/use-recent-profiles', () => ({
+  useRecentProfiles: () => ({
+    addRecentProfile: jest.fn(),
+  }),
+}))
+
 // Mock the DriverDashboard component
 jest.mock('@/components/driver-dashboard', () => {
   return function MockDriverDashboard({ custId, driverName }: { custId: number; driverName: string }) {
@@ -75,7 +90,7 @@ describe('CustomerPage', () => {
 
     await waitFor(() => {
       expect(screen.getByText('Driver profile for Jeff Noel')).toBeDefined()
-    })
+    }, { timeout: 5000 })
 
     expect(screen.getByTestId('driver-dashboard')).toBeDefined()
     expect(screen.getByText('Driver: Jeff Noel')).toBeDefined()

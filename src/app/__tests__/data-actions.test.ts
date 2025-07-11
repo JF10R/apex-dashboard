@@ -1,6 +1,23 @@
 import { searchDriversAction, getDriverPageData } from '@/app/data-actions'
 import { searchDriversByName, getDriverData } from '@/lib/iracing-api-core'
 
+// Mock the cache module
+jest.mock('@/lib/cache', () => ({
+  cache: {
+    get: jest.fn(),
+    set: jest.fn(),
+    clear: jest.fn(),
+  },
+  cacheKeys: {
+    driverSearch: jest.fn((query: string) => `search:${query}`),
+    driver: jest.fn((custId: number) => `driver:${custId}`),
+  },
+  cacheTTL: {
+    SEARCH_RESULTS: 300000,
+    DRIVER_PROFILE: 600000,
+  }
+}))
+
 // Mock the API functions
 jest.mock('@/lib/iracing-api-core', () => ({
   searchDriversByName: jest.fn(),
@@ -51,6 +68,9 @@ describe('Data Actions with Jeff Noel', () => {
 
   beforeEach(() => {
     jest.clearAllMocks()
+    // Mock cache to return null (no cache hit) for all tests
+    const { cache } = require('@/lib/cache')
+    cache.get.mockReturnValue(null)
   })
 
   describe('searchDriversAction', () => {

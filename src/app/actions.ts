@@ -12,12 +12,20 @@ import type { Driver } from '@/lib/mock-data';
 
 export async function getAnalysis(driver: Driver) {
   try {
+    // Convert recentRaces to match the expected schema
+    const formattedRecentRaces = driver.recentRaces.map(race => ({
+      ...race,
+      safetyRatingChange: typeof race.safetyRatingChange === 'number' 
+        ? race.safetyRatingChange.toString() 
+        : race.safetyRatingChange
+    }));
+
     const result = await analyzeDriverStats({
       driverName: driver.name,
       iratingHistory: driver.iratingHistory.map(d => d.value),
       safetyRatingHistory: driver.safetyRatingHistory.map(d => d.value),
       racePaceHistory: driver.racePaceHistory.map(d => d.value),
-      recentRaces: driver.recentRaces,
+      recentRaces: formattedRecentRaces,
     });
     return { summary: result.summary, error: null };
   } catch (e) {
@@ -29,20 +37,29 @@ export async function getAnalysis(driver: Driver) {
 
 export async function getComparisonAnalysis(driverA: Driver, driverB: Driver) {
   try {
+    // Convert recentRaces to match the expected schema for both drivers
+    const formatRecentRaces = (races: typeof driverA.recentRaces) => 
+      races.map(race => ({
+        ...race,
+        safetyRatingChange: typeof race.safetyRatingChange === 'number' 
+          ? race.safetyRatingChange.toString() 
+          : race.safetyRatingChange
+      }));
+
     const result = await compareDrivers({
       driverA: {
         driverName: driverA.name,
         currentIRating: driverA.currentIRating,
         currentSafetyRating: driverA.currentSafetyRating,
         iratingHistory: driverA.iratingHistory.map(d => d.value),
-        recentRaces: driverA.recentRaces,
+        recentRaces: formatRecentRaces(driverA.recentRaces),
       },
       driverB: {
         driverName: driverB.name,
         currentIRating: driverB.currentIRating,
         currentSafetyRating: driverB.currentSafetyRating,
         iratingHistory: driverB.iratingHistory.map(d => d.value),
-        recentRaces: driverB.recentRaces,
+        recentRaces: formatRecentRaces(driverB.recentRaces),
       },
     });
     return { summary: result.comparisonSummary, error: null };
