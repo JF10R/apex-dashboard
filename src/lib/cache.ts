@@ -81,6 +81,15 @@ class CacheManager {
   }
 
   /**
+   * Get an item from the cache regardless of expiration (for fallback purposes)
+   */
+  getExpired<T>(key: string): T | null {
+    const item = this.cache.get(key);
+    if (!item) return null;
+    return item.data as T;
+  }
+
+  /**
    * Force refresh a cached item by removing it
    */
   invalidate(key: string): void {

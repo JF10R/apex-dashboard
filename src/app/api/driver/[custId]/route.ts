@@ -33,7 +33,9 @@ export async function GET(
       driver: result.data,
       custId: custId,
       timestamp: new Date().toISOString(),
-      fromCache: !forceRefresh
+      fromCache: result.fromCache || false,
+      cacheAge: result.cacheAge,
+      warning: result.error // Include any warnings about using cached data
     });
   } catch (error) {
     console.error('API Error in /api/driver/[custId]:', error);

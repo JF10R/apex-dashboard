@@ -46,7 +46,17 @@ globalThis.fetch = (url, options) => {
 };
 // END FETCH PATCH
 
-// Error types for better error handling
+// Basic car ID to name mapping - this should be expanded or fetched from API
+const CAR_NAMES: Record<number, string> = {
+  203: 'Ferrari 296 Challenge',
+  5: 'Legends Ford 34 Coupe',
+  // Add more as needed
+};
+
+// Function to get car name from ID
+function getCarName(carId: number): string {
+  return CAR_NAMES[carId] || `Car ${carId}`;
+}
 export enum ApiErrorType {
   CAPTCHA_REQUIRED = 'CAPTCHA_REQUIRED',
   INVALID_CREDENTIALS = 'INVALID_CREDENTIALS',
@@ -357,13 +367,33 @@ interface IracingApiRaceResult {
 // #region Interfaces for getDriverData API responses
 interface RawRecentRaceSummary {
   subsessionId: number;
-  newiRating: number;
-  oldiRating: number;
-  newSubLevel: number;
-  oldSubLevel: number;
+  seriesId: number;
+  seriesName: string;
+  carId: number;
+  carClassId: number;
+  sessionStartTime: string;
+  startPosition: number;
+  finishPosition: number;
+  qualifyingTime: number;
+  laps: number;
   lapsLed: number;
-  averageLap: number; // Assuming this is in milliseconds from the API
-  // Potentially other summary fields like series_name, track_name, car_name, etc.
+  incidents: number;
+  points: number;
+  strengthOfField: number;
+  oldiRating: number;
+  newiRating: number;
+  oldSubLevel: number;
+  newSubLevel: number;
+  track: {
+    trackId: number;
+    trackName: string;
+  };
+  seasonYear: number;
+  seasonQuarter: number;
+  raceWeekNum: number;
+  dropRace: boolean;
+  licenseLevel: number;
+  // Potentially other summary fields
   [key: string]: any;
 }
 
@@ -760,27 +790,27 @@ export const getDriverData = async (custId: number): Promise<Driver | null> => {
         // Build race data from summary only - no detailed race data loading
         const raceResult: RecentRace = {
           id: raceSummary.subsessionId.toString(),
-          trackName: raceSummary.trackName || 'Unknown Track',
-          seriesName: raceSummary.seriesName || raceSummary.series_name || 'Unknown Series',
-          date: raceSummary.sessionDate || new Date().toISOString(),
-          car: raceSummary.carName || 'Unknown Car',
-          category: raceSummary.category || 'Unknown',
-          startPosition: raceSummary.startingPosition || 0,
-          finishPosition: raceSummary.finishingPosition || 0,
+          trackName: raceSummary.track?.trackName || 'Unknown Track',
+          seriesName: raceSummary.seriesName || 'Unknown Series',
+          date: raceSummary.sessionStartTime || new Date().toISOString(),
+          car: getCarName(raceSummary.carId),
+          category: 'Sports Car', // Based on categoryId 2 from chart data
+          startPosition: raceSummary.startPosition || 0,
+          finishPosition: raceSummary.finishPosition || 0,
           incidents: raceSummary.incidents || 0,
-          fastestLap: raceSummary.bestLapTime ? formatLapTime(raceSummary.bestLapTime) : 'N/A',
+          fastestLap: 'N/A', // Not available in race summary
           strengthOfField: raceSummary.strengthOfField || 0,
-          year: new Date(raceSummary.sessionDate || new Date()).getFullYear(),
-          season: raceSummary.seasonYear || new Date().getFullYear(),
+          year: new Date(raceSummary.sessionStartTime || new Date()).getFullYear(),
+          season: raceSummary.seasonYear?.toString() || new Date().getFullYear().toString(),
           participants: [], // Will be loaded when accessing individual race page
           avgRaceIncidents: raceSummary.incidents || 0,
-          avgRaceLapTime: raceSummary.averageLap ? formatLapTime(raceSummary.averageLap) : 'N/A',
+          avgRaceLapTime: 'N/A', // Not available in race summary
           lapsLed: raceSummary.lapsLed || 0,
           iratingChange: raceSummary.oldiRating !== -1 && raceSummary.newiRating !== -1
                         ? raceSummary.newiRating - raceSummary.oldiRating
                         : 0,
           safetyRatingChange: ((raceSummary.newSubLevel - raceSummary.oldSubLevel) / 100).toFixed(2),
-          avgLapTime: raceSummary.averageLap ? formatLapTime(raceSummary.averageLap) : 'N/A'
+          avgLapTime: 'N/A' // Not available in race summary
         };
 
         return raceResult;
