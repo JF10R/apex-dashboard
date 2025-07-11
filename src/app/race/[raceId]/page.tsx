@@ -9,37 +9,12 @@ import { Badge } from '@/components/ui/badge';
 import RaceResultsTable from '@/components/race-results-table';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { getRaceResultAction } from '@/app/data-actions';
-import { type RaceParticipant, type RecentRace } from '@/lib/mock-data';
+import { type RaceParticipant, type RecentRace } from '@/lib/iracing-types';
 import { useState, useEffect, useMemo } from 'react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
-const lapTimeToMs = (time: string): number => {
-  if (!time || !time.includes(':') || !time.includes('.')) return Infinity;
-  const parts = time.split(':');
-  const minutes = parseInt(parts[0], 10);
-  const secondsParts = parts[1].split('.');
-  const seconds = parseInt(secondsParts[0], 10);
-  const ms = parseInt(secondsParts[1], 10);
-  return (minutes * 60 + seconds) * 1000 + ms;
-}
-
-const getOverallFastestLap = (participants: RaceParticipant[]): string => {
-  let fastestLap = '99:99.999';
-  let fastestMs = Infinity;
-
-  participants.forEach(p => {
-    if (p.fastestLap) {
-      const currentMs = lapTimeToMs(p.fastestLap);
-      if (currentMs < fastestMs) {
-        fastestMs = currentMs;
-        fastestLap = p.fastestLap;
-      }
-    }
-  });
-
-  return fastestLap === '99:99.999' ? 'N/A' : fastestLap;
-};
+import { lapTimeToMs, getOverallFastestLap } from '@/lib/iracing-data-transform'
 
 export default function RaceDetailsPage() {
   const router = useRouter();

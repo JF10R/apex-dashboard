@@ -7,7 +7,7 @@ import {
   ApiError,
   ApiErrorType,
 } from '@/lib/iracing-api-core'
-import { type RecentRace, type Driver, type SearchedDriver } from '@/lib/mock-data'
+import { type RecentRace, type Driver, type SearchedDriver } from '@/lib/iracing-types'
 import { cache, cacheKeys, cacheTTL } from '@/lib/cache'
 
 export async function searchDriversAction(query: string): Promise<{ data: SearchedDriver[]; error: string | null }> {

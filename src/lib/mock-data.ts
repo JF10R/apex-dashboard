@@ -1,64 +1,32 @@
-export interface Lap {
-  lapNumber: number;
-  time: string;
-  invalid: boolean;
-}
+// Re-export the types from iracing-types.ts for backward compatibility
+export type {
+  Lap,
+  RaceParticipant,
+  HistoryPoint,
+  RaceCategory,
+  RecentRace,
+  Driver,
+  SearchedDriver,
+  // Also export the new official iRacing API types
+  IracingRaceParticipant,
+  IracingRaceData,
+  Helmet,
+  Suit,
+  Livery,
+  RaceResult,
+  Track,
+  WeatherResult,
+  SessionResult,
+  GetResultResponse,
+} from './iracing-types'
 
-export interface RaceParticipant {
-  name: string;
-  custId: number;
-  startPosition: number;
-  finishPosition: number;
-  incidents: number;
-  fastestLap: string;
-  irating: number;
-  laps: Lap[];
-  totalTime?: string;
-}
-
-export interface HistoryPoint {
-  month: string;
-  value: number;
-}
-
-export type RaceCategory = 'Formula Car' | 'Sports Car' | 'Prototype' | 'Oval' | 'Dirt Oval';
-
-export interface RecentRace {
-  id: string;
-  trackName: string;
-  date: string;
-  year: number;
-  season: string;
-  category: RaceCategory;
-  seriesName: string;
-  startPosition: number;
-  finishPosition: number;
-  incidents: number;
-  strengthOfField: number;
-  lapsLed: number;
-  fastestLap: string;
-  car: string;
-  avgLapTime: string;
-  iratingChange: number;
-  safetyRatingChange: string | number;
-  participants: RaceParticipant[];
-  avgRaceIncidents: number;
-  avgRaceLapTime: string;
-}
-
-export interface Driver {
-  id: number;
-  name: string;
-  currentIRating: number;
-  currentSafetyRating: string;
-  avgRacePace: string;
-  iratingHistory: HistoryPoint[];
-  safetyRatingHistory: HistoryPoint[];
-  racePaceHistory: HistoryPoint[]; // As seconds for charting
-  recentRaces: RecentRace[];
-}
-
-export interface SearchedDriver {
-    name: string;
-    custId: number;
-}
+// Import all the interfaces for use
+import type {
+  Lap,
+  RaceParticipant,
+  HistoryPoint,
+  RaceCategory,
+  RecentRace,
+  Driver,
+  SearchedDriver,
+} from './iracing-types'

@@ -1,18 +1,4 @@
 /**
- * Format lap time from iRacing's 10,000ths of a second format
- * Based on season-summary implementation
- */
-function formatLapTimeFrom10000ths(lapTimeIn10000ths: number): string {
-  if (lapTimeIn10000ths <= 0) return "N/A";
-  
-  const totalSeconds = lapTimeIn10000ths / 10000;
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  
-  return `${minutes}:${seconds.toFixed(3).padStart(6, '0')}`;
-}
-
-/**
  * iRacing API Integration - Core Module
  * 
  * This module handles authentication and data retrieval from the iRacing API.
@@ -174,7 +160,21 @@ import {
   type RaceParticipant,
   type RaceCategory,
   type Lap,
-} from '@/lib/mock-data'
+  type GetResultResponse,
+  type LapDataItem,
+  GetResultResponseSchema,
+} from '@/lib/iracing-types'
+import { 
+  transformIracingRaceResult,
+  validateIracingRaceResult,
+  extractLapDataFromResponse,
+  validateLapDataResponse,
+  formatLapTimeFrom10000ths,
+  formatLapTime,
+  lapTimeToSeconds,
+  getCategoryFromSeriesName,
+  getSeasonFromDate, 
+} from '@/lib/iracing-data-transform'
 import IracingAPI from 'iracing-api'
 
 const email = process.env.IRACING_EMAIL ?? null;
@@ -296,56 +296,14 @@ async function ensureApiInitialized(): Promise<IracingAPI> {
   return api;
 }
 
-const seriesCategoryMap: Record<string, RaceCategory> = {
-  F3: 'Formula Car',
-  'Formula Vee': 'Formula Car',
-  'Formula 1600': 'Formula Car',
-  'GT3': 'Sports Car',
-  'GT4': 'Sports Car',
-  'Touring Car': 'Sports Car',
-  'LMP2': 'Prototype',
-  'Dallara P217': 'Prototype',
-  'NASCAR': 'Oval',
-  'Late Model': 'Dirt Oval',
-}
-
-const getCategoryFromSeriesName = (seriesName: string): RaceCategory => {
-  for (const key in seriesCategoryMap) {
-    if (seriesName.includes(key)) {
-      return seriesCategoryMap[key]
-    }
-  }
-  if (seriesName.toLowerCase().includes('oval')) return 'Oval'
-  if (seriesName.toLowerCase().includes('dirt')) return 'Dirt Oval'
-  if (seriesName.toLowerCase().includes('formula')) return 'Formula Car'
-  return 'Sports Car' // Default
-}
-
-const formatLapTime = (timeInMs: number): string => {
-  if (timeInMs < 0 || isNaN(timeInMs)) return 'N/A'
-  const totalSeconds = timeInMs / 1000;
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = (totalSeconds % 60).toFixed(3);
-  return `${minutes}:${seconds.padStart(6, '0')}`;
-};
-
-const getSeasonFromDate = (date: Date): { year: number, season: string } => {
-    const year = date.getUTCFullYear();
-    const month = date.getUTCMonth(); // 0-11
-    const quarter = Math.floor(month / 3) + 1;
-    return { year, season: `${year} S${quarter}` };
-}
-
-const lapTimeToSeconds = (time: string): number => {
-  if (!time || !time.includes(':') || !time.includes('.')) return NaN;
-  const parts = time.split(':');
-  const minutes = parseInt(parts[0], 10);
-  const secondsParts = parts[1].split('.');
-  const seconds = parseInt(secondsParts[0], 10);
-  const ms = parseInt(secondsParts[1], 10);
-  if (isNaN(minutes) || isNaN(seconds) || isNaN(ms)) return NaN;
-  return minutes * 60 + seconds + ms / 1000;
-};
+// Re-export transformation utilities for convenience
+export {
+  formatLapTimeFrom10000ths,
+  formatLapTime,
+  lapTimeToSeconds,
+  getCategoryFromSeriesName,
+  getSeasonFromDate,
+} from '@/lib/iracing-data-transform'
 
 // Define a more specific type for driver search results
 interface IracingDriverSearchResult {
@@ -547,27 +505,30 @@ export const getRaceResultData = async (
   const promise = (async (): Promise<RecentRace | null> => {
     try {
       const currentApi = await ensureApiInitialized();
-      const resultResponse: any = await currentApi.results.getResult({ subsessionId });
+      const resultResponse: unknown = await currentApi.results.getResult({ subsessionId });
       console.log('Raw getResult response for subsessionId ' + subsessionId + ':', JSON.stringify(resultResponse, null, 2));
-      const result: IracingApiRaceResult | null = resultResponse as any; // Temporary cast
-
-      if (!result) {
-        console.warn(`No result data returned from API for subsessionId ${subsessionId} (after potential transformation or if initially null/undefined)`);
+      
+      // Validate the response structure using our schema
+      if (!validateIracingRaceResult(resultResponse)) {
+        console.warn(`Invalid result data structure from API for subsessionId ${subsessionId}`);
         return null;
       }
 
-      let raceSession: RawSessionResult | undefined = result.sessionResults?.find(
-        (s) => s.simsession_name && s.simsession_name.toUpperCase().includes('RACE')
+      const result = resultResponse as GetResultResponse;
+
+      // Find the race session using the transformation utility's logic
+      let raceSession = result.sessionResults?.find(
+        (s) => s.simsessionName && s.simsessionName.toUpperCase().includes('RACE')
       );
 
       if (!raceSession && result.sessionResults?.length) {
         // Try other common session names for race sessions
         raceSession = result.sessionResults?.find(
-          (s) => s.simsession_name && (
-            s.simsession_name.toUpperCase().includes('FEATURE') ||
-            s.simsession_name.toUpperCase().includes('MAIN') ||
-            s.simsession_name.toUpperCase() === 'R' ||
-            s.simsession_name.toUpperCase() === 'RACE SESSION'
+          (s) => s.simsessionName && (
+            s.simsessionName.toUpperCase().includes('FEATURE') ||
+            s.simsessionName.toUpperCase().includes('MAIN') ||
+            s.simsessionName.toUpperCase() === 'R' ||
+            s.simsessionName.toUpperCase() === 'RACE SESSION'
           )
         );
         
@@ -576,7 +537,7 @@ export const getRaceResultData = async (
               raceSession = result.sessionResults[0];
           } else {
               console.warn(`No session explicitly named "RACE" found for subsessionId ${subsessionId}. Available sessions:`, 
-                result.sessionResults.map(s => s.simsession_name));
+                result.sessionResults.map(s => s.simsessionName));
               console.warn(`Attempting to find best match by participant count.`);
               // Fallback: pick the session with the most participants, as it's likely the race.
               raceSession = result.sessionResults.reduce((prev, current) =>
@@ -589,39 +550,19 @@ export const getRaceResultData = async (
 
       if (!raceSession || !raceSession.results) {
         console.warn(`Could not determine a valid race session with results for subsessionId ${subsessionId}`);
-        // Important: If we decide this is an error state where we shouldn't cache 'null' indefinitely,
-        // we might remove from cache here or in the catch block for this specific case.
-        // For now, returning null means this subsessionId will effectively be cached as "no valid data".
         return null;
       }
 
-      const { year, season } = getSeasonFromDate(new Date(result.startTime));
-      const category = getCategoryFromSeriesName(result.seriesName);
-
       // Fetch lap data for each participant to get accurate fastest laps
-      const lapDataMap = new Map<number, any[]>();
+      const lapDataMap = new Map<number, LapDataItem[]>();
       
       try {
         // Get the session number for the race session
         const raceSessionNumber = result.sessionResults?.findIndex(s => s === raceSession) ?? 0;
         console.log(`[LAP DATA DEBUG] Attempting to fetch lap data for subsessionId ${subsessionId}`);
-        console.log(`[LAP DATA DEBUG] Race session found: ${raceSession.simsession_name}`);
+        console.log(`[LAP DATA DEBUG] Race session found: ${raceSession.simsessionName}`);
         console.log(`[LAP DATA DEBUG] Race session number (index): ${raceSessionNumber}`);
         console.log(`[LAP DATA DEBUG] Number of participants: ${raceSession.results.length}`);
-        
-        // Add a test response to verify our debug code is running
-        if (subsessionId === 78090881) {
-          console.log(`🔍 SPECIAL DEBUG FOR SUBSESSION 78090881`);
-          console.log(`Race session details:`, {
-            name: raceSession.simsession_name,
-            type: raceSession.simsession_type,
-            subtype: raceSession.simsession_subtype,
-            number: (raceSession as any).simsession_number || 'undefined'
-          });
-        }
-        
-        // Fetch lap data for first few participants (for debugging)
-        const participantsToDebug = raceSession.results.slice(0, 3);
         
         // Fetch lap data for all participants in the race session
         // Using simsessionNumber: 0 which represents the main race session
@@ -629,7 +570,7 @@ export const getRaceResultData = async (
         
         for (const participant of raceSession.results) {
           try {
-            const lapData = await currentApi.results.getResultsLapData({ 
+            const lapDataResponse = await currentApi.results.getResultsLapData({ 
               customerId: participant.custId,
               subsessionId, 
               simsessionNumber: MAIN_RACE_SESSION
@@ -637,18 +578,10 @@ export const getRaceResultData = async (
               getAllChunks: true 
             });
             
-            // Handle different response formats from the API
-            let actualLapData = null;
-            if ((lapData as any)?.lapData && Array.isArray((lapData as any).lapData)) {
-              // Chunked response format (GetResultsLapDataWithChunksResponse)
-              actualLapData = (lapData as any).lapData;
-            } else if (lapData && Array.isArray(lapData)) {
-              // Direct array format
-              actualLapData = lapData;
-            }
-            
-            if (actualLapData && actualLapData.length > 0) {
-              lapDataMap.set(participant.custId, actualLapData);
+            // Extract and validate lap data using our utility functions
+            const lapDataItems = extractLapDataFromResponse(lapDataResponse);
+            if (validateLapDataResponse(lapDataItems) && lapDataItems.length > 0) {
+              lapDataMap.set(participant.custId, lapDataItems);
             }
           } catch (lapError) {
             // Continue silently if lap data fetch fails for individual participants
@@ -661,91 +594,10 @@ export const getRaceResultData = async (
         // Continue without lap data
       }
 
-      const participants: RaceParticipant[] = raceSession.results.map((p: RawParticipantData) => {
-        // Get lap data for this participant
-        const participantLapData = lapDataMap.get(p.custId) || [];
-        
-        let calculatedFastestLap = 'N/A';
-        let fastestMs = Infinity;
-        
-        // Process individual lap data if available
-        const processedLaps = participantLapData.map((lapInfo: any, index: number) => {
-          // Based on season-summary implementation, lapTime is in 10,000ths of a second
-          // Convert to proper time format
-          const lapTimeIn10000ths = lapInfo.lap_time || lapInfo.lapTime;
-          const lapTime = lapTimeIn10000ths > 0 ? formatLapTimeFrom10000ths(lapTimeIn10000ths) : 'N/A';
-          
-          // Check if lap is invalid based on lap events or flags
-          const lapEvents = lapInfo.lap_events || lapInfo.lapEvents || [];
-          const isInvalid = lapInfo.incident || lapEvents.length > 0 || lapTimeIn10000ths <= 0;
-          
-          // Calculate fastest lap from valid laps (using original time value for comparison)
-          if (!isInvalid && lapTimeIn10000ths > 0) {
-            if (lapTimeIn10000ths < fastestMs) {
-              fastestMs = lapTimeIn10000ths;
-              calculatedFastestLap = lapTime;
-            }
-          }
-          
-          return {
-            lapNumber: lapInfo.lap_number || lapInfo.lapNumber || (index + 1),
-            time: lapTime,
-            invalid: isInvalid,
-          };
-        });
-        
-        // Fallback to API bestLapTime if no lap data available
-        if (calculatedFastestLap === 'N/A' && p.bestLapTime && p.bestLapTime > 0 && p.bestLapTime < 999999) {
-          // bestLapTime is already in 10,000ths of a second format
-          calculatedFastestLap = formatLapTimeFrom10000ths(p.bestLapTime);
-        }
-
-        return {
-          name: p.displayName,
-          custId: p.custId,
-          startPosition: p.startingPosition !== null ? p.startingPosition + 1 : 0,
-          finishPosition: p.finishPosition !== null ? p.finishPosition + 1 : 0,
-          incidents: p.incidents,
-          fastestLap: calculatedFastestLap,
-          irating: p.newiRating,
-          laps: processedLaps,
-          totalTime: p.interval >= 0 ? formatLapTime(p.interval) : 'N/A',
-        };
-      });
-
-      const avgIncidents = participants.length > 0
-          ? participants.reduce((acc, p) => acc + p.incidents, 0) / participants.length
-          : 0;
-
-      const validLaps = participants.flatMap(p => p.laps?.filter(l => !l.invalid && l.time !== 'N/A') || []);
-
-      const avgLapTimeMs = validLaps.length > 0
-          ? validLaps.reduce((acc, l) => acc + (l.time !== 'N/A' ? lapTimeToSeconds(l.time) * 1000 : 0), 0) / validLaps.length
-          : NaN;
-
-      const raceData: RecentRace = {
-        id: subsessionId.toString(),
-        trackName: result.track.trackName,
-        date: result.startTime,
-        year,
-        season,
-        category,
-        seriesName: result.seriesName,
-        startPosition: 0,
-        finishPosition: 0,
-        incidents: 0,
-        strengthOfField: result.eventStrengthOfField,
-        lapsLed: 0,
-        fastestLap: '',
-        car: result.carClassName || result.car_class_name || result.seriesName || 'Unknown Car',
-        avgLapTime: isNaN(avgLapTimeMs) ? '' : formatLapTime(avgLapTimeMs),
-        iratingChange: 0,
-        safetyRatingChange: '',
-        participants,
-        avgRaceIncidents: parseFloat(avgIncidents.toFixed(2)),
-        avgRaceLapTime: formatLapTime(avgLapTimeMs),
-      };
-      return raceData;
+      // Use the transformation utility to convert to our application format
+      const transformedResult = transformIracingRaceResult(result, subsessionId, lapDataMap);
+      
+      return transformedResult;
 
     } catch (error) {
       // If an error occurs, remove the promise from the cache to allow retries.
