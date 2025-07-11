@@ -163,6 +163,8 @@ import {
   type GetResultResponse,
   type LapDataItem,
   GetResultResponseSchema,
+  type MemberSummaryResponse,
+  type MemberStats,
 } from '@/lib/iracing-types'
 import { 
   transformIracingRaceResult,
@@ -414,16 +416,6 @@ interface IracingApiMemberData {
   [key: string]: any;
 }
 
-interface IracingApiMemberStatsData { // Renamed to avoid conflict if 'stats' is too generic
-  stats: {
-    iRating: number;
-    licenseClass: string; // e.g., "Rookie", "A", "Pro/WC"
-    srPrime: number;      // Integer part of SR, e.g., 3
-    srSub: number;        // Decimal part of SR * 100, e.g., 50 for x.50
-    [key: string]: any;
-  };
-  [key: string]: any;
-}
 // #endregion
 
 export const searchDriversByName = async (
@@ -628,102 +620,114 @@ export const getDriverData = async (custId: number): Promise<Driver | null> => {
     const currentApi = await ensureApiInitialized();
 
     // Temporarily using 'any' to inspect actual response structures due to TS2322
+    const categoryIds = {
+      road: 2,
+      oval: 1,
+      dirtRoad: 4,
+      dirtOval: 3,
+    };
+
     const [
       memberDataResponse,
-      memberStatsResponseFromPromise, 
-      iratingChartResponse,
-      srChartResponse,
+      memberStatsResponseFromPromise,
+      iratingChartRoadResponse,
+      iratingChartOvalResponse,
+      iratingChartDirtRoadResponse,
+      iratingChartDirtOvalResponse,
+      srChartResponse, // Assuming one primary SR chart for now (e.g., road)
       recentRacesRawResponse,
     ]: any[] = await Promise.all([
-      currentApi.member.getMemberData({ customerIds: [custId.toString()] }), 
-      currentApi.stats.getMemberSummary({ customerId: custId }), // Fixed: this expects number ID
-      currentApi.member.getMemberChartData({ customerId: custId, chartType: 1, categoryId: 2 }), // Chart data for iRating
-      currentApi.member.getMemberChartData({ customerId: custId, chartType: 3, categoryId: 2 }), // Chart data for SR
-      currentApi.stats.getMemberRecentRaces({ customerId: custId }), // Assuming number ID is fine unless error specifies this one
+      currentApi.member.getMemberData({ customerIds: [custId.toString()] }),
+      currentApi.stats.getMemberSummary({ customerId: custId }),
+      currentApi.member.getMemberChartData({ customerId: custId, chartType: 1, categoryId: categoryIds.road }),
+      currentApi.member.getMemberChartData({ customerId: custId, chartType: 1, categoryId: categoryIds.oval }),
+      currentApi.member.getMemberChartData({ customerId: custId, chartType: 1, categoryId: categoryIds.dirtRoad }),
+      currentApi.member.getMemberChartData({ customerId: custId, chartType: 1, categoryId: categoryIds.dirtOval }),
+      currentApi.member.getMemberChartData({ customerId: custId, chartType: 3, categoryId: categoryIds.road }), // SR Chart for Road
+      currentApi.stats.getMemberRecentRaces({ customerId: custId }),
     ]);
 
     // Log the raw responses to inspect their structure
     console.log('Raw memberDataResponse:', JSON.stringify(memberDataResponse, null, 2));
     console.log('Raw memberStatsResponseFromPromise:', JSON.stringify(memberStatsResponseFromPromise, null, 2));
-    console.log('Raw iratingChartResponse:', JSON.stringify(iratingChartResponse, null, 2));
+    console.log('Raw iratingChartRoadResponse:', JSON.stringify(iratingChartRoadResponse, null, 2));
     console.log('Raw srChartResponse:', JSON.stringify(srChartResponse, null, 2));
     console.log('Raw recentRacesRawResponse:', JSON.stringify(recentRacesRawResponse, null, 2));
 
-    // Temporarily assign to old variable names for minimal further code changes,
-    // but these will likely need adjustment based on logged structures.
     const memberData: IracingApiMemberData | null = memberDataResponse as any;
-    const memberStatsResponse: IracingApiMemberStatsData | null = memberStatsResponseFromPromise as any;
-    const iratingChart: IracingApiChartData | null = iratingChartResponse as any;
+    const memberStatsResponse: MemberSummaryResponse | null = memberStatsResponseFromPromise as MemberSummaryResponse | null;
     const srChart: IracingApiChartData | null = srChartResponse as any;
     const recentRacesRaw: IracingApiRecentRaces | null = recentRacesRawResponse as any;
 
-
     if (!memberData?.members?.[0]) {
-      // If critical data like memberData is missing, it's better to throw.
-      // This access (memberData.members) might need to change based on actual structure.
-      console.warn(`Initial member data (or its expected structure) not found for custId ${custId}. Check raw logs.`);
+      console.warn(`Initial member data not found for custId ${custId}. Check raw logs.`);
       throw new Error('Driver not found or data structure unexpected');
     }
-    const driverInfo = memberData.members[0]; // This access might need to change
-    const driverName = driverInfo.displayName; // This access might need to change
+    const driverInfo = memberData.members[0];
+    const driverName = driverInfo.displayName;
 
-    const recentRaces: RecentRace[] = (
-      // This access (recentRacesRaw.races) might need to change based on actual structure.
-      (recentRacesRaw?.races || []).slice(0, 20).map((raceSummary: RawRecentRaceSummary) => {
-        // Build race data from summary only - no detailed race data loading
-        const raceResult: RecentRace = {
-          id: raceSummary.subsessionId.toString(),
-          trackName: raceSummary.track?.trackName || 'Unknown Track',
-          seriesName: raceSummary.seriesName || 'Unknown Series',
-          date: raceSummary.sessionStartTime || new Date().toISOString(),
-          car: getCarName(raceSummary.carId),
-          category: 'Sports Car', // Based on categoryId 2 from chart data
-          startPosition: raceSummary.startPosition || 0,
-          finishPosition: raceSummary.finishPosition || 0,
-          incidents: raceSummary.incidents || 0,
-          fastestLap: 'N/A', // Not available in race summary
-          strengthOfField: raceSummary.strengthOfField || 0,
-          year: new Date(raceSummary.sessionStartTime || new Date()).getFullYear(),
-          season: raceSummary.seasonYear?.toString() || new Date().getFullYear().toString(),
-          participants: [], // Will be loaded when accessing individual race page
-          avgRaceIncidents: raceSummary.incidents || 0,
-          avgRaceLapTime: 'N/A', // Not available in race summary
-          lapsLed: raceSummary.lapsLed || 0,
-          iratingChange: raceSummary.oldiRating !== -1 && raceSummary.newiRating !== -1
-                        ? raceSummary.newiRating - raceSummary.oldiRating
-                        : 0,
-          safetyRatingChange: ((raceSummary.newSubLevel - raceSummary.oldSubLevel) / 100).toFixed(2),
-          avgLapTime: 'N/A' // Not available in race summary
-        };
+    const recentRaces: RecentRace[] = (recentRacesRaw?.races || []).slice(0, 20).map((raceSummary: RawRecentRaceSummary) => {
+      const { year, season } = getSeasonFromDate(new Date(raceSummary.sessionStartTime || new Date()));
+      // Determine category based on seriesName or fallback
+      let category: RaceCategory = getCategoryFromSeriesName(raceSummary.seriesName || '');
+      if (raceSummary.licenseCategory) { // Prefer licenseCategory if available
+        const lc = raceSummary.licenseCategory.toLowerCase();
+        if (lc.includes('oval') && lc.includes('dirt')) category = 'Dirt Oval';
+        else if (lc.includes('road') && lc.includes('dirt')) category = 'Dirt Road';
+        else if (lc.includes('oval')) category = 'Oval';
+        else if (lc.includes('road')) category = 'Road';
+        // else keep determined from series name
+      }
 
-        return raceResult;
-      })
-    ).filter((r): r is RecentRace => r !== null);
 
-    // Generate more detailed history from recent races using race summary data
-    const iratingHistoryFromApi: HistoryPoint[] = (iratingChart?.data || []).map((p: IracingApiChartPoint) => ({
-      month: new Date(p.when).toLocaleString('en-US', { month: 'short', timeZone: 'UTC' }),
-      value: p.value,
-    }));
+      return {
+        id: raceSummary.subsessionId.toString(),
+        trackName: raceSummary.track?.trackName || 'Unknown Track',
+        seriesName: raceSummary.seriesName || 'Unknown Series',
+        date: raceSummary.sessionStartTime || new Date().toISOString(),
+        car: getCarName(raceSummary.carId),
+        category,
+        year, // from getSeasonFromDate
+        season, // from getSeasonFromDate
+        startPosition: raceSummary.startPosition !== undefined ? raceSummary.startPosition + 1 : 0, // Adjust 0-index
+        finishPosition: raceSummary.finishPosition !== undefined ? raceSummary.finishPosition + 1 : 0, // Adjust 0-index
+        incidents: raceSummary.incidents || 0,
+        fastestLap: 'N/A',
+        strengthOfField: raceSummary.strengthOfField || 0,
+        participants: [],
+        avgRaceIncidents: raceSummary.incidents || 0, // Placeholder
+        avgRaceLapTime: 'N/A', // Placeholder
+        lapsLed: raceSummary.lapsLed || 0,
+        iratingChange: (raceSummary.oldiRating !== -1 && raceSummary.newiRating !== -1)
+                      ? raceSummary.newiRating - raceSummary.oldiRating
+                      : 0,
+        safetyRatingChange: raceSummary.oldSubLevel !== undefined && raceSummary.newSubLevel !== undefined
+                            ? ((raceSummary.newSubLevel - raceSummary.oldSubLevel) / 100).toFixed(2)
+                            : "0.00",
+        avgLapTime: 'N/A',
+      };
+    }).filter((r): r is RecentRace => r !== null);
 
-    const iratingHistoryFromRaces: HistoryPoint[] = recentRaces
-      .filter(race => race.iratingChange !== 0) // Only include races with valid iRating changes
-      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-      .map(race => ({
-        month: new Date(race.date).toLocaleString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' }),
-        value: race.iratingChange // This is the change, we'd need to calculate actual values
-      }))
-      .filter((point): point is HistoryPoint => point !== null);
+    const iratingHistories: Record<string, HistoryPoint[]> = {};
+    const categoryResponses = {
+      road: iratingChartRoadResponse,
+      oval: iratingChartOvalResponse,
+      dirtRoad: iratingChartDirtRoadResponse,
+      dirtOval: iratingChartDirtOvalResponse,
+    };
 
-    // Use API chart data primarily, as it contains actual iRating values over time
-    const iratingHistory = iratingHistoryFromApi.length > 0 
-      ? iratingHistoryFromApi 
-      : [];
+    for (const [categoryName, response] of Object.entries(categoryResponses)) {
+      const chartData = response as IracingApiChartData | null;
+      iratingHistories[categoryName] = (chartData?.data || []).map((p: IracingApiChartPoint) => ({
+        month: new Date(p.when).toLocaleString('en-US', { month: 'short', year: 'numeric', timeZone: 'UTC' }),
+        value: p.value,
+      })).sort((a,b) => new Date(a.month).getTime() - new Date(b.month).getTime()); // Ensure chronological order
+    }
 
     const safetyRatingHistory: HistoryPoint[] = (srChart?.data || []).map((p: IracingApiChartPoint) => ({
-      month: new Date(p.when).toLocaleString('en-US', { month: 'short', timeZone: 'UTC' }),
-      value: p.value / 100,
-    }));
+      month: new Date(p.when).toLocaleString('en-US', { month: 'short', year: 'numeric', timeZone: 'UTC' }),
+      value: p.value / 100, // SR values are often *100 in API
+    })).sort((a,b) => new Date(a.month).getTime() - new Date(b.month).getTime());
 
     const racePaceHistory: HistoryPoint[] = recentRaces
       .map(r => {
@@ -781,9 +785,30 @@ export const getDriverData = async (custId: number): Promise<Driver | null> => {
       }
     }
 
-    const currentSafetyRating = memberStatsData?.stats
-      ? `${memberStatsData.stats.licenseClass || memberStatsData.stats[0]?.licenseClass || 'N/A'} ${memberStatsData.stats.srPrime || memberStatsData.stats[0]?.srPrime || 0}.${String(memberStatsData.stats.srSub || memberStatsData.stats[0]?.srSub || 0).padStart(2, '0')}`
-      : 'N/A';
+    let currentSafetyRating = 'N/A';
+    if (memberStatsData?.stats) {
+      const statsSource = Array.isArray(memberStatsData.stats) ? memberStatsData.stats[0] : memberStatsData.stats;
+      if (statsSource) {
+        let licenseClass = statsSource.licenseClass as string | undefined;
+        const srPrime = statsSource.srPrime as number | undefined;
+        const srSub = statsSource.srSub as number | undefined;
+
+        if (licenseClass && typeof srPrime === 'number' && typeof srSub === 'number') {
+          if (licenseClass.toLowerCase() === 'pro/wc') {
+            licenseClass = 'Pro';
+          }
+          // Ensure srSub is treated as the fractional part, correctly formatted
+          const srSubFormatted = String(srSub).padStart(2, '0');
+          currentSafetyRating = `${licenseClass} ${srPrime}.${srSubFormatted}`;
+        } else {
+          console.warn(`Incomplete safety rating data for custId ${custId}: licenseClass=${licenseClass}, srPrime=${srPrime}, srSub=${srSub}`);
+        }
+      } else {
+        console.warn(`No valid statsSource found in memberStatsData for custId ${custId}`);
+      }
+    } else {
+      console.warn(`memberStatsData or memberStatsData.stats is missing for custId ${custId}`);
+    }
 
     const driver: Driver = {
       id: custId,

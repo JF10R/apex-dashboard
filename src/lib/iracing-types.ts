@@ -410,6 +410,25 @@ export type SessionInfo = z.infer<typeof SessionInfoSchema>
 export type ChunkInfo = z.infer<typeof ChunkInfoSchema>
 export type GetResultResponse = z.infer<typeof GetResultResponseSchema>
 
+// Specific type for member summary stats from stats.getMemberSummary
+export const MemberStatsSchema = z.object({
+  iRating: z.number(),
+  licenseClass: z.string(), // e.g., "Rookie", "Class A", "Pro/WC License" - will be text from API
+  srPrime: z.number(),     // Integer part of SR, e.g., 3 for C3.50
+  srSub: z.number(),       // Decimal part of SR * 100, e.g., 50 for C3.50
+  categoryId: z.number().optional(), // Optional: road, oval etc.
+  category: z.string().optional(),   // Optional: "Road", "Oval"
+});
+export type MemberStats = z.infer<typeof MemberStatsSchema>;
+
+export const MemberSummaryResponseSchema = z.object({
+  stats: z.union([MemberStatsSchema, z.array(MemberStatsSchema)]), // Can be single object or array by category
+  // custId: z.number().optional(), // Might also include custId
+  // Other fields might be present
+});
+export type MemberSummaryResponse = z.infer<typeof MemberSummaryResponseSchema>;
+
+
 // Legacy interfaces for backward compatibility
 export interface Lap {
   lapNumber: number;
@@ -462,11 +481,12 @@ export interface RecentRace {
 export interface Driver {
   id: number;
   name: string;
-  currentIRating: number;
-  currentSafetyRating: string;
+  currentIRating: number; // This might become category-specific or an overall if available
+  currentSafetyRating: string; // This is typically category-specific too
   avgRacePace: string;
-  iratingHistory: HistoryPoint[];
-  safetyRatingHistory: HistoryPoint[];
+  // Store iRating history per category (e.g., "Road", "Oval")
+  iratingHistories: Record<string, HistoryPoint[]>;
+  safetyRatingHistory: HistoryPoint[]; // Assuming one primary SR history for now, or this might also need categorizing
   racePaceHistory: HistoryPoint[];
   recentRaces: RecentRace[];
 }
