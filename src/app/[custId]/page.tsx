@@ -25,6 +25,13 @@ export default function CustomerPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [driverName, setDriverName] = useState<string>('');
+  const [cacheInfo, setCacheInfo] = useState<{
+    fromCache: boolean;
+    cacheAge?: string;
+    warning?: string;
+  }>({
+    fromCache: false
+  });
   const [loadingStage, setLoadingStage] = useState<{
     stage: string;
     progress: number;
@@ -57,6 +64,7 @@ export default function CustomerPage() {
     try {
       setLoading(true);
       setError(null);
+      setCacheInfo({ fromCache: false }); // Reset cache info
 
       // Stage 1: Initializing
       setLoadingStage({
@@ -95,6 +103,13 @@ export default function CustomerPage() {
       if (data.error) {
         throw new Error(data.error);
       }
+
+      // Update cache info
+      setCacheInfo({
+        fromCache: data.fromCache || false,
+        cacheAge: data.cacheAge,
+        warning: data.warning
+      });
 
       // Stage 4: Finalizing
       setLoadingStage({
@@ -210,6 +225,22 @@ export default function CustomerPage() {
         <ThemeToggle />
       </div>
       <AppHeader subtitle={`Driver profile for ${driverName}`} />
+
+      {/* Display cache warning if data is from cache due to rate limiting */}
+      {cacheInfo.fromCache && cacheInfo.warning && (
+        <div className="max-w-2xl mx-auto mb-4">
+          <Alert className="border-yellow-500 bg-yellow-50 dark:bg-yellow-950/20">
+            <AlertDescription className="text-yellow-800 dark:text-yellow-200">
+              <strong>Using cached data:</strong> {cacheInfo.warning}
+              {cacheInfo.cacheAge && (
+                <span className="block mt-1 text-sm">
+                  Data age: {cacheInfo.cacheAge}
+                </span>
+              )}
+            </AlertDescription>
+          </Alert>
+        </div>
+      )}
 
       <div className="max-w-2xl mx-auto mb-8">
         {/* Cache status and refresh button */}
