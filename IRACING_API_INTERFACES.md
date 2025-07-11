@@ -1,103 +1,148 @@
-# iRacing API TypeScript Interfaces - Complete Implementation
+# iRacing API TypeScript Interfaces
 
 ## Overview
 
-The iRacing API TypeScript interfaces have been completely updated to align with the official iRacing API documentation and best practices. This implementation provides comprehensive type safety, data validation using Zod schemas, and enhanced data transformation utilities based on `themich4/iracing-api`.
+This document describes the TypeScript interfaces and data transformation utilities used for iRacing API integration. The implementation is based on the official `themich4/iracing-api` package and provides comprehensive type safety with runtime validation.
 
-## Key Improvements
+## Architecture
 
-### 1. Official API Schema Compliance
-- All interfaces now match the official iRacing API responses from `themich4/iracing-api`
-- Complete Zod schema definitions for validation
-- Proper handling of all data types and optional fields
+### Core Files
 
-### 2. Enhanced Type Safety
-- Strict TypeScript interfaces with proper null handling
-- Zod runtime validation for API responses
-- Type guards for data validation
+- **`src/lib/iracing-types.ts`** - Official API interfaces and Zod schemas
+- **`src/lib/iracing-data-transform.ts`** - Data transformation utilities
+- **`src/lib/iracing-api-core.ts`** - Core API implementation with caching
 
-### 3. Comprehensive Data Transformation
-- Dedicated transformation utilities in `iracing-data-transform.ts`
-- Proper lap time formatting from 10,000ths of a second
-- Enhanced lap data processing with validation
+### Key Features
 
-## Key Files
-
-### `src/lib/iracing-types.ts`
-- Contains all official iRacing API interfaces and Zod schemas
-- Provides TypeScript types derived from the official API structure
-- Includes both new interfaces and legacy interfaces for backward compatibility
-
-### `src/lib/iracing-data-transform.ts`
-- Utility functions for transforming iRacing API responses to our application interfaces
-- Data validation using Zod schemas
-- Helper functions for lap time formatting and calculations
-
-### `src/lib/mock-data.ts`
-- Re-exports types from `iracing-types.ts` for backward compatibility
-- Maintains existing interface names for gradual migration
+- ✅ **Type Safety**: Complete TypeScript interfaces matching official API
+- ✅ **Runtime Validation**: Zod schemas for all API responses
+- ✅ **Data Transformation**: Utilities for converting API data to application format
+- ✅ **Error Handling**: Comprehensive validation and graceful error recovery
+- ✅ **Performance**: Intelligent caching and efficient data processing
 
 ## Usage Examples
 
-### 1. Race Result Data Validation
+### Race Result Processing
 
 ```typescript
-import { GetResultResponseSchema, validateIracingRaceResult } from '@/lib/iracing-types'
+import { transformIracingRaceResult, validateIracingRaceResult } from '@/lib/iracing-data-transform'
 
-// Validate API response
-const isValidResponse = validateIracingRaceResult(apiResponse)
+// Fetch and validate race result
+const apiResponse = await iracingApi.results.getResult({ subsessionId: 12345 })
 
-// Or use Zod parsing for detailed validation
-try {
-  const validatedData = GetResultResponseSchema.parse(apiResponse)
-  // Use validatedData with full type safety
-} catch (error) {
-  console.error('Invalid API response structure:', error)
+if (validateIracingRaceResult(apiResponse)) {
+  // Transform to application format with lap data
+  const raceData = transformIracingRaceResult(apiResponse, 12345, lapDataMap)
+  // Use raceData as RecentRace interface
 }
 ```
 
-### 2. Data Transformation
+### Lap Time Formatting
 
 ```typescript
-import { transformIracingRaceResult } from '@/lib/iracing-data-transform'
-
-// Transform official API response to our RecentRace interface
-const raceData = await iracingApi.results.getResult({ subsessionId: 12345 })
-const recentRace = transformIracingRaceResult(raceData, 12345)
-```
-
-### 3. Lap Time Formatting
-
-```typescript
-import { formatLapTimeFrom10000ths, lapTimeToMs } from '@/lib/iracing-data-transform'
+import { formatLapTimeFrom10000ths, lapTimeToSeconds } from '@/lib/iracing-data-transform'
 
 // Convert from iRacing's 10,000ths second format
-const lapTime = formatLapTimeFrom10000ths(651234) // "1:05.123"
+const displayTime = formatLapTimeFrom10000ths(651234) // "1:05.123"
 
-// Convert lap time string to milliseconds for comparison
-const timeInMs = lapTimeToMs("1:05.123") // 65123
+// Convert for calculations
+const seconds = lapTimeToSeconds("1:05.123") // 65.123
 ```
 
-## Interface Migration
-
-### Legacy Interfaces (for backward compatibility)
-- `RaceParticipant`
-- `RecentRace`
-- `Driver`
-- `SearchedDriver`
-
-### New Official iRacing API Interfaces
-- `IracingRaceParticipant` - Direct mapping to API response
-- `IracingRaceData` - Full race session data
-- `GetResultResponse` - Complete API response structure
-- `RaceResult` - Individual participant result
-- `SessionResult` - Session-level data (practice, qualifying, race)
-
-## Data Validation
-
-All interfaces use Zod schemas for runtime validation:
+### Data Validation
 
 ```typescript
+import { GetResultResponseSchema } from '@/lib/iracing-types'
+
+try {
+  const validatedData = GetResultResponseSchema.parse(apiResponse)
+  // Data is guaranteed to match interface
+} catch (error) {
+  // Handle validation errors
+}
+```
+
+## Key Interfaces
+
+### Race Data
+```typescript
+interface RecentRace {
+  id: string
+  trackName: string
+  date: string
+  participants: RaceParticipant[]
+  strengthOfField: number
+  avgRaceIncidents: number
+  // ... complete race information
+}
+```
+
+### Participant Data
+```typescript
+interface RaceParticipant {
+  name: string
+  custId: number
+  startPosition: number
+  finishPosition: number
+  incidents: number
+  fastestLap: string
+  irating: number
+  laps: Lap[]
+  // ... complete participant data
+}
+```
+
+### Lap Data
+```typescript
+interface Lap {
+  lapNumber: number
+  time: string          // Formatted as "M:SS.mmm"
+  invalid: boolean      // Based on incidents/track limits
+}
+```
+
+## Data Flow
+
+1. **API Call** → Raw iRacing API response
+2. **Validation** → Zod schema validation
+3. **Transformation** → Convert to application interfaces
+4. **Caching** → Store processed data for performance
+5. **UI Rendering** → Type-safe component data
+
+## Error Handling
+
+The system includes comprehensive error handling:
+
+- **API Errors**: Network, authentication, rate limiting
+- **Data Validation**: Malformed responses, missing fields
+- **Transformation Errors**: Invalid data formats, calculation failures
+- **User Feedback**: Clear error messages and recovery options
+
+## Performance Optimizations
+
+- **Caching Strategy**: Multi-level caching for race results and driver data
+- **Lazy Loading**: Load lap data only when needed
+- **Data Aggregation**: Efficient processing of large datasets
+- **Background Updates**: Non-blocking data refresh
+
+## Development Notes
+
+### Adding New Interfaces
+
+1. Define Zod schema in `iracing-types.ts`
+2. Create transformation utility in `iracing-data-transform.ts`
+3. Add validation and error handling
+4. Update API implementation in `iracing-api-core.ts`
+
+### Testing Data Transformations
+
+```typescript
+// Validate transformation with real API data
+const result = transformIracingRaceResult(mockApiResponse, 12345)
+expect(result).toMatchSchema(RecentRaceSchema)
+```
+
+This architecture ensures type safety, data integrity, and optimal performance throughout the application.
 import { ResultSchema } from '@/lib/iracing-types'
 
 // Validate participant data

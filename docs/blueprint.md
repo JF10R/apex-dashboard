@@ -1,21 +1,56 @@
-# **App Name**: Apex Stats
+# Apex Stats - Development Blueprint
 
-## Core Features:
+## Application Overview
 
-- Driver Search: Search and find iRacing drivers by name or ID.
-- Current Stats View: Display a summary of a driver's current iRacing stats.
-- iRating History Graph: Show interactive historical graphs for iRating progression.
-- Safety Rating History Graph: Show interactive historical graphs for Safety Rating progression.
-- Race Pace History Graph: Display race pace trends via interactive historical graph .
-- AI Stats Comparison: AI-powered tool to analyze and compare driver stats over time, identifying strengths and weaknesses based on historical data.
+**Apex Stats** is a comprehensive iRacing performance dashboard built with modern web technologies, providing drivers with detailed analytics, historical trends, and AI-powered insights.
 
-## Style Guidelines:
+## Core Features (Current Implementation)
 
-- Color scheme: Dark background (#121212) to emphasize data and reduce eye strain.
-- Primary color: Electric Orange (#FF4500) to highlight key metrics and interactive elements; evokes a sense of speed and excitement, fitting the racing theme.
-- Accent color: Analogous to the orange, use a vibrant red (#FF0033) for call-to-action elements.
-- Background color: A very dark grey (#1A1A1A) to ensure comfortable contrast against data visualizations and orange elements.
-- Body and headline font: 'Inter' (sans-serif) for a modern and clean presentation of stats.
-- Use sharp, minimalist icons to represent different data points and actions.
-- Divide sections clearly, with data visualizations taking center stage.
-- Smooth transitions and subtle animations when data updates or graphs load.
+### Driver Management
+- **Advanced Driver Search**: Find iRacing drivers by name with intelligent search capabilities
+- **Driver Profiles**: Comprehensive career statistics and performance metrics
+- **Tracked Drivers**: Save and manage favorite drivers for quick access
+- **Driver Comparison**: Side-by-side analysis with combined historical data
+
+### Performance Analytics
+- **Historical Charts**: Interactive visualizations for iRating, Safety Rating, and race pace trends
+- **Advanced Filtering**: Filter by year, season, car category, tracks, and vehicles
+- **Lap-by-Lap Analysis**: Detailed race breakdowns with individual lap performance
+- **AI-Powered Insights**: GenKit integration for qualitative performance analysis
+
+### Race Analysis
+- **Detailed Race Results**: Complete race data with all participants
+- **Strength of Field**: Race quality metrics and competitive analysis
+- **Navigation Integration**: Seamless flow between drivers and race data
+
+### User Experience
+- **Responsive Design**: Optimized for desktop and mobile devices
+- **Theme Support**: Dark/light mode with system preference detection
+- **Real-time Data**: Live integration with official iRacing API
+- **Intelligent Caching**: Multi-level performance optimization
+
+## Technical Architecture
+
+### Design System
+- **Theme**: Modern CSS custom properties with light/dark mode support
+- **Typography**: 
+  - Headlines: Orbitron (700 weight) for racing aesthetic
+  - Body: Inter for optimal readability and data presentation
+- **Components**: shadcn/ui component library with Tailwind CSS
+- **Color System**: HSL-based design tokens for consistent theming
+- **Responsive**: Mobile-first approach with Tailwind breakpoints
+
+### Development Standards
+- **Type Safety**: Comprehensive TypeScript with Zod runtime validation
+- **API Integration**: Official iRacing API with proper error handling
+- **Performance**: Intelligent caching and optimized data fetching
+- **Code Quality**: Modular architecture with reusable components
+- **Testing**: Component and integration test coverage
+
+## Key Design Principles
+
+1. **Data-Driven**: Clean presentation that emphasizes racing metrics and trends
+2. **Performance-Focused**: Fast loading with intelligent background processing
+3. **User-Centric**: Intuitive navigation and clear information hierarchy
+4. **Scalable**: Modular architecture supporting feature expansion
+5. **Accessible**: Proper contrast ratios and responsive design for all users
