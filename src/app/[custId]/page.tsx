@@ -130,13 +130,13 @@ export default function CustomerPage() {
     } finally {
       setLoading(false);
     }
-  }, [custId, addRecentProfile]);
+  }, [custId]); // Remove addRecentProfile from dependencies
 
   useEffect(() => {
     if (custId) {
       fetchDriverData();
     }
-  }, [custId, fetchDriverData]);
+  }, [custId]); // Remove fetchDriverData from dependencies to prevent infinite loop
 
   // Update document title when driver data is loaded
   useEffect(() => {
