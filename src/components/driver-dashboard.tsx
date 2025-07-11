@@ -60,6 +60,7 @@ export default function DriverDashboard({ custId, driverName }: { custId: number
   const [isPending, startTransition] = useTransition();
   const [analysis, setAnalysis] = useState<{ summary: string | null; error: string | null } | null>(null);
 
+  const [iRatingCategory, setIRatingCategory] = useState('road'); // Default to 'road'
   const [category, setCategory] = useState('all');
   const [year, setYear] = useState('all');
   const [season, setSeason] = useState('all');
@@ -87,14 +88,21 @@ export default function DriverDashboard({ custId, driverName }: { custId: number
               const racesByYearSorted = racesByYear.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
               const mostRecentSeason = racesByYearSorted.length > 0 ? racesByYearSorted[0].season : 'all';
               
-              // Get the most raced category
-              const categoryCount = data.recentRaces.reduce((acc, race) => {
-                acc[race.category] = (acc[race.category] || 0) + 1;
-                return acc;
-              }, {} as Record<string, number>);
-              const mostRacedCategory = Object.entries(categoryCount).reduce((a, b) => 
-                categoryCount[a[0]] > categoryCount[b[0]] ? a : b
-              )[0];
+              let mostRacedCategory = 'all';
+              if (data.recentRaces.length > 0) {
+                const categoryCount = data.recentRaces.reduce((acc, race) => {
+                  if (race.category) { // Ensure category is defined
+                    acc[race.category] = (acc[race.category] || 0) + 1;
+                  }
+                  return acc;
+                }, {} as Record<string, number>);
+
+                if (Object.keys(categoryCount).length > 0) {
+                  mostRacedCategory = Object.entries(categoryCount).reduce((a, b) =>
+                    categoryCount[a[0]] > categoryCount[b[0]] ? a : b
+                  )[0];
+                }
+              }
               
               setYear(mostRecentYear);
               setSeason(mostRecentSeason);
@@ -200,18 +208,41 @@ export default function DriverDashboard({ custId, driverName }: { custId: number
   }, [filteredRaces, driver, areFiltersActive]);
 
 
+  const availableIRatingCategories = useMemo(() => {
+    if (!driver || !driver.iratingHistories) return [];
+    return Object.entries(driver.iratingHistories)
+      .filter(([_, historyData]) => historyData && historyData.length > 0)
+      .map(([categoryName, _]) => ({
+        value: categoryName,
+        label: categoryName.charAt(0).toUpperCase() + categoryName.slice(1), // Capitalize first letter
+      }));
+  }, [driver]);
+
+  // Effect to reset iRatingCategory if it becomes unavailable after data reload or if initial default 'road' has no data
+  useEffect(() => {
+    if (driver && driver.iratingHistories) {
+      const currentCategoryValid = driver.iratingHistories[iRatingCategory] && driver.iratingHistories[iRatingCategory].length > 0;
+      if (!currentCategoryValid && availableIRatingCategories.length > 0) {
+        setIRatingCategory(availableIRatingCategories[0].value); // Set to the first available category
+      } else if (!currentCategoryValid && availableIRatingCategories.length === 0) {
+        setIRatingCategory('road'); // Fallback, though chart will be empty
+      }
+    }
+  }, [driver, iRatingCategory, availableIRatingCategories]);
+
+
   const filteredHistory = useMemo(() => {
-    if (!driver) return { iratingHistory: [], safetyRatingHistory: [], racePaceHistory: [] };
-    
+    if (!driver) return { safetyRatingHistory: [], racePaceHistory: [] }; // iratingHistory removed from here
+
     // iRating and Safety Rating history should always show the full progression
     // Only filter them if no filters are active at all
     const shouldFilterHistoryCharts = !areFiltersActive;
-    
+
     const filterByDate = (data: HistoryPoint[]) => {
       if (shouldFilterHistoryCharts) return data;
       const getMonthFromDate = (dateStr: string) => new Date(dateStr).toLocaleString('en-US', { month: 'short', timeZone: 'UTC' });
       const yearNum = year !== 'all' ? parseInt(year, 10) : null;
-      
+
       const relevantMonths = new Set(
         filteredRaces.map(r => getMonthFromDate(r.date))
       );
@@ -221,7 +252,7 @@ export default function DriverDashboard({ custId, driverName }: { custId: number
 
     let racePaceData: HistoryPoint[];
     const trackOrCarFilterActive = track !== 'all' || car !== 'all';
-    
+
     if (trackOrCarFilterActive && filteredRaces.length > 0) {
       racePaceData = [...filteredRaces]
         .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
@@ -234,9 +265,8 @@ export default function DriverDashboard({ custId, driverName }: { custId: number
     }
 
     return {
-      // Always show full progression for iRating and Safety Rating history
-      iratingHistory: driver.iratingHistory,
-      safetyRatingHistory: driver.safetyRatingHistory,
+      // Always show full progression for Safety Rating history
+      safetyRatingHistory: driver.safetyRatingHistory, // Assuming driver.safetyRatingHistory is still the source
       racePaceHistory: racePaceData,
     };
   }, [driver, filteredRaces, areFiltersActive, year, track, car]);
@@ -343,18 +373,34 @@ export default function DriverDashboard({ custId, driverName }: { custId: number
       </section>
       
       <section>
-        <h2 className="text-2xl font-headline font-bold tracking-tight mb-4">Performance History</h2>
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-2xl font-headline font-bold tracking-tight">Performance History</h2>
+          {availableIRatingCategories.length > 0 && (
+            <div className="w-48">
+              <Select value={iRatingCategory} onValueChange={setIRatingCategory}>
+                <SelectTrigger id="irating-category-select">
+                  <SelectValue placeholder="Select iRating Category" />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableIRatingCategories.map(cat => (
+                    <SelectItem key={cat.value} value={cat.value}>{cat.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+        </div>
         <div className="grid gap-4 md:grid-cols-1 lg:grid-cols-2">
           <HistoryChart
-            data={filteredHistory.iratingHistory}
-            title="iRating History"
-            description="Full progression over time (unfiltered)."
+            data={driver?.iratingHistories?.[iRatingCategory] || []}
+            title={`iRating History (${iRatingCategory.charAt(0).toUpperCase() + iRatingCategory.slice(1)})`}
+            description={`Full ${iRatingCategory} progression over time (unfiltered).`}
             dataKey="value"
             color="--primary"
             yAxisFormatter={(value) => value.toLocaleString('en-US')}
           />
           <HistoryChart
-            data={filteredHistory.safetyRatingHistory}
+            data={driver?.safetyRatingHistory || []}
             title="Safety Rating History"
             description="Full progression over time (unfiltered)."
             dataKey="value"
