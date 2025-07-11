@@ -755,65 +755,57 @@ export const getDriverData = async (custId: number): Promise<Driver | null> => {
     const driverName = driverInfo.displayName; // This access might need to change
 
     const recentRaces: RecentRace[] = (
-      await Promise.all(
-        // This access (recentRacesRaw.races) might need to change based on actual structure.
-        (recentRacesRaw?.races || []).slice(0, 20).map(async (raceSummary: RawRecentRaceSummary) => {
-          const raceResult = await getRaceResultData(raceSummary.subsessionId);
-          if (!raceResult) return null;
+      // This access (recentRacesRaw.races) might need to change based on actual structure.
+      (recentRacesRaw?.races || []).slice(0, 20).map((raceSummary: RawRecentRaceSummary) => {
+        // Build race data from summary only - no detailed race data loading
+        const raceResult: RecentRace = {
+          id: raceSummary.subsessionId.toString(),
+          trackName: raceSummary.trackName || 'Unknown Track',
+          seriesName: raceSummary.seriesName || raceSummary.series_name || 'Unknown Series',
+          date: raceSummary.sessionDate || new Date().toISOString(),
+          car: raceSummary.carName || 'Unknown Car',
+          category: raceSummary.category || 'Unknown',
+          startPosition: raceSummary.startingPosition || 0,
+          finishPosition: raceSummary.finishingPosition || 0,
+          incidents: raceSummary.incidents || 0,
+          fastestLap: raceSummary.bestLapTime ? formatLapTime(raceSummary.bestLapTime) : 'N/A',
+          strengthOfField: raceSummary.strengthOfField || 0,
+          year: new Date(raceSummary.sessionDate || new Date()).getFullYear(),
+          season: raceSummary.seasonYear || new Date().getFullYear(),
+          participants: [], // Will be loaded when accessing individual race page
+          avgRaceIncidents: raceSummary.incidents || 0,
+          avgRaceLapTime: raceSummary.averageLap ? formatLapTime(raceSummary.averageLap) : 'N/A',
+          lapsLed: raceSummary.lapsLed || 0,
+          iratingChange: raceSummary.oldiRating !== -1 && raceSummary.newiRating !== -1
+                        ? raceSummary.newiRating - raceSummary.oldiRating
+                        : 0,
+          safetyRatingChange: ((raceSummary.newSubLevel - raceSummary.oldSubLevel) / 100).toFixed(2),
+          avgLapTime: raceSummary.averageLap ? formatLapTime(raceSummary.averageLap) : 'N/A'
+        };
 
-          const driverInRace = raceResult.participants.find(p => p.name === driverName);
-
-          if (driverInRace) {
-            raceResult.startPosition = driverInRace.startPosition;
-            raceResult.finishPosition = driverInRace.finishPosition;
-            raceResult.incidents = driverInRace.incidents;
-            raceResult.fastestLap = driverInRace.fastestLap;
-          } else {
-            console.warn(
-              `Driver ${driverName} (ID: ${custId}) not found in detailed participants for subsession ${raceSummary.subsessionId}. ` +
-              `Driver-specific details from full results (start/finish pos, incidents, fastest lap) might be default values.`
-            );
-          }
-
-          raceResult.iratingChange = raceSummary.oldiRating !== -1 && raceSummary.newiRating !== -1
-                                      ? raceSummary.newiRating - raceSummary.oldiRating
-                                      : 0; // -1 often means N/A for iRating in summaries
-          const srChange = (raceSummary.newSubLevel - raceSummary.oldSubLevel) / 100;
-          raceResult.safetyRatingChange = srChange.toFixed(2);
-          raceResult.lapsLed = raceSummary.lapsLed;
-          raceResult.avgLapTime = raceSummary.averageLap 
-            ? formatLapTime(raceSummary.averageLap)
-            : (raceSummary.average_lap ? formatLapTime(raceSummary.average_lap) : '');
-
-          return raceResult;
-        })
-      )
+        return raceResult;
+      })
     ).filter((r): r is RecentRace => r !== null);
 
-    // Generate more detailed history from recent races
+    // Generate more detailed history from recent races using race summary data
     const iratingHistoryFromApi: HistoryPoint[] = (iratingChart?.data || []).map((p: IracingApiChartPoint) => ({
       month: new Date(p.when).toLocaleString('en-US', { month: 'short', timeZone: 'UTC' }),
       value: p.value,
     }));
 
     const iratingHistoryFromRaces: HistoryPoint[] = recentRaces
+      .filter(race => race.iratingChange !== 0) // Only include races with valid iRating changes
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-      .map(race => {
-        const participant = race.participants.find(p => p.name === driverName);
-        if (participant) {
-          return {
-            month: new Date(race.date).toLocaleString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' }),
-            value: participant.irating
-          };
-        }
-        return null;
-      })
+      .map(race => ({
+        month: new Date(race.date).toLocaleString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' }),
+        value: race.iratingChange // This is the change, we'd need to calculate actual values
+      }))
       .filter((point): point is HistoryPoint => point !== null);
 
-    // Combine API chart data with race-based data, preferring more detailed race data
-    const iratingHistory = iratingHistoryFromRaces.length > iratingHistoryFromApi.length 
-      ? iratingHistoryFromRaces 
-      : iratingHistoryFromApi;
+    // Use API chart data primarily, as it contains actual iRating values over time
+    const iratingHistory = iratingHistoryFromApi.length > 0 
+      ? iratingHistoryFromApi 
+      : [];
 
     const safetyRatingHistory: HistoryPoint[] = (srChart?.data || []).map((p: IracingApiChartPoint) => ({
       month: new Date(p.when).toLocaleString('en-US', { month: 'short', timeZone: 'UTC' }),
@@ -834,28 +826,30 @@ export const getDriverData = async (custId: number): Promise<Driver | null> => {
         ? racePaceHistory.reduce((acc, p) => acc + p.value, 0) / racePaceHistory.length
         : NaN; // Use NaN if no valid history points, formatLapTime will handle it
 
-    // Get current stats, fallback to most recent race data if API stats not available
+    // Get current stats from member data and recent race iRating changes
     const memberStatsData = memberStatsResponseFromPromise;
     console.log('memberStatsData structure for debugging:', JSON.stringify(memberStatsData, null, 2));
     
-    // Try to get current iRating from most recent race data first (as it's most up-to-date)
+    // Try to get current iRating from member data first
     let currentIRating = 0;
     
-    // Prioritize latest race participant data as it's most current
-    const latestRaceWithParticipant = recentRaces.find(race => 
-      race.participants.some(p => p.name === driverName)
-    );
-    const latestParticipant = latestRaceWithParticipant?.participants.find(p => p.name === driverName);
-    
-    if (latestParticipant?.irating && latestParticipant.irating > 0) {
-      currentIRating = latestParticipant.irating;
-      console.log('Using most recent race iRating:', currentIRating);
-    }
-    
-    // Fallback to member data if race data not available
-    if (currentIRating === 0 && memberData?.members?.[0]?.irating) {
+    // Check member data for current iRating
+    if (memberData?.members?.[0]?.irating) {
       currentIRating = memberData.members[0].irating;
       console.log('Found current iRating from member data:', currentIRating);
+    }
+    
+    // If not found, try recent race summary data (use the most recent newIRating)
+    if (currentIRating === 0 && recentRaces.length > 0) {
+      const latestRace = recentRaces[0]; // Most recent race
+      if (typeof latestRace.iratingChange === 'number') {
+        // Calculate current iRating from the race summary if available
+        const raceData = (recentRacesRaw?.races || []).find(r => r.subsessionId.toString() === latestRace.id);
+        if (raceData?.newiRating && raceData.newiRating > 0) {
+          currentIRating = raceData.newiRating;
+          console.log('Using most recent race newiRating:', currentIRating);
+        }
+      }
     }
     
     // If not found, check memberStatsData
