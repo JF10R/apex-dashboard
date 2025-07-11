@@ -280,4 +280,69 @@ describe('CustomerPage', () => {
 
     expect(mockPush).toHaveBeenCalledWith('/')
   })
+
+  test('calls addRecentProfile when driver data loads successfully', async () => {
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({
+        driver: jeffNoelData,
+        custId: 539129,
+        timestamp: new Date().toISOString()
+      })
+    })
+
+    render(<CustomerPage />)
+
+    await waitFor(() => {
+      expect(screen.getByText(/Driver profile for Jeff Noel/i)).toBeDefined()
+    }, { timeout: 5000 })
+
+    // Should call addRecentProfile with the driver data
+    expect(addRecentProfile).toHaveBeenCalledWith({
+      name: 'Jeff Noel',
+      custId: '539129'
+    })
+  })
+
+  test('calls addRecentProfile with fallback name when driver name is missing', async () => {
+    const driverDataWithoutName = { ...jeffNoelData, name: undefined }
+    
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({
+        driver: driverDataWithoutName,
+        custId: 539129,
+        timestamp: new Date().toISOString()
+      })
+    })
+
+    render(<CustomerPage />)
+
+    await waitFor(() => {
+      expect(screen.getByText(/Driver profile for Driver 539129/i)).toBeDefined()
+    }, { timeout: 5000 })
+
+    // Should call addRecentProfile with fallback name
+    expect(addRecentProfile).toHaveBeenCalledWith({
+      name: 'Driver 539129',
+      custId: '539129'
+    })
+  })
+
+  test('does not call addRecentProfile when there is an error loading driver data', async () => {
+    mockFetch.mockResolvedValue({
+      ok: false,
+      status: 404,
+      json: () => Promise.resolve({ error: 'Driver not found' })
+    })
+
+    render(<CustomerPage />)
+
+    await waitFor(() => {
+      expect(screen.getByText(/Error loading driver data: Failed to fetch driver data: 404/i)).toBeDefined()
+    })
+
+    // Should not call addRecentProfile when there's an error
+    expect(addRecentProfile).not.toHaveBeenCalled()
+  })
 })

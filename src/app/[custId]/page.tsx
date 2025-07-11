@@ -107,15 +107,14 @@ export default function CustomerPage() {
       await new Promise(resolve => setTimeout(resolve, 300));
 
       setDriverData(data.driver);
-      setDriverName(data.driver?.name || `Driver ${custId}`);
+      const finalDriverName = data.driver?.name || `Driver ${custId}`;
+      setDriverName(finalDriverName);
       
-      // Add to recent profiles if we have driver data
-      if (data.driver?.name) {
-        addRecentProfile({
-          name: data.driver.name,
-          custId: custId
-        });
-      }
+      // Add to recent profiles with the name (either actual or fallback)
+      addRecentProfile({
+        name: finalDriverName,
+        custId: custId
+      });
 
       // Stage 5: Complete
       setLoadingStage({
