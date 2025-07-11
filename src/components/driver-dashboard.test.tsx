@@ -26,8 +26,9 @@ jest.mock('../app/data-actions', () => ({
 const mockGetDriverPageData = dataActions.getDriverPageData as jest.Mock;
 
 const createMockDriverData = (overrides: Partial<Driver> = {}): Driver => {
-  const roadHistory: HistoryPoint[] = [{ month: 'Jan 2023', value: 3000 }, { month: 'Feb 2023', value: 3100 }];
+  const sportsCarHistory: HistoryPoint[] = [{ month: 'Jan 2023', value: 3000 }, { month: 'Feb 2023', value: 3100 }];
   const ovalHistory: HistoryPoint[] = [{ month: 'Jan 2023', value: 2000 }, { month: 'Feb 2023', value: 2100 }];
+  const formulaCarHistory: HistoryPoint[] = [{ month: 'Jan 2023', value: 2800 }, { month: 'Feb 2023', value: 2900 }];
 
   const mockRaces: RecentRace[] = [
     { id: '1', trackName: 'Okayama', date: '2023-03-15T10:00:00Z', year: 2023, season: 'Spring', category: 'Formula Car' as RaceCategory, seriesName: 'F1600', car: 'F1600', startPosition: 1, finishPosition: 1, incidents: 0, strengthOfField: 1500, lapsLed: 10, fastestLap: '1:30.000', avgLapTime: '1:31.000', iratingChange: 50, safetyRatingChange: '0.10', participants: [], avgRaceIncidents: 2, avgRaceLapTime: '1:32.000' },
@@ -42,10 +43,9 @@ const createMockDriverData = (overrides: Partial<Driver> = {}): Driver => {
     currentSafetyRating: 'A 3.50',
     avgRacePace: '1:45.000',
     iratingHistories: {
-      road: roadHistory,
-      oval: ovalHistory,
-      dirtRoad: [],
-      dirtOval: [],
+      'Sports Car': sportsCarHistory,
+      'Oval': ovalHistory,
+      'Formula Car': formulaCarHistory,
     },
     safetyRatingHistory: [{ month: 'Jan 2023', value: 3.4 }, { month: 'Feb 2023', value: 3.5 }],
     racePaceHistory: [{ month: 'Jan 2023', value: 105 }, { month: 'Feb 2023', value: 104 }], // 1:45.000, 1:44.000
@@ -68,7 +68,9 @@ describe('DriverDashboard', () => {
     mockGetDriverPageData.mockImplementationOnce(() => new Promise(() => {})); // Never resolves
     render(<DriverDashboard custId={123} driverName="Test Driver" />);
     // Check for presence of skeleton elements (example)
-    expect(screen.getAllByText((content, element) => element?.classList.contains('h-8') && element?.classList.contains('w-48')).length).toBeGreaterThan(0);
+    expect(screen.getAllByText((content, element) => 
+      Boolean(element?.classList.contains('h-8') && element?.classList.contains('w-48'))
+    ).length).toBeGreaterThan(0);
   });
 
   it('renders driver data after loading', async () => {
@@ -79,14 +81,14 @@ describe('DriverDashboard', () => {
   });
 
   describe('iRating Category Selector', () => {
-    it('defaults to Road iRating and displays its chart', async () => {
+    it('defaults to Sports Car iRating and displays its chart', async () => {
       render(<DriverDashboard custId={123} driverName="Test Driver" />);
-      await waitFor(() => expect(screen.getByText('iRating History (Road)')).toBeInTheDocument());
+      await waitFor(() => expect(screen.getByText('iRating History (Sports Car)')).toBeInTheDocument());
     });
 
     it('allows changing iRating category and updates chart', async () => {
       render(<DriverDashboard custId={123} driverName="Test Driver" />);
-      await waitFor(() => expect(screen.getByText('iRating History (Road)')).toBeInTheDocument());
+      await waitFor(() => expect(screen.getByText('iRating History (Sports Car)')).toBeInTheDocument());
 
       const selector = await screen.findByRole('combobox', { name: /select irating category/i });
       fireEvent.mouseDown(selector); // Open the select dropdown
@@ -100,16 +102,16 @@ describe('DriverDashboard', () => {
 
     it('only shows categories with data in the selector', async () => {
        mockGetDriverPageData.mockResolvedValue({ data: createMockDriverData({
-         iratingHistories: { road: [{ month: 'Jan 2023', value: 1000}], oval: [], dirtRoad: [], dirtOval: [] }
+         iratingHistories: { 'Sports Car': [{ month: 'Jan 2023', value: 1000}], 'Oval': [], 'Formula Car': [] }
        }), error: null });
       render(<DriverDashboard custId={123} driverName="Test Driver" />);
 
-      await waitFor(() => screen.getByText('iRating History (Road)')); // Ensure dashboard loaded
+      await waitFor(() => screen.getByText('iRating History (Sports Car)')); // Ensure dashboard loaded
 
       const selector = screen.getByRole('combobox', { name: /select irating category/i });
       fireEvent.mouseDown(selector);
 
-      await screen.findByText('Road'); // Road option should be there
+      await screen.findByText('Sports Car'); // Sports Car option should be there
       expect(screen.queryByText('Oval')).not.toBeInTheDocument(); // Oval option should NOT be there
     });
   });

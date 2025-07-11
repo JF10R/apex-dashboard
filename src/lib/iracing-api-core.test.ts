@@ -3,20 +3,13 @@ import IracingAPI from 'iracing-api';
 import { type MemberSummaryResponse, type HistoryPoint } from './iracing-types';
 
 // Mock the IracingAPI module
-// Store module-level mocks from jest.mock
-let mockLogin: jest.Mock;
-let mockMemberGetMemberData: jest.Mock;
-let mockStatsGetMemberSummary: jest.Mock;
-let mockMemberGetMemberChartData: jest.Mock;
-let mockStatsGetMemberRecentRaces: jest.Mock;
-
 jest.mock('iracing-api', () => {
   // Create mocks that can be referenced from outside
-  mockLogin = jest.fn();
-  mockMemberGetMemberData = jest.fn();
-  mockStatsGetMemberSummary = jest.fn();
-  mockMemberGetMemberChartData = jest.fn();
-  mockStatsGetMemberRecentRaces = jest.fn();
+  const mockLogin = jest.fn();
+  const mockMemberGetMemberData = jest.fn();
+  const mockStatsGetMemberSummary = jest.fn();
+  const mockMemberGetMemberChartData = jest.fn();
+  const mockStatsGetMemberRecentRaces = jest.fn();
 
   return jest.fn().mockImplementation(() => ({
     login: mockLogin,
@@ -31,13 +24,36 @@ jest.mock('iracing-api', () => {
   }));
 });
 
+// Get references to the mocks after they're created
+const mockIracingAPI = IracingAPI as jest.MockedClass<typeof IracingAPI>;
+let mockLogin: jest.Mock;
+let mockMemberGetMemberData: jest.Mock;
+let mockStatsGetMemberSummary: jest.Mock;
+let mockMemberGetMemberChartData: jest.Mock;
+let mockStatsGetMemberRecentRaces: jest.Mock;
+
 
 describe('getDriverData', () => {
   const originalEnv = process.env;
+  
+  // Get mock instances
+  let mockLogin: jest.Mock;
+  let mockMemberGetMemberData: jest.Mock;
+  let mockStatsGetMemberSummary: jest.Mock;
+  let mockMemberGetMemberChartData: jest.Mock;
+  let mockStatsGetMemberRecentRaces: jest.Mock;
 
   beforeEach(() => {
     jest.resetModules(); // Important to reset module state for iracing-api-core
     jest.clearAllMocks();
+
+    // Get fresh references to the mocks
+    const mockInstance = (IracingAPI as jest.MockedClass<typeof IracingAPI>).mock.results[0]?.value || {};
+    mockLogin = mockInstance.login || jest.fn();
+    mockMemberGetMemberData = mockInstance.member?.getMemberData || jest.fn();
+    mockStatsGetMemberSummary = mockInstance.stats?.getMemberSummary || jest.fn();
+    mockMemberGetMemberChartData = mockInstance.member?.getMemberChartData || jest.fn();
+    mockStatsGetMemberRecentRaces = mockInstance.stats?.getMemberRecentRaces || jest.fn();
 
     // Set up environment variables for successful initialization
     process.env = {
@@ -62,7 +78,12 @@ describe('getDriverData', () => {
       }
       return Promise.resolve({ data });
     });
-    mockStatsGetMemberRecentRaces.mockResolvedValue({ races: [] });
+    mockStatsGetMemberRecentRaces.mockResolvedValue({ 
+      races: [
+        { subsessionId: 1, seriesName: 'GT3 Challenge', carId: 1, sessionStartTime: '2023-03-15T10:00:00Z', track: {trackName: 'Spa'}, licenseCategory: 'Road' },
+        { subsessionId: 2, seriesName: 'NASCAR Cup', carId: 20, sessionStartTime: '2023-07-20T10:00:00Z', track: {trackName: 'Daytona'}, licenseCategory: 'Oval' },
+      ]
+    });
   });
 
   afterEach(() => {
@@ -132,17 +153,21 @@ describe('getDriverData', () => {
   });
 
   describe('iRating Histories', () => {
-    it('should fetch iRating history for multiple categories', async () => {
-      const roadData = [{ month: 'Feb 2023', value: 3000 }, { month: 'Mar 2023', value: 3050 }];
+    it('should fetch iRating history for racing categories based on driver activity', async () => {
+      const sportsCarData = [{ month: 'Feb 2023', value: 3000 }, { month: 'Mar 2023', value: 3050 }];
       const ovalData = [{ month: 'Feb 2023', value: 2000 }, { month: 'Mar 2023', value: 2050 }];
-      const dirtRoadData = [{ month: 'Feb 2023', value: 1500 }];
-      const dirtOvalData: HistoryPoint[] = [];
+
+      // Mock recent races to include Sports Car and Oval categories
+      mockStatsGetMemberRecentRaces.mockResolvedValueOnce({
+        races: [
+          { subsessionId: 1, seriesName: 'GT3 Challenge', carId: 1, sessionStartTime: '2023-03-15T10:00:00Z', track: {trackName: 'Spa'}, licenseCategory: 'Road' },
+          { subsessionId: 2, seriesName: 'NASCAR Cup', carId: 20, sessionStartTime: '2023-07-20T10:00:00Z', track: {trackName: 'Daytona'}, licenseCategory: 'Oval' },
+        ]
+      });
 
       mockMemberGetMemberChartData.mockImplementation(async ({ categoryId }) => {
-        if (categoryId === 2) return { data: roadData };
-        if (categoryId === 1) return { data: ovalData };
-        if (categoryId === 4) return { data: dirtRoadData };
-        if (categoryId === 3) return { data: dirtOvalData };
+        if (categoryId === 2) return { data: sportsCarData }; // Road category used for Sports Car
+        if (categoryId === 1) return { data: ovalData }; // Oval category
         return { data: [] };
       });
 
@@ -153,22 +178,26 @@ describe('getDriverData', () => {
          month: expect.stringMatching(/^\w{3} \d{4}$/)
       });
 
-      expect(driverData?.iratingHistories?.road).toEqual(roadData.map(mapToExpectedMonthFormat));
-      expect(driverData?.iratingHistories?.oval).toEqual(ovalData.map(mapToExpectedMonthFormat));
-      expect(driverData?.iratingHistories?.dirtRoad).toEqual(dirtRoadData.map(mapToExpectedMonthFormat));
-      expect(driverData?.iratingHistories?.dirtOval).toEqual(dirtOvalData); // Empty array should be as is
+      expect(driverData?.iratingHistories?.['Sports Car']).toEqual(sportsCarData.map(mapToExpectedMonthFormat));
+      expect(driverData?.iratingHistories?.['Oval']).toEqual(ovalData.map(mapToExpectedMonthFormat));
     });
 
     it('should handle empty chart data for some iRating categories', async () => {
+      // Mock recent races with only Sports Car activity
+      mockStatsGetMemberRecentRaces.mockResolvedValueOnce({
+        races: [
+          { subsessionId: 1, seriesName: 'GT3 Challenge', carId: 1, sessionStartTime: '2023-03-15T10:00:00Z', track: {trackName: 'Spa'}, licenseCategory: 'Road' },
+        ]
+      });
+
       mockMemberGetMemberChartData.mockImplementation(async ({ categoryId }) => {
         if (categoryId === 2) return { data: [{ month: 'Jan 2023', value: 3000 }] };
         return { data: [] };
       });
       const driverData = await getDriverData(123);
-      expect(driverData?.iratingHistories?.road?.length).toBeGreaterThan(0);
-      expect(driverData?.iratingHistories?.oval).toEqual([]);
-      expect(driverData?.iratingHistories?.dirtRoad).toEqual([]);
-      expect(driverData?.iratingHistories?.dirtOval).toEqual([]);
+      expect(driverData?.iratingHistories?.['Sports Car']?.length).toBeGreaterThan(0);
+      // Only Sports Car should be present since that's the only category with recent races
+      expect(Object.keys(driverData?.iratingHistories || {})).toEqual(['Sports Car']);
     });
   });
 

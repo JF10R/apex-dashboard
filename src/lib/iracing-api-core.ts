@@ -619,44 +619,24 @@ export const getDriverData = async (custId: number): Promise<Driver | null> => {
   try {
     const currentApi = await ensureApiInitialized();
 
-    // Temporarily using 'any' to inspect actual response structures due to TS2322
-    const categoryIds = {
-      road: 2,
-      oval: 1,
-      dirtRoad: 4,
-      dirtOval: 3,
-    };
-
+    // First, get recent races to determine what categories the driver actually races in
     const [
       memberDataResponse,
       memberStatsResponseFromPromise,
-      iratingChartRoadResponse,
-      iratingChartOvalResponse,
-      iratingChartDirtRoadResponse,
-      iratingChartDirtOvalResponse,
-      srChartResponse, // Assuming one primary SR chart for now (e.g., road)
       recentRacesRawResponse,
     ]: any[] = await Promise.all([
       currentApi.member.getMemberData({ customerIds: [custId.toString()] }),
       currentApi.stats.getMemberSummary({ customerId: custId }),
-      currentApi.member.getMemberChartData({ customerId: custId, chartType: 1, categoryId: categoryIds.road }),
-      currentApi.member.getMemberChartData({ customerId: custId, chartType: 1, categoryId: categoryIds.oval }),
-      currentApi.member.getMemberChartData({ customerId: custId, chartType: 1, categoryId: categoryIds.dirtRoad }),
-      currentApi.member.getMemberChartData({ customerId: custId, chartType: 1, categoryId: categoryIds.dirtOval }),
-      currentApi.member.getMemberChartData({ customerId: custId, chartType: 3, categoryId: categoryIds.road }), // SR Chart for Road
       currentApi.stats.getMemberRecentRaces({ customerId: custId }),
     ]);
 
     // Log the raw responses to inspect their structure
     console.log('Raw memberDataResponse:', JSON.stringify(memberDataResponse, null, 2));
     console.log('Raw memberStatsResponseFromPromise:', JSON.stringify(memberStatsResponseFromPromise, null, 2));
-    console.log('Raw iratingChartRoadResponse:', JSON.stringify(iratingChartRoadResponse, null, 2));
-    console.log('Raw srChartResponse:', JSON.stringify(srChartResponse, null, 2));
     console.log('Raw recentRacesRawResponse:', JSON.stringify(recentRacesRawResponse, null, 2));
 
     const memberData: IracingApiMemberData | null = memberDataResponse as any;
     const memberStatsResponse: MemberSummaryResponse | null = memberStatsResponseFromPromise as MemberSummaryResponse | null;
-    const srChart: IracingApiChartData | null = srChartResponse as any;
     const recentRacesRaw: IracingApiRecentRaces | null = recentRacesRawResponse as any;
 
     if (!memberData?.members?.[0]) {
@@ -670,15 +650,6 @@ export const getDriverData = async (custId: number): Promise<Driver | null> => {
       const { year, season } = getSeasonFromDate(new Date(raceSummary.sessionStartTime || new Date()));
       // Determine category based on seriesName or fallback
       let category: RaceCategory = getCategoryFromSeriesName(raceSummary.seriesName || '');
-      if (raceSummary.licenseCategory) { // Prefer licenseCategory if available
-        const lc = raceSummary.licenseCategory.toLowerCase();
-        if (lc.includes('oval') && lc.includes('dirt')) category = 'Dirt Oval';
-        else if (lc.includes('road') && lc.includes('dirt')) category = 'Dirt Road';
-        else if (lc.includes('oval')) category = 'Oval';
-        else if (lc.includes('road')) category = 'Road';
-        // else keep determined from series name
-      }
-
 
       return {
         id: raceSummary.subsessionId.toString(),
@@ -706,23 +677,66 @@ export const getDriverData = async (custId: number): Promise<Driver | null> => {
                             : "0.00",
         avgLapTime: 'N/A',
       };
-    }).filter((r): r is RecentRace => r !== null);
+    });
 
-    const iratingHistories: Record<string, HistoryPoint[]> = {};
-    const categoryResponses = {
-      road: iratingChartRoadResponse,
-      oval: iratingChartOvalResponse,
-      dirtRoad: iratingChartDirtRoadResponse,
-      dirtOval: iratingChartDirtOvalResponse,
+    // Determine which racing categories this driver actually participates in
+    const activeCategories = [...new Set(recentRaces.map(race => race.category))];
+    console.log('Active racing categories for driver:', activeCategories);
+
+    // Map racing categories to iRacing API category IDs for chart data
+    const categoryIdMapping: Record<RaceCategory, number> = {
+      'Sports Car': 2,      // Road
+      'Formula Car': 2,     // Road  
+      'Prototype': 2,       // Road
+      'Oval': 1,           // Oval
+      'Dirt Oval': 3,      // Dirt Oval
     };
 
-    for (const [categoryName, response] of Object.entries(categoryResponses)) {
-      const chartData = response as IracingApiChartData | null;
-      iratingHistories[categoryName] = (chartData?.data || []).map((p: IracingApiChartPoint) => ({
+    // Fetch iRating chart data for each active category
+    const chartDataPromises = activeCategories.map(async (category) => {
+      const categoryId = categoryIdMapping[category];
+      if (!categoryId) {
+        console.warn(`No category ID mapping found for category: ${category}`);
+        return { category, data: [] };
+      }
+      
+      try {
+        const response = await currentApi.member.getMemberChartData({ 
+          customerId: custId, 
+          chartType: 1, 
+          categoryId 
+        });
+        return { category, data: response?.data || [] };
+      } catch (error) {
+        console.warn(`Failed to fetch chart data for category ${category}:`, error);
+        return { category, data: [] };
+      }
+    });
+
+    // Also fetch safety rating data (using road/sports car as primary)
+    const srChartPromise = currentApi.member.getMemberChartData({ 
+      customerId: custId, 
+      chartType: 3, 
+      categoryId: 2 // Road category for SR
+    });
+
+    const [chartDataResults, srChartResponse] = await Promise.all([
+      Promise.all(chartDataPromises),
+      srChartPromise
+    ]);
+
+    // Build iRating histories organized by racing category
+    const iratingHistories: Record<string, HistoryPoint[]> = {};
+    
+    for (const { category, data } of chartDataResults) {
+      const chartData = data as IracingApiChartPoint[];
+      iratingHistories[category] = (chartData || []).map((p: IracingApiChartPoint) => ({
         month: new Date(p.when).toLocaleString('en-US', { month: 'short', year: 'numeric', timeZone: 'UTC' }),
         value: p.value,
       })).sort((a,b) => new Date(a.month).getTime() - new Date(b.month).getTime()); // Ensure chronological order
     }
+
+    const srChart: IracingApiChartData | null = srChartResponse as any;
 
     const safetyRatingHistory: HistoryPoint[] = (srChart?.data || []).map((p: IracingApiChartPoint) => ({
       month: new Date(p.when).toLocaleString('en-US', { month: 'short', year: 'numeric', timeZone: 'UTC' }),
@@ -816,7 +830,7 @@ export const getDriverData = async (custId: number): Promise<Driver | null> => {
       currentIRating,
       currentSafetyRating,
       avgRacePace: formatLapTime(avgRacePaceSeconds * 1000), // convert seconds to ms for formatting
-      iratingHistory,
+      iratingHistories,
       safetyRatingHistory,
       racePaceHistory,
       recentRaces,

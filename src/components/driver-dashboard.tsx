@@ -60,7 +60,7 @@ export default function DriverDashboard({ custId, driverName }: { custId: number
   const [isPending, startTransition] = useTransition();
   const [analysis, setAnalysis] = useState<{ summary: string | null; error: string | null } | null>(null);
 
-  const [iRatingCategory, setIRatingCategory] = useState('road'); // Default to 'road'
+  const [iRatingCategory, setIRatingCategory] = useState('Sports Car'); // Default to 'Sports Car' instead of 'road'
   const [category, setCategory] = useState('all');
   const [year, setYear] = useState('all');
   const [season, setSeason] = useState('all');
@@ -214,18 +214,18 @@ export default function DriverDashboard({ custId, driverName }: { custId: number
       .filter(([_, historyData]) => historyData && historyData.length > 0)
       .map(([categoryName, _]) => ({
         value: categoryName,
-        label: categoryName.charAt(0).toUpperCase() + categoryName.slice(1), // Capitalize first letter
+        label: categoryName, // Use the full category name as-is (e.g., "Sports Car", "Formula Car")
       }));
   }, [driver]);
 
-  // Effect to reset iRatingCategory if it becomes unavailable after data reload or if initial default 'road' has no data
+  // Effect to reset iRatingCategory if it becomes unavailable after data reload or if initial default 'Sports Car' has no data
   useEffect(() => {
     if (driver && driver.iratingHistories) {
       const currentCategoryValid = driver.iratingHistories[iRatingCategory] && driver.iratingHistories[iRatingCategory].length > 0;
       if (!currentCategoryValid && availableIRatingCategories.length > 0) {
         setIRatingCategory(availableIRatingCategories[0].value); // Set to the first available category
       } else if (!currentCategoryValid && availableIRatingCategories.length === 0) {
-        setIRatingCategory('road'); // Fallback, though chart will be empty
+        setIRatingCategory('Sports Car'); // Fallback, though chart will be empty
       }
     }
   }, [driver, iRatingCategory, availableIRatingCategories]);
@@ -393,7 +393,7 @@ export default function DriverDashboard({ custId, driverName }: { custId: number
         <div className="grid gap-4 md:grid-cols-1 lg:grid-cols-2">
           <HistoryChart
             data={driver?.iratingHistories?.[iRatingCategory] || []}
-            title={`iRating History (${iRatingCategory.charAt(0).toUpperCase() + iRatingCategory.slice(1)})`}
+            title={`iRating History (${iRatingCategory})`}
             description={`Full ${iRatingCategory} progression over time (unfiltered).`}
             dataKey="value"
             color="--primary"
