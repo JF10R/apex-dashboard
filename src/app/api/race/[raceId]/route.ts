@@ -3,10 +3,11 @@ import { getRaceResultAction } from '@/app/data-actions';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { raceId: string } }
+  { params }: { params: Promise<{ raceId: string }> }
 ) {
   try {
-    const raceId = parseInt(params.raceId);
+    const { raceId: raceIdParam } = await params;
+    const raceId = parseInt(raceIdParam);
     
     if (isNaN(raceId)) {
       return NextResponse.json(

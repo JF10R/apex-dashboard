@@ -5,11 +5,12 @@ import { type RecentRace } from '@/lib/mock-data';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { raceId: string; driverId: string } }
+  { params }: { params: Promise<{ raceId: string; driverId: string }> }
 ) {
   try {
-    const raceId = parseInt(params.raceId, 10);
-    const driverName = decodeURIComponent(params.driverId);
+    const { raceId: raceIdParam, driverId: driverIdParam } = await params;
+    const raceId = parseInt(raceIdParam, 10);
+    const driverName = decodeURIComponent(driverIdParam);
 
     if (isNaN(raceId) || !driverName) {
       return NextResponse.json(

@@ -3,10 +3,11 @@ import { getDriverPageData } from '@/app/data-actions';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { custId: string } }
+  { params }: { params: Promise<{ custId: string }> }
 ) {
   try {
-    const custId = parseInt(params.custId);
+    const { custId: custIdParam } = await params;
+    const custId = parseInt(custIdParam);
     
     if (isNaN(custId)) {
       return NextResponse.json(
