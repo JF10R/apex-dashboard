@@ -31,9 +31,10 @@ const createMockDriverData = (overrides: Partial<Driver> = {}): Driver => {
   const formulaCarHistory: HistoryPoint[] = [{ month: 'Jan 2023', value: 2800 }, { month: 'Feb 2023', value: 2900 }];
 
   const mockRaces: RecentRace[] = [
-    { id: '1', trackName: 'Okayama', date: '2023-03-15T10:00:00Z', year: 2023, season: 'Spring', category: 'Formula Car' as RaceCategory, seriesName: 'F1600', car: 'F1600', startPosition: 1, finishPosition: 1, incidents: 0, strengthOfField: 1500, lapsLed: 10, fastestLap: '1:30.000', avgLapTime: '1:31.000', iratingChange: 50, safetyRatingChange: '0.10', participants: [], avgRaceIncidents: 2, avgRaceLapTime: '1:32.000' },
-    { id: '2', trackName: 'Spa', date: '2023-07-20T10:00:00Z', year: 2023, season: 'Summer', category: 'Sports Car' as RaceCategory, seriesName: 'GT3', car: 'Ferrari GT3', startPosition: 5, finishPosition: 3, incidents: 2, strengthOfField: 2500, lapsLed: 0, fastestLap: '2:18.000', avgLapTime: '2:19.000', iratingChange: 30, safetyRatingChange: '0.05', participants: [], avgRaceIncidents: 3, avgRaceLapTime: '2:20.000' },
-    { id: '3', trackName: 'Daytona', date: '2022-10-05T10:00:00Z', year: 2022, season: 'Fall', category: 'Oval' as RaceCategory, seriesName: 'NASCAR', car: 'Stock Car', startPosition: 10, finishPosition: 8, incidents: 1, strengthOfField: 2000, lapsLed: 0, fastestLap: '0:45.000', avgLapTime: '0:46.000', iratingChange: 20, safetyRatingChange: '-0.02', participants: [], avgRaceIncidents: 4, avgRaceLapTime: '0:47.000' },
+    { id: '1', trackName: 'Okayama', date: '2023-03-15T10:00:00Z', year: 2023, season: 'Season 1', category: 'Formula Car' as RaceCategory, seriesName: 'F1600', car: 'F1600', startPosition: 1, finishPosition: 1, incidents: 0, strengthOfField: 1500, lapsLed: 10, fastestLap: '1:30.000', avgLapTime: '1:31.000', iratingChange: 50, safetyRatingChange: '0.10', participants: [], avgRaceIncidents: 2, avgRaceLapTime: '1:32.000' },
+    { id: '2', trackName: 'Spa', date: '2023-07-20T10:00:00Z', year: 2023, season: 'Season 3', category: 'Sports Car' as RaceCategory, seriesName: 'GT3', car: 'Ferrari GT3', startPosition: 5, finishPosition: 3, incidents: 2, strengthOfField: 2500, lapsLed: 0, fastestLap: '2:18.000', avgLapTime: '2:19.000', iratingChange: 30, safetyRatingChange: '0.05', participants: [], avgRaceIncidents: 3, avgRaceLapTime: '2:20.000' },
+    { id: '3', trackName: 'Silverstone', date: '2023-06-10T10:00:00Z', year: 2023, season: 'Season 2', category: 'Sports Car' as RaceCategory, seriesName: 'GT3', car: 'McLaren GT3', startPosition: 3, finishPosition: 2, incidents: 1, strengthOfField: 2300, lapsLed: 5, fastestLap: '2:17.000', avgLapTime: '2:18.000', iratingChange: 40, safetyRatingChange: '0.08', participants: [], avgRaceIncidents: 3, avgRaceLapTime: '2:19.000' },
+    { id: '4', trackName: 'Daytona', date: '2022-10-05T10:00:00Z', year: 2022, season: 'Season 4', category: 'Oval' as RaceCategory, seriesName: 'NASCAR', car: 'Stock Car', startPosition: 10, finishPosition: 8, incidents: 1, strengthOfField: 2000, lapsLed: 0, fastestLap: '0:45.000', avgLapTime: '0:46.000', iratingChange: 20, safetyRatingChange: '-0.02', participants: [], avgRaceIncidents: 4, avgRaceLapTime: '0:47.000' },
   ];
 
   return {
@@ -83,7 +84,10 @@ describe('DriverDashboard', () => {
   describe('iRating Category Selector', () => {
     it('defaults to Sports Car iRating and displays its chart', async () => {
       render(<DriverDashboard custId={123} driverName="Test Driver" />);
-      await waitFor(() => expect(screen.getByText('iRating History (Sports Car)')).toBeInTheDocument());
+      await waitFor(() => {
+        const iRatingChart = screen.getByTitle('iRating History (Sports Car)');
+        expect(iRatingChart).toBeInTheDocument();
+      });
     });
 
     it('allows changing iRating category and updates chart', async () => {
@@ -119,7 +123,7 @@ describe('DriverDashboard', () => {
   describe('Data Filters', () => {
     it('filters recent races when a year is selected', async () => {
       render(<DriverDashboard custId={123} driverName="Test Driver" />);
-      await waitFor(() => expect(screen.getByTestId('recent-races')).toHaveTextContent('Races: 3')); // Initial: 3 races
+      await waitFor(() => expect(screen.getByTestId('recent-races')).toHaveTextContent('Races: 4')); // Initial: 4 races
 
       // Open Year select
       const yearSelect = screen.getByRole('combobox', { name: /year/i });
@@ -135,9 +139,9 @@ describe('DriverDashboard', () => {
       render(<DriverDashboard custId={123} driverName="Test Driver" />);
       await waitFor(() => expect(screen.getByText('Stats for Test Driver')).toBeInTheDocument());
 
-      // Initial season is Summer (from mock data's latest 2023 race)
+      // Initial season is Season 3 (from mock data's latest 2023 race)
       const seasonSelect = screen.getByRole('combobox', { name: /season/i });
-      expect(seasonSelect).toHaveTextContent('Summer');
+      expect(seasonSelect).toHaveTextContent('Season 3');
 
       // Change Year
       const yearSelect = screen.getByRole('combobox', { name: /year/i });
@@ -150,7 +154,7 @@ describe('DriverDashboard', () => {
 
     it('filters by category', async () => {
       render(<DriverDashboard custId={123} driverName="Test Driver" />);
-      await waitFor(() => expect(screen.getByTestId('recent-races')).toHaveTextContent('Races: 3'));
+      await waitFor(() => expect(screen.getByTestId('recent-races')).toHaveTextContent('Races: 4'));
 
       const categorySelect = screen.getByRole('combobox', { name: /category/i });
       fireEvent.mouseDown(categorySelect);

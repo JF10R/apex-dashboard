@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useTransition, useMemo, useEffect, useCallback } from 'react';
-import { Bot, Loader2, ShieldCheck, TrendingUp } from 'lucide-react';
+import { MessageSquare, Loader2, ShieldCheck, TrendingUp } from 'lucide-react';
 import { type Driver, type HistoryPoint } from '@/lib/mock-data';
 import { StatCard } from './stat-card';
 import { HistoryChart } from './history-chart';
@@ -60,7 +60,7 @@ export default function DriverDashboard({ custId, driverName }: { custId: number
   const [isPending, startTransition] = useTransition();
   const [analysis, setAnalysis] = useState<{ summary: string | null; error: string | null } | null>(null);
 
-  const [iRatingCategory, setIRatingCategory] = useState('Sports Car'); // Default to 'Sports Car' instead of 'road'
+  const [iRatingCategory, setIRatingCategory] = useState(''); // Will be set to most raced category
   const [category, setCategory] = useState('all');
   const [year, setYear] = useState('all');
   const [season, setSeason] = useState('all');
@@ -88,25 +88,34 @@ export default function DriverDashboard({ custId, driverName }: { custId: number
               const racesByYearSorted = racesByYear.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
               const mostRecentSeason = racesByYearSorted.length > 0 ? racesByYearSorted[0].season : 'all';
               
-              let mostRacedCategory = 'all';
-              if (data.recentRaces.length > 0) {
-                const categoryCount = data.recentRaces.reduce((acc, race) => {
-                  if (race.category) { // Ensure category is defined
-                    acc[race.category] = (acc[race.category] || 0) + 1;
-                  }
-                  return acc;
-                }, {} as Record<string, number>);
-
-                if (Object.keys(categoryCount).length > 0) {
-                  mostRacedCategory = Object.entries(categoryCount).reduce((a, b) =>
-                    categoryCount[a[0]] > categoryCount[b[0]] ? a : b
-                  )[0];
+              // Get the most raced category from recent races
+              const categoryCount = data.recentRaces.reduce((acc, race) => {
+                if (race.category) {
+                  acc[race.category] = (acc[race.category] || 0) + 1;
                 }
+                return acc;
+              }, {} as Record<string, number>);
+
+              let mostRacedFilterCategory = 'all';
+              if (Object.keys(categoryCount).length > 0) {
+                mostRacedFilterCategory = Object.entries(categoryCount).reduce((a, b) =>
+                  categoryCount[a[0]] > categoryCount[b[0]] ? a : b
+                )[0];
+              }
+
+              // Set the initial iRating category to the most raced category
+              if (mostRacedFilterCategory !== 'all' && data.iratingHistories?.[mostRacedFilterCategory]?.length > 0) {
+                setIRatingCategory(mostRacedFilterCategory);
+              } else {
+                // Fallback to first available category with data
+                const firstAvailableCategory = Object.entries(data.iratingHistories || {})
+                  .find(([_, historyData]) => historyData && historyData.length > 0)?.[0];
+                setIRatingCategory(firstAvailableCategory || '');
               }
               
               setYear(mostRecentYear);
               setSeason(mostRecentSeason);
-              setCategory(mostRacedCategory);
+              setCategory(mostRacedFilterCategory);
             }
         }
         setIsLoading(false);
@@ -218,14 +227,14 @@ export default function DriverDashboard({ custId, driverName }: { custId: number
       }));
   }, [driver]);
 
-  // Effect to reset iRatingCategory if it becomes unavailable after data reload or if initial default 'Sports Car' has no data
+  // Effect to reset iRatingCategory if it becomes unavailable after data reload
   useEffect(() => {
     if (driver && driver.iratingHistories) {
       const currentCategoryValid = driver.iratingHistories[iRatingCategory] && driver.iratingHistories[iRatingCategory].length > 0;
       if (!currentCategoryValid && availableIRatingCategories.length > 0) {
         setIRatingCategory(availableIRatingCategories[0].value); // Set to the first available category
       } else if (!currentCategoryValid && availableIRatingCategories.length === 0) {
-        setIRatingCategory('Sports Car'); // Fallback, though chart will be empty
+        setIRatingCategory(''); // Fallback to empty, though chart will be empty
       }
     }
   }, [driver, iRatingCategory, availableIRatingCategories]);
@@ -440,7 +449,7 @@ export default function DriverDashboard({ custId, driverName }: { custId: number
         <h2 className="text-2xl font-headline font-bold tracking-tight mb-4">AI Analysis</h2>
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 font-headline"><Bot className="w-5 h-5" /> AI-Powered Analysis</CardTitle>
+            <CardTitle className="flex items-center gap-2 font-headline">AI-Powered Analysis</CardTitle>
             <CardDescription>
               Get an AI-generated summary of this driver's strengths and weaknesses based on their historical data and recent races.
             </CardDescription>

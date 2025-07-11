@@ -211,11 +211,11 @@ describe('getDriverData', () => {
       });
       const driverData = await getDriverData(123);
       expect(driverData?.recentRaces[0].year).toBe(2023);
-      expect(driverData?.recentRaces[0].season).toBe('Spring');
-      expect(driverData?.recentRaces[0].category).toBe('Formula Car');
+      expect(driverData?.recentRaces[0].season).toBe('Season 1');
+      expect(driverData?.recentRaces[0].category).toBe('Sports Car');
       expect(driverData?.recentRaces[1].year).toBe(2023);
-      expect(driverData?.recentRaces[1].season).toBe('Summer');
-      expect(driverData?.recentRaces[1].category).toBe('Sports Car');
+      expect(driverData?.recentRaces[1].season).toBe('Season 3');
+      expect(driverData?.recentRaces[1].category).toBe('Oval');
     });
   });
 });

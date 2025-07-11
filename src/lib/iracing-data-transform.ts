@@ -120,14 +120,15 @@ export function getCategoryFromSeriesName(seriesName: string): RaceCategory {
 }
 
 /**
- * Get season info from date
+ * Get season info from date using iRacing's season system
+ * iRacing has 4 seasons per year (quarterly)
  */
 export function getSeasonFromDate(date: Date): { year: number; season: string } {
   const year = date.getFullYear();
   const quarter = Math.ceil((date.getMonth() + 1) / 3);
   
-  const seasonNames = ['Winter', 'Spring', 'Summer', 'Fall'];
-  const season = seasonNames[quarter - 1] || 'Unknown';
+  // iRacing uses Season 1, Season 2, Season 3, Season 4 format
+  const season = `Season ${quarter}`;
   
   return { year, season };
 }
