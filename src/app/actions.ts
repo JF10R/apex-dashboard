@@ -20,9 +20,15 @@ export async function getAnalysis(driver: Driver) {
         : race.safetyRatingChange
     }));
 
+    // Combine all iRating history from all categories, sorted chronologically
+    const allIratingHistory = Object.values(driver.iratingHistories)
+      .flat()
+      .sort((a, b) => new Date(a.month).getTime() - new Date(b.month).getTime())
+      .map(d => d.value);
+
     const result = await analyzeDriverStats({
       driverName: driver.name,
-      iratingHistory: driver.iratingHistory.map(d => d.value),
+      iratingHistory: allIratingHistory,
       safetyRatingHistory: driver.safetyRatingHistory.map(d => d.value),
       racePaceHistory: driver.racePaceHistory.map(d => d.value),
       recentRaces: formattedRecentRaces,
@@ -51,14 +57,20 @@ export async function getComparisonAnalysis(driverA: Driver, driverB: Driver) {
         driverName: driverA.name,
         currentIRating: driverA.currentIRating,
         currentSafetyRating: driverA.currentSafetyRating,
-        iratingHistory: driverA.iratingHistory.map(d => d.value),
+        iratingHistory: Object.values(driverA.iratingHistories)
+          .flat()
+          .sort((a, b) => new Date(a.month).getTime() - new Date(b.month).getTime())
+          .map(d => d.value),
         recentRaces: formatRecentRaces(driverA.recentRaces),
       },
       driverB: {
         driverName: driverB.name,
         currentIRating: driverB.currentIRating,
         currentSafetyRating: driverB.currentSafetyRating,
-        iratingHistory: driverB.iratingHistory.map(d => d.value),
+        iratingHistory: Object.values(driverB.iratingHistories)
+          .flat()
+          .sort((a, b) => new Date(a.month).getTime() - new Date(b.month).getTime())
+          .map(d => d.value),
         recentRaces: formatRecentRaces(driverB.recentRaces),
       },
     });

@@ -792,6 +792,10 @@ export const getDriverData = async (custId: number): Promise<Driver | null> => {
     const actualLicenseClass = memberStatsResponse?.stats?.licenseClass || 'Unknown';
     const formattedSafetyRating = `${actualLicenseClass} ${mostRecentSafetyRating.toFixed(2)}`;
 
+    // Note: This function appears to be legacy. The main implementation is in iracing-api-core.ts
+    // For now, just create an empty iratingHistories to match the interface
+    const iratingHistories: Record<string, any[]> = {};
+
     const currentStats = memberStatsResponse?.stats;
     const driver: Driver = {
       id: custId,
@@ -799,7 +803,7 @@ export const getDriverData = async (custId: number): Promise<Driver | null> => {
       currentIRating: mostRecentIRating,
       currentSafetyRating: formattedSafetyRating,
       avgRacePace: formatLapTime(avgRacePaceSeconds * 1000), // convert seconds to ms for formatting
-      iratingHistory,
+      iratingHistories,
       safetyRatingHistory,
       racePaceHistory,
       recentRaces,

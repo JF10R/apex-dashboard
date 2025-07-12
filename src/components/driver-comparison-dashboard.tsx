@@ -163,8 +163,20 @@ export default function DriverComparisonDashboard({ driverA: driverAInfo, driver
         <h2 className="text-2xl font-headline font-bold tracking-tight mb-4">Performance History</h2>
         <div className="grid gap-4">
             <ComparisonHistoryChart
-                seriesA={{ name: driverAData.name, data: driverAData.iratingHistory, color: '--primary' }}
-                seriesB={{ name: driverBData.name, data: driverBData.iratingHistory, color: '--accent' }}
+                seriesA={{ 
+                  name: driverAData.name, 
+                  data: Object.values(driverAData.iratingHistories)
+                    .flat()
+                    .sort((a, b) => new Date(a.month).getTime() - new Date(b.month).getTime()), 
+                  color: '--primary' 
+                }}
+                seriesB={{ 
+                  name: driverBData.name, 
+                  data: Object.values(driverBData.iratingHistories)
+                    .flat()
+                    .sort((a, b) => new Date(a.month).getTime() - new Date(b.month).getTime()), 
+                  color: '--accent' 
+                }}
                 title="iRating History"
                 description="Side-by-side iRating progression."
                 yAxisFormatter={(value) => value.toLocaleString('en-US')}

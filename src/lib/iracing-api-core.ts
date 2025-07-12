@@ -728,20 +728,42 @@ export const getDriverData = async (custId: number): Promise<Driver | null> => {
     // Build iRating histories organized by racing category
     const iratingHistories: Record<string, HistoryPoint[]> = {};
     
+    // Calculate the cutoff date for the most recent 12 months
+    const twelveMonthsAgo = new Date();
+    twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 12);
+    
     for (const { category, data } of chartDataResults) {
       const chartData = data as IracingApiChartPoint[];
-      iratingHistories[category] = (chartData || []).map((p: IracingApiChartPoint) => ({
-        month: new Date(p.when).toLocaleString('en-US', { month: 'short', year: 'numeric', timeZone: 'UTC' }),
-        value: p.value,
-      })).sort((a,b) => new Date(a.month).getTime() - new Date(b.month).getTime()); // Ensure chronological order
+      iratingHistories[category] = (chartData || [])
+        .map((p: IracingApiChartPoint) => ({
+          // Store the original date for proper sorting
+          originalDate: new Date(p.when),
+          month: new Date(p.when).toLocaleString('en-US', { month: 'short', year: 'numeric', timeZone: 'UTC' }),
+          value: p.value,
+        }))
+        // Filter to show only the most recent 12 months
+        .filter(p => p.originalDate >= twelveMonthsAgo)
+        // Sort by actual date, not the formatted string
+        .sort((a, b) => a.originalDate.getTime() - b.originalDate.getTime())
+        // Remove the originalDate property from the final result
+        .map(({ originalDate, ...point }) => point);
     }
 
     const srChart: IracingApiChartData | null = srChartResponse as any;
 
-    const safetyRatingHistory: HistoryPoint[] = (srChart?.data || []).map((p: IracingApiChartPoint) => ({
-      month: new Date(p.when).toLocaleString('en-US', { month: 'short', year: 'numeric', timeZone: 'UTC' }),
-      value: p.value / 100, // SR values are often *100 in API
-    })).sort((a,b) => new Date(a.month).getTime() - new Date(b.month).getTime());
+    const safetyRatingHistory: HistoryPoint[] = (srChart?.data || [])
+      .map((p: IracingApiChartPoint) => ({
+        // Store the original date for proper sorting
+        originalDate: new Date(p.when),
+        month: new Date(p.when).toLocaleString('en-US', { month: 'short', year: 'numeric', timeZone: 'UTC' }),
+        value: p.value / 100, // SR values are often *100 in API
+      }))
+      // Filter to show only the most recent 12 months
+      .filter(p => p.originalDate >= twelveMonthsAgo)
+      // Sort by actual date, not the formatted string
+      .sort((a, b) => a.originalDate.getTime() - b.originalDate.getTime())
+      // Remove the originalDate property from the final result
+      .map(({ originalDate, ...point }) => point);
 
     const racePaceHistory: HistoryPoint[] = recentRaces
       .map(r => {

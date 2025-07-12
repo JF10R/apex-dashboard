@@ -16,10 +16,12 @@ describe('/api/driver/[custId]', () => {
     currentIRating: 2150,
     currentSafetyRating: 'A 3.42',
     avgRacePace: '1:42.123',
-    iratingHistory: [
-      { month: 'Jan', value: 2000 },
-      { month: 'Feb', value: 2150 }
-    ],
+    iratingHistories: {
+      'Sports Car': [
+        { month: 'Jan 2023', value: 2000 },
+        { month: 'Feb 2023', value: 2150 }
+      ]
+    },
     safetyRatingHistory: [
       { month: 'Jan', value: 3.2 },
       { month: 'Feb', value: 3.42 }
@@ -42,7 +44,7 @@ describe('/api/driver/[custId]', () => {
     })
 
     const request = new NextRequest('http://localhost:3000/api/driver/539129')
-    const response = await GET(request, { params: { custId: '539129' } })
+    const response = await GET(request, { params: Promise.resolve({ custId: '539129' }) })
     const data = await response.json()
 
     expect(response.status).toBe(200)
@@ -54,7 +56,7 @@ describe('/api/driver/[custId]', () => {
 
   test('returns error for invalid customer ID', async () => {
     const request = new NextRequest('http://localhost:3000/api/driver/invalid')
-    const response = await GET(request, { params: { custId: 'invalid' } })
+    const response = await GET(request, { params: Promise.resolve({ custId: 'invalid' }) })
     const data = await response.json()
 
     expect(response.status).toBe(400)
@@ -69,7 +71,7 @@ describe('/api/driver/[custId]', () => {
     })
 
     const request = new NextRequest('http://localhost:3000/api/driver/999999')
-    const response = await GET(request, { params: { custId: '999999' } })
+    const response = await GET(request, { params: Promise.resolve({ custId: '999999' }) })
     const data = await response.json()
 
     expect(response.status).toBe(400)
@@ -81,7 +83,7 @@ describe('/api/driver/[custId]', () => {
     mockGetDriverPageData.mockRejectedValue(new Error('Database connection failed'))
 
     const request = new NextRequest('http://localhost:3000/api/driver/539129')
-    const response = await GET(request, { params: { custId: '539129' } })
+    const response = await GET(request, { params: Promise.resolve({ custId: '539129' }) })
     const data = await response.json()
 
     expect(response.status).toBe(500)
@@ -96,7 +98,7 @@ describe('/api/driver/[custId]', () => {
     })
 
     const request = new NextRequest('http://localhost:3000/api/driver/0')
-    const response = await GET(request, { params: { custId: '0' } })
+    const response = await GET(request, { params: Promise.resolve({ custId: '0' }) })
     const data = await response.json()
 
     expect(response.status).toBe(200)
@@ -110,7 +112,7 @@ describe('/api/driver/[custId]', () => {
     })
 
     const request = new NextRequest('http://localhost:3000/api/driver/-1')
-    const response = await GET(request, { params: { custId: '-1' } })
+    const response = await GET(request, { params: Promise.resolve({ custId: '-1' }) })
     const data = await response.json()
 
     expect(response.status).toBe(200)
@@ -125,7 +127,7 @@ describe('/api/driver/[custId]', () => {
     })
 
     const request = new NextRequest(`http://localhost:3000/api/driver/${largeCustId}`)
-    const response = await GET(request, { params: { custId: largeCustId } })
+    const response = await GET(request, { params: Promise.resolve({ custId: largeCustId }) })
     const data = await response.json()
 
     expect(response.status).toBe(200)
