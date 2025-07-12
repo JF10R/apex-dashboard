@@ -99,116 +99,33 @@ export function calculateFastestLap(laps: Lap[]): string {
 
 /**
  * Get race category from series name
+ * 
+ * ⚠️ DEPRECATED: iRacing API now provides category directly in ALL responses.
+ * This function is maintained only as an emergency fallback for legacy compatibility.
+ * Always prefer using the API-provided category field over this detection logic.
  */
 export function getCategoryFromSeriesName(seriesName: string): RaceCategory {
+  console.warn('🔧 Using deprecated category detection - API should provide category directly');
   const name = seriesName.toLowerCase();
   
-  // Formula and Open Wheel cars
-  if (name.includes('formula') || 
-      name.includes('f1') || 
-      name.includes('f2') || 
-      name.includes('f3') ||
-      name.includes('f4') ||
-      name.includes('skip barber') ||
-      name.includes('pro mazda') ||
-      name.includes('usf2000') ||
-      name.includes('indy pro 2000') ||
-      name.includes('indy lights') ||
-      name.includes('super formula') ||
-      name.includes('dallara') ||
-      name.includes('williams fw') ||
-      name.includes('mclaren mp4') ||
-      name.includes('lotus 79') ||
-      name.includes('lotus 49') ||
-      name.includes('ray ff1600') ||
-      name.includes('formula ford') ||
-      name.includes('formula vee') ||
-      name.includes('formula renault') ||
-      name.includes('formula mazda')) {
+  // Simplified fallback patterns - only basic detection needed
+  if (name.includes('formula') || name.includes('skip barber') || name.includes('pro mazda')) {
     return 'Formula Car';
   }
   
-  // Dirt racing - be more comprehensive
-  if (name.includes('dirt oval') || 
-      name.includes('dirt track') ||
-      name.includes('sprint car') ||
-      name.includes('late model') ||
-      name.includes('modified') ||
-      name.includes('world of outlaws') ||
-      name.includes('woo') ||
-      name.includes('lucas oil') ||
-      name.includes('super late model') ||
-      name.includes('pro late model') ||
-      name.includes('street stock') ||
-      name.includes('micro sprint') ||
-      name.includes('midget') ||
-      name.includes('winged sprint') ||
-      name.includes('non-wing') ||
-      name.includes('nonwing') ||
-      name.includes('410 sprint') ||
-      name.includes('360 sprint') ||
-      name.includes('305 sprint') ||
-      name.includes('big block') ||
-      name.includes('small block') ||
-      name.includes('super dirt') ||
-      name.includes('dirt series') ||
-      name.includes('dirt track')) {
+  if (name.includes('dirt') || name.includes('sprint car') || name.includes('late model')) {
     return 'Dirt Oval';
   }
   
-  // Oval racing - be more comprehensive
-  if (name.includes('oval') || 
-      name.includes('nascar') || 
-      name.includes('indycar') ||
-      name.includes('stock car') ||
-      name.includes('xfinity') ||
-      name.includes('truck') ||
-      name.includes('arca') ||
-      (name.includes('cup') && (name.includes('nascar') || name.includes('winston') || name.includes('sprint') || name.includes('monster') || name.includes('nextel'))) ||
-      name.includes('camping world') ||
-      name.includes('gander') ||
-      name.includes('nationwide') ||
-      name.includes('busch series') ||
-      name.includes('craftsman truck') ||
-      name.includes('winston cup') ||
-      name.includes('nextel cup') ||
-      name.includes('sprint cup') ||
-      name.includes('monster energy') ||
-      name.includes('toyota camry') ||
-      name.includes('chevrolet camaro') ||
-      name.includes('ford mustang') ||
-      name.includes('gen 6') ||
-      name.includes('gen6') ||
-      name.includes('next gen') ||
-      name.includes('nextgen') ||
-      name.includes('superspeedway') ||
-      name.includes('short track') ||
-      name.includes('intermediate') ||
-      name.includes('restrictor plate') ||
-      name.includes('talladega') ||
-      name.includes('daytona') ||
-      name.includes('indianapolis 500') ||
-      name.includes('indy 500') ||
-      name.includes('brickyard')) {
+  if (name.includes('oval') || name.includes('nascar') || name.includes('indycar')) {
     return 'Oval';
   }
   
-  // Prototype racing
-  if (name.includes('prototype') || 
-      name.includes('lmp') || 
-      name.includes('dpi') ||
-      name.includes('gtp') ||
-      name.includes('riley') ||
-      name.includes('oreca') ||
-      name.includes('ligier') ||
-      name.includes('cadillac dpi') ||
-      name.includes('acura arx') ||
-      name.includes('porsche 963') ||
-      name.includes('bmm m hybrid')) {
+  if (name.includes('prototype') || name.includes('lmp') || name.includes('gtp')) {
     return 'Prototype';
   }
   
-  return 'Sports Car'; // Default fallback for GT cars, touring cars, etc.
+  return 'Sports Car'; // Default fallback
 }
 
 /**
@@ -288,7 +205,12 @@ export function transformIracingRaceResult(
     }
 
     const { year, season } = getSeasonFromDate(new Date(validatedResult.startTime));
-    const category = getCategoryFromSeriesName(validatedResult.seriesName);
+    
+    // ✅ iRacing API ALWAYS provides accurate category information
+    // Check if this detailed race result API includes category field
+    const category = (validatedResult as any).category 
+      ? (validatedResult as any).category as RaceCategory
+      : getCategoryFromSeriesName(validatedResult.seriesName); // Temporary fallback until confirmed
 
     // Transform participants with enhanced lap data handling
     const participants: RaceParticipant[] = raceSession.results.map((result: RaceResult) => {

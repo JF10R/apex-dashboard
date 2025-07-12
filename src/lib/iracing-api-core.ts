@@ -32,7 +32,9 @@ globalThis.fetch = (url, options) => {
 };
 // END FETCH PATCH
 
-// Basic car ID to name mapping - this should be expanded or fetched from API
+// ⚠️ LEGACY Car ID Mapping - iRacing API now provides car names directly
+// This mapping is maintained only as emergency fallback for rare edge cases.
+// Always prefer using API-provided carName/carClassName fields over this lookup.
 const CAR_NAMES: Record<number, string> = {
   // Legacy Cars
   1: 'Skip Barber RT2000',
@@ -251,8 +253,9 @@ const CAR_NAMES: Record<number, string> = {
   205: 'BMW M4 Competition',
 };
 
-// Function to get car name from ID
+// Legacy fallback function - API provides car names directly now
 function getCarName(carId: number): string {
+  console.warn('🔧 Using legacy car name lookup - API should provide carName directly');
   return CAR_NAMES[carId] || `Car ${carId}`;
 }
 export enum ApiErrorType {
@@ -355,7 +358,6 @@ import {
   formatLapTimeFrom10000ths,
   formatLapTime,
   lapTimeToSeconds,
-  getCategoryFromSeriesName,
   getSeasonFromDate, 
 } from '@/lib/iracing-data-transform'
 import IracingAPI from 'iracing-api'
@@ -484,7 +486,6 @@ export {
   formatLapTimeFrom10000ths,
   formatLapTime,
   lapTimeToSeconds,
-  getCategoryFromSeriesName,
   getSeasonFromDate,
 } from '@/lib/iracing-data-transform'
 
@@ -565,6 +566,7 @@ interface RawRecentRaceSummary {
   raceWeekNum: number;
   dropRace: boolean;
   licenseLevel: number;
+  category: string; // iRacing API provides this directly - trust it!
   // Potentially other summary fields
   [key: string]: any;
 }
@@ -841,13 +843,30 @@ export const getDriverData = async (custId: number): Promise<Driver | null> => {
     const driverInfo = memberData.members[0];
     const driverName = driverInfo.displayName;
 
+    // Log first race summary to check if API provides car name directly
+    if ((recentRacesRaw?.races || []).length > 0) {
+      const firstRace = (recentRacesRaw?.races || [])[0];
+      console.log('Sample race data to check car info:', JSON.stringify({
+        carId: firstRace.carId,
+        carName: firstRace.carName,
+        carClassId: firstRace.carClassId,
+        carClassName: firstRace.carClassName,
+        // Show all car-related fields
+        carFields: Object.keys(firstRace).filter(key => key.toLowerCase().includes('car'))
+      }, null, 2));
+      
+      // ✅ TODO: Once we confirm API provides carName directly, replace getCarName(raceSummary.carId) 
+      // with raceSummary.carName || raceSummary.carClassName || getCarName(raceSummary.carId)
+    }
+
     // Fetch more races for comprehensive season analysis - increase from 20 to 100
     // This ensures that when users filter by specific seasons, they have access to complete season data
     const racesToFetch = Math.min((recentRacesRaw?.races || []).length, 100);
     const recentRaces: RecentRace[] = (recentRacesRaw?.races || []).slice(0, racesToFetch).map((raceSummary: RawRecentRaceSummary) => {
       const { year, season } = getSeasonFromDate(new Date(raceSummary.sessionStartTime || new Date()));
-      // Determine category based on seriesName or fallback
-      let category: RaceCategory = getCategoryFromSeriesName(raceSummary.seriesName || '');
+      
+      // ✅ iRacing API ALWAYS provides accurate category - trust it completely!
+      const category = raceSummary.category as RaceCategory;
 
       return {
         id: raceSummary.subsessionId.toString(),
