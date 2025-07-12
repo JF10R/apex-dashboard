@@ -43,7 +43,7 @@ describe('Home Page Integration Tests', () => {
     })
   })
 
-  test('complete flow: search for Jeff Noel, select driver, and view dashboard', async () => {
+  test('complete flow: search for Jeff Noel, select driver, and navigate to profile', async () => {
     const user = userEvent.setup()
     
     mockSearchDriversAction.mockResolvedValue({
@@ -75,16 +75,13 @@ describe('Home Page Integration Tests', () => {
     const jeffNoelButton = screen.getByText('Jeff Noel')
     await user.click(jeffNoelButton)
 
-    // Verify driver dashboard appears
+    // Verify navigation to driver profile page
     await waitFor(() => {
-      expect(screen.getByTestId('driver-dashboard')).toBeDefined()
+      expect(mockPush).toHaveBeenCalledWith('/539129')
     })
-
-    expect(screen.getByText('Driver: Jeff Noel')).toBeDefined()
-    expect(screen.getByText('Customer ID: 539129')).toBeDefined()
   })
 
-  test('compare button updates href when driver is selected', async () => {
+  test('compare button maintains default href since no inline selection', async () => {
     const user = userEvent.setup()
     
     mockSearchDriversAction.mockResolvedValue({
@@ -110,11 +107,13 @@ describe('Home Page Integration Tests', () => {
     const jeffNoelButton = screen.getByText('Jeff Noel')
     await user.click(jeffNoelButton)
 
-    // Compare button should now have Jeff Noel pre-selected
-    await waitFor(() => {
-      const updatedLink = compareButton.closest('a')
-      expect(updatedLink?.getAttribute('href')).toBe('/compare?driverA=Jeff%20Noel&custIdA=539129')
-    })
+    // Since we navigate away, compare button should still be default
+    // (We don't maintain selected driver state on home page anymore)
+    const updatedLink = compareButton.closest('a')
+    expect(updatedLink?.getAttribute('href')).toBe('/compare')
+    
+    // Verify navigation occurred
+    expect(mockPush).toHaveBeenCalledWith('/539129')
   })
 
   test('handles search with no results', async () => {
@@ -168,7 +167,7 @@ describe('Home Page Integration Tests', () => {
     consoleSpy.mockRestore()
   })
 
-  test('clears driver selection when search is cleared', async () => {
+  test('search clearing does not affect navigation behavior', async () => {
     const user = userEvent.setup()
     
     mockSearchDriversAction.mockResolvedValue({
@@ -190,26 +189,25 @@ describe('Home Page Integration Tests', () => {
     const jeffNoelButton = screen.getByText('Jeff Noel')
     await user.click(jeffNoelButton)
 
-    // Verify dashboard appears
+    // Verify navigation occurred
     await waitFor(() => {
-      expect(screen.getByTestId('driver-dashboard')).toBeDefined()
+      expect(mockPush).toHaveBeenCalledWith('/539129')
     })
 
-    // Clear search
+    // Clear search - this should work normally without errors
     await user.clear(searchInput)
+    
+    // Verify search is cleared and no dashboard appears (since we navigate away)
+    expect(searchInput).toHaveValue('')
+    expect(screen.queryByTestId('driver-dashboard')).toBeNull()
 
-    // Dashboard should disappear
-    await waitFor(() => {
-      expect(screen.queryByTestId('driver-dashboard')).toBeNull()
-    })
-
-    // Compare button should reset
+    // Compare button should remain default
     const compareButton = screen.getByText('Compare')
     const resetLink = compareButton.closest('a')
     expect(resetLink?.getAttribute('href')).toBe('/compare')
   })
 
-  test('handles multiple search results including Jeff Noel', async () => {
+  test('handles multiple search results and navigation to specific driver', async () => {
     const user = userEvent.setup()
     
     const multipleDrivers = [
@@ -243,10 +241,9 @@ describe('Home Page Integration Tests', () => {
     const jeffNoelButton = screen.getByText('Jeff Noel')
     await user.click(jeffNoelButton)
 
-    // Verify correct driver is selected
+    // Verify navigation to correct driver profile
     await waitFor(() => {
-      expect(screen.getByText('Driver: Jeff Noel')).toBeDefined()
-      expect(screen.getByText('Customer ID: 539129')).toBeDefined()
+      expect(mockPush).toHaveBeenCalledWith('/539129')
     })
   })
 })
