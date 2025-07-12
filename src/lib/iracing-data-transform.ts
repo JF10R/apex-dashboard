@@ -62,15 +62,15 @@ export function lapTimeToSeconds(time: string): number {
  */
 export function transformLapData(lapDataItems: LapDataItem[]): Lap[] {
   return lapDataItems.map((lapInfo, index) => {
-    const lapTimeIn10000ths = lapInfo.lap_time;
+    const lapTimeIn10000ths = lapInfo.lapTime;
     const lapTime = lapTimeIn10000ths > 0 ? formatLapTimeFrom10000ths(lapTimeIn10000ths) : 'N/A';
     
     // Check if lap is invalid based on lap events or flags
-    const lapEvents = lapInfo.lap_events || [];
+    const lapEvents = lapInfo.lapEvents || [];
     const isInvalid = lapInfo.incident || lapEvents.length > 0 || lapTimeIn10000ths <= 0;
     
     return {
-      lapNumber: lapInfo.lap_number || (index + 1),
+      lapNumber: lapInfo.lapNumber || (index + 1),
       time: lapTime,
       invalid: isInvalid,
     };
@@ -143,8 +143,23 @@ export function transformIracingRaceResult(
   lapDataMap?: Map<number, LapDataItem[]>
 ): RecentRace | null {
   try {
-    // Validate the API response structure
-    const validatedResult = GetResultResponseSchema.parse(apiResult);
+    // Try to validate the API response structure
+    let validatedResult: GetResultResponse;
+    try {
+      validatedResult = GetResultResponseSchema.parse(apiResult);
+    } catch (error) {
+      console.warn(`Schema validation failed for subsessionId ${subsessionId}, attempting fallback validation`);
+      
+      // Check if the response has essential fields for race result processing
+      if (!apiResult || typeof apiResult !== 'object' || 
+          !('subsessionId' in apiResult) || !('sessionResults' in apiResult)) {
+        console.error(`Essential fields missing from API response for subsessionId ${subsessionId}`);
+        return null;
+      }
+      
+      // Use the raw response despite validation failure
+      validatedResult = apiResult as GetResultResponse;
+    }
     
     // Find the race session (primary session with results)
     let raceSession: SessionResult | undefined = validatedResult.sessionResults.find(
@@ -281,17 +296,21 @@ export function validateLapDataResponse(data: unknown): data is LapDataItem[] {
   try {
     // Handle both direct array and response object formats
     if (Array.isArray(data)) {
+      // Use proper validation with updated schema
       data.forEach(item => LapDataItemSchema.parse(item));
       return true;
     } else if (data && typeof data === 'object' && 'lapData' in data) {
       const responseData = data as any;
       if (Array.isArray(responseData.lapData)) {
+        // Use proper validation with updated schema
         responseData.lapData.forEach((item: unknown) => LapDataItemSchema.parse(item));
         return true;
       }
     }
     return false;
-  } catch {
+  } catch (error) {
+    console.error(`[LAP VALIDATION ERROR] Schema validation failed:`, error);
+    console.error(`[LAP DATA DEBUG] Invalid data structure:`, JSON.stringify(data, null, 2));
     return false;
   }
 }

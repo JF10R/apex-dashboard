@@ -503,7 +503,16 @@ export const getRaceResultData = async (
       // Validate the response structure using our schema
       if (!validateIracingRaceResult(resultResponse)) {
         console.warn(`Invalid result data structure from API for subsessionId ${subsessionId}`);
-        return null;
+        console.warn('Validation error details:', resultResponse);
+        
+        // Try to work with the raw response if it has the essential fields
+        if (resultResponse && typeof resultResponse === 'object' && 
+            'subsessionId' in resultResponse && 'sessionResults' in resultResponse) {
+          console.log(`Attempting to use raw response for subsessionId ${subsessionId} despite validation failure`);
+          // Continue with the raw response
+        } else {
+          return null;
+        }
       }
 
       const result = resultResponse as GetResultResponse;
@@ -572,8 +581,13 @@ export const getRaceResultData = async (
             
             // Extract and validate lap data using our utility functions
             const lapDataItems = extractLapDataFromResponse(lapDataResponse);
+            console.log(`[LAP DATA DEBUG] Raw response for ${participant.custId}:`, JSON.stringify(lapDataResponse, null, 2).substring(0, 500));
+            console.log(`[LAP DATA DEBUG] Extracted ${lapDataItems.length} lap items for ${participant.custId}`);
             if (validateLapDataResponse(lapDataItems) && lapDataItems.length > 0) {
               lapDataMap.set(participant.custId, lapDataItems);
+              console.log(`[LAP DATA DEBUG] Successfully stored lap data for ${participant.custId}`);
+            } else {
+              console.log(`[LAP DATA DEBUG] Failed validation or empty data for ${participant.custId}`);
             }
           } catch (lapError) {
             // Continue silently if lap data fetch fails for individual participants

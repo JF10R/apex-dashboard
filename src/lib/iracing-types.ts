@@ -43,20 +43,20 @@ export const LiverySchema = BasicLiverySchema.extend({
   rimType: z.number(),
 })
 
-// Lap Data Schema (from official API)
+// Lap Data Schema (from official API) - uses camelCase field names
 export const LapDataItemSchema = z.object({
-  group_id: z.number(),
+  groupId: z.number(),
   name: z.string(),
-  cust_id: z.number(),
-  display_name: z.string(),
-  lap_number: z.number(),
+  custId: z.number(),
+  displayName: z.string(),
+  lapNumber: z.number(),
   flags: z.number(),
   incident: z.boolean(),
-  session_time: z.number(),
-  session_start_time: z.string().nullable(),
-  lap_time: z.number(),
-  team_fastest_lap: z.boolean(),
-  personal_best_lap: z.boolean(),
+  sessionTime: z.number(),
+  sessionStartTime: z.string().nullable(),
+  lapTime: z.number(),
+  teamFastestLap: z.boolean(),
+  personalBestLap: z.boolean(),
   helmet: z.object({
     pattern: z.number(),
     color1: z.string(),
@@ -65,9 +65,9 @@ export const LapDataItemSchema = z.object({
     faceType: z.number(),
     helmetType: z.number(),
   }),
-  license_level: z.number(),
-  car_number: z.string(),
-  lap_events: z.array(z.string()),
+  licenseLevel: z.number(),
+  carNumber: z.string(),
+  lapEvents: z.array(z.string()),
   ai: z.boolean(),
 })
 

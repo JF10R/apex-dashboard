@@ -68,12 +68,12 @@ function ClickableDriverName({ name, custId, className, onDriverClick }: Clickab
 
 function LapTimesDialog({
   driverName,
-  driverId,
+  driverId, // custId as string
   raceId,
   driverFastestLap,
 }: {
   driverName: string;
-  driverId: string;
+  driverId: string; // custId as string for API route
   raceId: string;
   driverFastestLap: string;
 }) {
@@ -230,7 +230,7 @@ export default function RaceResultsTable({
                   <TableCell className="text-center">
                     <LapTimesDialog
                       driverName={p.name}
-                      driverId={encodeURIComponent(p.name)}
+                      driverId={p.custId.toString()}
                       raceId={raceId}
                       driverFastestLap={p.fastestLap}
                     />

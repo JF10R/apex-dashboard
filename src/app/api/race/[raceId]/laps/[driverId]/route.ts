@@ -10,17 +10,17 @@ export async function GET(
   try {
     const { raceId: raceIdParam, driverId: driverIdParam } = await params;
     const raceId = parseInt(raceIdParam, 10);
-    const driverName = decodeURIComponent(driverIdParam);
+    const driverId = parseInt(driverIdParam, 10);
 
-    if (isNaN(raceId) || !driverName) {
+    if (isNaN(raceId) || isNaN(driverId)) {
       return NextResponse.json(
-        { error: 'Invalid race ID or driver name' },
+        { error: 'Invalid race ID or driver ID' },
         { status: 400 }
       );
     }
 
     // Check cache first for lap data
-    const cacheKey = cacheKeys.lapTimes(raceId, driverName);
+    const cacheKey = cacheKeys.lapTimes(raceId, driverId.toString());
     const cachedLapData = cache.get(cacheKey);
     if (cachedLapData) {
       return NextResponse.json(cachedLapData);
@@ -39,10 +39,15 @@ export async function GET(
     // Type assertion for the race data
     const raceData = race as RecentRace;
 
-    // Find the specific driver in the race by name
-    const participant = raceData.participants?.find((p: any) => p.name === driverName);
+    // Debug logging
+    console.log(`Looking for driver ID: ${driverId}`);
+    console.log(`Available participants: ${raceData.participants?.map(p => `${p.custId}:"${p.name}"`).join(', ')}`);
+    
+    // Find the specific driver in the race by custId
+    const participant = raceData.participants?.find((p: any) => p.custId === driverId);
     
     if (!participant) {
+      console.log(`Driver ID ${driverId} not found in race ${raceId}`);
       return NextResponse.json(
         { error: 'Driver not found in this race' },
         { status: 404 }
