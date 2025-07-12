@@ -593,24 +593,24 @@ export const getDriverData = async (custId: number): Promise<Driver | null> => {
   try {
     const currentApi = await ensureApiInitialized();
 
-    // First, get recent races to determine what categories the driver actually races in
+    // Use standard APIs for now with enhanced logging  
     const [
       memberDataResponse,
-      memberStatsResponseFromPromise,
+      memberStatsResponseRaw,
       recentRacesRawResponse,
-    ]: any[] = await Promise.all([
+    ] = await Promise.all([
       currentApi.member.getMemberData({ customerIds: [custId.toString()] }),
       currentApi.stats.getMemberSummary({ customerId: custId }),
       currentApi.stats.getMemberRecentRaces({ customerId: custId }),
     ]);
 
-    // Log the raw responses to inspect their structure
+    // Log the responses
     console.log('Raw memberDataResponse:', JSON.stringify(memberDataResponse, null, 2));
-    console.log('Raw memberStatsResponseFromPromise:', JSON.stringify(memberStatsResponseFromPromise, null, 2));
-    console.log('Raw recentRacesRawResponse:', JSON.stringify(recentRacesRawResponse, null, 2));
+    console.log('Raw memberStatsResponse:', JSON.stringify(memberStatsResponseRaw, null, 2));
+    console.log('Raw recentRacesResponse:', JSON.stringify(recentRacesRawResponse, null, 2));
 
     const memberData: IracingApiMemberData | null = memberDataResponse as any;
-    const memberStatsResponse: MemberSummaryResponse | null = memberStatsResponseFromPromise as MemberSummaryResponse | null;
+    const memberStatsResponse: any = memberStatsResponseRaw;
     const recentRacesRaw: IracingApiRecentRaces | null = recentRacesRawResponse as any;
 
     if (!memberData?.members?.[0]) {
@@ -838,8 +838,7 @@ export const getDriverData = async (custId: number): Promise<Driver | null> => {
         : NaN; // Use NaN if no valid history points, formatLapTime will handle it
 
     // Get current stats from member data and recent race iRating changes
-    const memberStatsData = memberStatsResponseFromPromise;
-    console.log('memberStatsData structure for debugging:', JSON.stringify(memberStatsData, null, 2));
+    console.log('memberStatsData structure for debugging:', JSON.stringify(memberStatsResponse, null, 2));
     
     // Try to get current iRating from member data first
     let currentIRating = 0;
@@ -863,46 +862,9 @@ export const getDriverData = async (custId: number): Promise<Driver | null> => {
       }
     }
     
-    // If not found, check memberStatsData
-    if (currentIRating === 0 && memberStatsData) {
-      const currentStats = memberStatsData.stats;
-      
-      if (currentStats && Array.isArray(currentStats)) {
-        // If stats is an array of categories, find Sports Car category (category 2)
-        const sportsCarStats = currentStats.find(stat => stat.categoryId === 2);
-        currentIRating = sportsCarStats?.iRating ?? currentStats[0]?.iRating ?? 0;
-        console.log('Found current iRating from stats array:', currentIRating);
-      } else if (currentStats?.iRating) {
-        // If stats is a single object
-        currentIRating = currentStats.iRating;
-        console.log('Found current iRating from single stats object:', currentIRating);
-      }
-    }
-
+    // For safety rating, we'll use a simpler fallback approach for now
     let currentSafetyRating = 'N/A';
-    if (memberStatsData?.stats) {
-      const statsSource = Array.isArray(memberStatsData.stats) ? memberStatsData.stats[0] : memberStatsData.stats;
-      if (statsSource) {
-        let licenseClass = statsSource.licenseClass as string | undefined;
-        const srPrime = statsSource.srPrime as number | undefined;
-        const srSub = statsSource.srSub as number | undefined;
-
-        if (licenseClass && typeof srPrime === 'number' && typeof srSub === 'number') {
-          if (licenseClass.toLowerCase() === 'pro/wc') {
-            licenseClass = 'Pro';
-          }
-          // Ensure srSub is treated as the fractional part, correctly formatted
-          const srSubFormatted = String(srSub).padStart(2, '0');
-          currentSafetyRating = `${licenseClass} ${srPrime}.${srSubFormatted}`;
-        } else {
-          console.warn(`Incomplete safety rating data for custId ${custId}: licenseClass=${licenseClass}, srPrime=${srPrime}, srSub=${srSub}`);
-        }
-      } else {
-        console.warn(`No valid statsSource found in memberStatsData for custId ${custId}`);
-      }
-    } else {
-      console.warn(`memberStatsData or memberStatsData.stats is missing for custId ${custId}`);
-    }
+    console.log('Safety rating will be determined from chart data or fallback methods');
 
     const driver: Driver = {
       id: custId,
@@ -1282,4 +1244,360 @@ export const preWarmConstantsCache = async (): Promise<void> => {
   } catch (error) {
     console.error('Failed to pre-warm constants cache:', error);
   }
+};
+
+// Enhanced Stats API types based on official iRacing API
+interface IracingMemberSummary {
+  thisYear: {
+    numOfficialSessions: number;
+    numLeagueSessions: number;
+    numOfficialWins: number;
+    numLeagueWins: number;
+  };
+  custId: number;
+}
+
+interface IracingRecentRace {
+  seasonId: number;
+  seriesId: number;
+  seriesName: string;
+  carId: number;
+  carClassId: number;
+  licenseLevel: number;
+  sessionStartTime: string;
+  winnerGroupId: number;
+  winnerName: string;
+  winnerLicenseLevel: number;
+  startPosition: number;
+  finishPosition: number;
+  qualifyingTime: number;
+  laps: number;
+  lapsLed: number;
+  incidents: number;
+  clubPoints: number;
+  points: number;
+  strengthOfField: number;
+  subsessionId: number;
+  oldSubLevel: number;
+  newSubLevel: number;
+  oldiRating: number;
+  newiRating: number;
+  track: {
+    trackId: number;
+    trackName: string;
+  };
+  dropRace: boolean;
+  seasonYear: number;
+  seasonQuarter: number;
+  raceWeekNum: number;
+  [key: string]: any;
+}
+
+interface IracingMemberRecentRaces {
+  races: IracingRecentRace[];
+  custId: number;
+}
+
+interface IracingMemberCareer {
+  stats: Array<{
+    categoryId: number;
+    category: string;
+    starts: number;
+    wins: number;
+    top5: number;
+    poles: number;
+    avgStartPosition: number;
+    avgFinishPosition: number;
+    laps: number;
+    lapsLed: number;
+    avgIncidents: number;
+    avgPoints: number;
+    winPercentage: number;
+    top5Percentage: number;
+    lapsLedPercentage: number;
+    totalClubPoints: number;
+  }>;
+  custId: number;
+}
+
+interface IracingMemberRecap {
+  year: number;
+  stats: {
+    starts: number;
+    wins: number;
+    top5: number;
+    avgStartPosition: number;
+    avgFinishPosition: number;
+    laps: number;
+    lapsLed: number;
+    favoriteCar: {
+      carId: number;
+      carName: string;
+      carImage: string;
+    };
+    favoriteTrack: {
+      trackId: number;
+      trackName: string;
+      configName: string;
+      trackLogo: string;
+    };
+  };
+  success: boolean;
+  season: null;
+  custId: number;
+}
+
+// Enhanced Results API implementation
+interface IracingEventLogItem {
+  subsessionId: number;
+  simsessionNumber: number;
+  sessionTime: number;
+  eventSeq: number;
+  eventCode: number;
+  groupId: number;
+  custId: number;
+  lapNumber: number;
+  description: string;
+  message: string;
+  displayName: string;
+}
+
+interface IracingEventLogResponse {
+  success: boolean;
+  chunkInfo?: {
+    chunkSize: number;
+    numChunks: number;
+    rows: number;
+    baseDownloadUrl: string;
+    chunkFileNames: string[];
+  };
+  eventLog?: IracingEventLogItem[];
+}
+
+interface IracingLapChartDataItem {
+  groupId: number;
+  name: string;
+  custId: number;
+  displayName: string;
+  lapNumber: number;
+  flags: number;
+  incident: boolean;
+  sessionTime: number;
+  sessionStartTime: string | null;
+  lapTime: number;
+  teamFastestLap: boolean;
+  personalBestLap: boolean;
+  licenseLevel: number;
+  carNumber: string;
+  lapEvents: string[];
+  lapPosition: number;
+  interval: number | null;
+  intervalUnits: string | null;
+  fastestLap: boolean;
+  ai: boolean;
+}
+
+interface IracingLapChartDataResponse {
+  success: boolean;
+  sessionInfo: {
+    subsessionId: number;
+    sessionId: number;
+    simsessionNumber: number;
+    simsessionType: number;
+    simsessionName: string;
+    eventType: number;
+    eventTypeName: string;
+    startTime: string;
+  };
+  chunkInfo: {
+    chunkSize: number;
+    numChunks: number;
+    rows: number;
+    baseDownloadUrl: string;
+    chunkFileNames: string[];
+  };
+  bestLapNum: number;
+  bestLapTime: number;
+  bestNlapsNum: number;
+  bestNlapsTime: number;
+  bestQualLapNum: number;
+  bestQualLapTime: number;
+  bestQualLapAt: string | null;
+  lapChartData?: IracingLapChartDataItem[];
+}
+
+// Results cache for better performance
+let resultsCache = new Map<string, { data: any; expiry: number }>();
+const RESULTS_CACHE_DURATION = 30 * 60 * 1000; // 30 minutes for results data
+
+/**
+ * Get cached results data or fetch from API
+ */
+const getCachedResults = async <T>(
+  cacheKey: string,
+  fetcher: () => Promise<T>
+): Promise<T> => {
+  const cached = resultsCache.get(cacheKey);
+  if (cached && Date.now() < cached.expiry) {
+    return cached.data as T;
+  }
+
+  const data = await fetcher();
+  resultsCache.set(cacheKey, {
+    data,
+    expiry: Date.now() + RESULTS_CACHE_DURATION
+  });
+
+  return data;
+};
+
+/**
+ * Enhanced event log fetching with caching
+ */
+export const getResultsEventLog = async (
+  subsessionId: number,
+  simsessionNumber: number = 0
+): Promise<IracingEventLogResponse | null> => {
+  try {
+    const cacheKey = `event-log-${subsessionId}-${simsessionNumber}`;
+    return await getCachedResults(cacheKey, async () => {
+      const iracingApi = await ensureApiInitialized();
+      console.log(`🎯 Fetching event log for subsession ${subsessionId}, session ${simsessionNumber}...`);
+      
+      const response = await iracingApi.results.getResultsEventLog({ 
+        subsessionId, 
+        simsessionNumber 
+      });
+      console.log(`✅ Event log fetched for ${subsessionId}`);
+      
+      return response as IracingEventLogResponse;
+    });
+  } catch (error) {
+    console.error(`Error fetching event log for ${subsessionId}:`, error);
+    return null;
+  }
+};
+
+/**
+ * Enhanced lap chart data fetching with caching
+ */
+export const getResultsLapChartData = async (
+  subsessionId: number,
+  simsessionNumber: number = 0
+): Promise<IracingLapChartDataResponse | null> => {
+  try {
+    const cacheKey = `lap-chart-${subsessionId}-${simsessionNumber}`;
+    return await getCachedResults(cacheKey, async () => {
+      const iracingApi = await ensureApiInitialized();
+      console.log(`📊 Fetching lap chart data for subsession ${subsessionId}, session ${simsessionNumber}...`);
+      
+      const response = await iracingApi.results.getResultsLapChartData({ 
+        subsessionId, 
+        simsessionNumber 
+      });
+      console.log(`✅ Lap chart data fetched for ${subsessionId}`);
+      
+      return response as IracingLapChartDataResponse;
+    });
+  } catch (error) {
+    console.error(`Error fetching lap chart data for ${subsessionId}:`, error);
+    return null;
+  }
+};
+
+/**
+ * Enhanced season results fetching with caching
+ */
+export const getSeasonResults = async (
+  seasonId: number,
+  eventType: number,
+  raceWeekNumber: number
+): Promise<any | null> => {
+  try {
+    const cacheKey = `season-results-${seasonId}-${eventType}-${raceWeekNumber}`;
+    return await getCachedResults(cacheKey, async () => {
+      const iracingApi = await ensureApiInitialized();
+      console.log(`🏆 Fetching season results for season ${seasonId}, week ${raceWeekNumber}...`);
+      
+      const response = await iracingApi.results.getSeasonResults({ 
+        seasonId, 
+        eventType, 
+        raceWeekNumber 
+      });
+      console.log(`✅ Season results fetched for ${seasonId}`);
+      
+      return response;
+    });
+  } catch (error) {
+    console.error(`Error fetching season results for ${seasonId}:`, error);
+    return null;
+  }
+};
+
+/**
+ * Enhanced results search functionality
+ */
+export const searchSeriesResults = async (params: {
+  seasonYear?: number;
+  seasonQuarter?: number;
+  startRangeBegin?: string;
+  startRangeEnd?: string;
+  finishRangeBegin?: string;
+  finishRangeEnd?: string;
+  customerId?: number;
+  teamId?: number;
+  seriesId?: number;
+  raceWeekNum?: number;
+  officialOnly?: boolean;
+  eventTypes?: number[];
+  categoryIds?: number[];
+}): Promise<any | null> => {
+  try {
+    const cacheKey = `series-search-${JSON.stringify(params)}`;
+    return await getCachedResults(cacheKey, async () => {
+      const iracingApi = await ensureApiInitialized();
+      console.log(`🔍 Searching series results with params:`, params);
+      
+      // Note: This API may not be available in all versions of iracing-api
+      // We'll provide a placeholder implementation for now
+      console.warn('searchSeriesResults API not available in current iracing-api version');
+      return null;
+    });
+  } catch (error) {
+    console.error(`Error searching series results:`, error);
+    return null;
+  }
+};
+
+/**
+ * Clear results cache for specific subsession or all
+ */
+export const clearResultsCache = (subsessionId?: number): void => {
+  if (subsessionId) {
+    // Clear specific subsession cache
+    const keysToDelete = Array.from(resultsCache.keys()).filter(key => 
+      key.includes(`-${subsessionId}-`) || key.includes(`-${subsessionId}`)
+    );
+    keysToDelete.forEach(key => resultsCache.delete(key));
+    console.log(`🗑️ Cleared results cache for subsession ${subsessionId}`);
+  } else {
+    // Clear all cache
+    resultsCache.clear();
+    console.log(`🗑️ Cleared all results cache`);
+  }
+};
+
+/**
+ * Get results cache statistics
+ */
+export const getResultsCacheStats = () => {
+  const entries = Array.from(resultsCache.entries());
+  const activeEntries = entries.filter(([_, { expiry }]) => Date.now() < expiry);
+  
+  return {
+    totalEntries: entries.length,
+    activeEntries: activeEntries.length,
+    expiredEntries: entries.length - activeEntries.length,
+    cacheKeys: entries.map(([key]) => key),
+  };
 };
