@@ -53,7 +53,8 @@ export default function DriverSearch({ onDriverSelect, initialDriverName, label 
 
       setResults(data || []);
       setIsLoading(false);
-      setPopoverOpen((data || []).length > 0);
+      // Keep popover open if there were results OR if search was performed but no results (to show "No drivers found.")
+      setPopoverOpen(true);
     }, 300),
     []
   );
