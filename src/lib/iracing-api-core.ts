@@ -728,41 +728,54 @@ export const getDriverData = async (custId: number): Promise<Driver | null> => {
     const activeCategories = [...new Set(recentRaces.map(race => race.category))];
     console.log('Active racing categories for driver:', activeCategories);
 
-    // Map racing categories to iRacing API category IDs for chart data
-    const categoryIdMapping: Record<RaceCategory, number> = {
-      'Sports Car': 2,      // Road
-      'Formula Car': 2,     // Road  
-      'Prototype': 2,       // Road
-      'Oval': 1,           // Oval
-      'Dirt Oval': 3,      // Dirt Oval
-    };
-
-    // Fetch iRating chart data for each active category
+    // Fetch iRating chart data for each active category using API-based category lookup
     const chartDataPromises = activeCategories.map(async (category) => {
-      const categoryId = categoryIdMapping[category];
+      // Use the new API-based category lookup instead of hardcoded mapping
+      const categoryId = await getCategoryId(category);
       if (!categoryId) {
-        console.warn(`No category ID mapping found for category: ${category}`);
-        return { category, data: [] };
+        console.warn(`No category ID found for category: ${category}, trying fallback mapping`);
+        
+        // Fallback to hardcoded mapping if API lookup fails
+        const fallbackMapping: Record<RaceCategory, number> = {
+          'Sports Car': 2,      // Road
+          'Formula Car': 2,     // Road  
+          'Prototype': 2,       // Road
+          'Oval': 1,           // Oval
+          'Dirt Oval': 3,      // Dirt Oval
+        };
+        const fallbackId = fallbackMapping[category];
+        if (!fallbackId) {
+          console.warn(`No fallback category ID mapping found for category: ${category}`);
+          return { category, data: [] };
+        }
+        console.log(`Using fallback category ID ${fallbackId} for ${category}`);
+        return await fetchChartDataForCategory(currentApi, custId, category, fallbackId);
       }
       
+      return await fetchChartDataForCategory(currentApi, custId, category, categoryId);
+    });
+
+    // Helper function to fetch chart data for a category
+    async function fetchChartDataForCategory(api: any, custId: number, category: string, categoryId: number) {
       try {
-        const response = await currentApi.member.getMemberChartData({ 
+        const response = await api.member.getMemberChartData({ 
           customerId: custId, 
           chartType: 1, 
           categoryId 
         });
         return { category, data: response?.data || [] };
       } catch (error) {
-        console.warn(`Failed to fetch chart data for category ${category}:`, error);
+        console.warn(`Failed to fetch chart data for category ${category} (ID: ${categoryId}):`, error);
         return { category, data: [] };
       }
-    });
+    }
 
-    // Also fetch safety rating data (using road/sports car as primary)
+    // Also fetch safety rating data (try to use Road category, fallback to ID 2)
+    let srCategoryId = await getCategoryId('Road') || 2; // Default to Road category
     const srChartPromise = currentApi.member.getMemberChartData({ 
       customerId: custId, 
       chartType: 3, 
-      categoryId: 2 // Road category for SR
+      categoryId: srCategoryId
     });
 
     const [chartDataResults, srChartResponse] = await Promise.all([
@@ -1072,4 +1085,201 @@ export const getCarCacheStats = (): {
     expiresAt: carsCacheExpiry > 0 ? new Date(carsCacheExpiry).toISOString() : null,
     timeUntilExpiry,
   };
+};
+
+// Constants lookup interfaces and functions based on official iRacing API types
+interface IracingCategory {
+  label: string;
+  value: number; // This is the categoryId we need
+}
+
+interface IracingDivision {
+  label: string;
+  value: number;
+}
+
+interface IracingEventType {
+  label: string;
+  value: number;
+}
+
+// Cache for constants data
+let categoriesCache: Map<string, number> | null = null; // label -> categoryId mapping
+let categoryIdToLabelCache: Map<number, string> | null = null; // categoryId -> label mapping
+let divisionsCache: IracingDivision[] | null = null;
+let eventTypesCache: IracingEventType[] | null = null;
+let constantsCacheExpiry: number = 0;
+let constantsLoadingPromise: Promise<void> | null = null;
+const CONSTANTS_CACHE_DURATION = 7 * 24 * 60 * 60 * 1000; // 7 days (constants rarely change)
+
+/**
+ * Get category ID by category name from iRacing API
+ * Uses efficient caching to avoid repeated API calls
+ */
+export const getCategoryId = async (categoryName: string): Promise<number | null> => {
+  try {
+    // Check if cache is valid and has the category
+    if (categoriesCache && Date.now() < constantsCacheExpiry && categoriesCache.has(categoryName)) {
+      return categoriesCache.get(categoryName)!;
+    }
+
+    // Fetch fresh constants data if cache is expired or doesn't have the category
+    if (!constantsLoadingPromise) {
+      constantsLoadingPromise = loadConstantsData();
+    }
+    await constantsLoadingPromise;
+    
+    if (categoriesCache && categoriesCache.has(categoryName)) {
+      return categoriesCache.get(categoryName)!;
+    }
+
+    // Try fuzzy matching for common variations
+    const fuzzyMatches = [
+      ['Sports Car', 'Road'],
+      ['Formula Car', 'Road'],
+      ['Prototype', 'Road'],
+      ['Oval', 'Oval'],
+      ['Dirt Oval', 'Dirt']
+    ];
+    
+    for (const [input, apiName] of fuzzyMatches) {
+      if (categoryName === input && categoriesCache?.has(apiName)) {
+        return categoriesCache.get(apiName)!;
+      }
+    }
+
+    console.warn(`Category not found for name "${categoryName}"`);
+    return null;
+    
+  } catch (error) {
+    console.error(`Error getting category ID for "${categoryName}":`, error);
+    return null;
+  }
+};
+
+/**
+ * Get category name by category ID from iRacing API
+ */
+export const getCategoryName = async (categoryId: number): Promise<string | null> => {
+  try {
+    // Ensure constants are loaded
+    if (!constantsLoadingPromise) {
+      constantsLoadingPromise = loadConstantsData();
+    }
+    await constantsLoadingPromise;
+    
+    if (categoryIdToLabelCache && categoryIdToLabelCache.has(categoryId)) {
+      return categoryIdToLabelCache.get(categoryId)!;
+    }
+
+    console.warn(`Category not found for ID ${categoryId}`);
+    return null;
+    
+  } catch (error) {
+    console.error(`Error getting category name for ID ${categoryId}:`, error);
+    return null;
+  }
+};
+
+/**
+ * Load all constants data from iRacing API and cache it
+ */
+const loadConstantsData = async (): Promise<void> => {
+  try {
+    const iracingApi = await ensureApiInitialized();
+    console.log('📊 Fetching constants data from iRacing API...');
+    
+    // Fetch all constants in parallel
+    const [categoriesResponse, divisionsResponse, eventTypesResponse] = await Promise.all([
+      iracingApi.constants.getCategories(),
+      iracingApi.constants.getDivisions(),
+      iracingApi.constants.getEventTypes(),
+    ]);
+
+    console.log('🔍 Raw constants responses:', {
+      categories: categoriesResponse,
+      divisions: divisionsResponse,
+      eventTypes: eventTypesResponse,
+    });
+    
+    // Process categories
+    categoriesCache = new Map();
+    categoryIdToLabelCache = new Map();
+    
+    if (Array.isArray(categoriesResponse)) {
+      for (const category of categoriesResponse) {
+        if (category.label && typeof category.value === 'number') {
+          categoriesCache.set(category.label, category.value);
+          categoryIdToLabelCache.set(category.value, category.label);
+        }
+      }
+      console.log(`✅ Cached ${categoriesCache.size} categories`);
+      console.log('📋 Available categories:', Array.from(categoriesCache.keys()));
+    }
+    
+    // Process divisions
+    if (Array.isArray(divisionsResponse)) {
+      divisionsCache = divisionsResponse;
+      console.log(`✅ Cached ${divisionsCache.length} divisions`);
+    }
+    
+    // Process event types
+    if (Array.isArray(eventTypesResponse)) {
+      eventTypesCache = eventTypesResponse;
+      console.log(`✅ Cached ${eventTypesCache.length} event types`);
+    }
+    
+    // Set cache expiry
+    constantsCacheExpiry = Date.now() + CONSTANTS_CACHE_DURATION;
+    
+  } catch (error) {
+    console.error('Error loading constants data from iRacing API:', error);
+    // Don't throw - we'll use fallback mappings
+  } finally {
+    constantsLoadingPromise = null;
+  }
+};
+
+/**
+ * Get constants cache statistics for monitoring
+ */
+export const getConstantsCacheStats = (): {
+  isLoaded: boolean;
+  categoriesCount: number;
+  divisionsCount: number;
+  eventTypesCount: number;
+  isExpired: boolean;
+  expiresAt: string | null;
+  availableCategories: string[];
+} => {
+  const now = Date.now();
+  const isExpired = constantsCacheExpiry <= now;
+  
+  return {
+    isLoaded: categoriesCache !== null,
+    categoriesCount: categoriesCache?.size || 0,
+    divisionsCount: divisionsCache?.length || 0,
+    eventTypesCount: eventTypesCache?.length || 0,
+    isExpired,
+    expiresAt: constantsCacheExpiry > 0 ? new Date(constantsCacheExpiry).toISOString() : null,
+    availableCategories: categoriesCache ? Array.from(categoriesCache.keys()) : [],
+  };
+};
+
+/**
+ * Pre-warm the constants cache
+ */
+export const preWarmConstantsCache = async (): Promise<void> => {
+  try {
+    if (!constantsLoadingPromise && (!categoriesCache || Date.now() >= constantsCacheExpiry)) {
+      console.log('🔥 Pre-warming constants cache...');
+      constantsLoadingPromise = loadConstantsData();
+      await constantsLoadingPromise;
+      console.log('✅ Constants cache pre-warmed successfully');
+    } else {
+      console.log('💾 Constants cache already warm');
+    }
+  } catch (error) {
+    console.error('Failed to pre-warm constants cache:', error);
+  }
 };

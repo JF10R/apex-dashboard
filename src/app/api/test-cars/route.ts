@@ -1,77 +1,99 @@
 import { NextResponse } from 'next/server';
-import { getCarName, getCarCacheStats, preWarmCarCache } from '@/lib/iracing-api-core';
+import { 
+  getCarName, 
+  getCarCacheStats, 
+  preWarmCarCache,
+  getCategoryId,
+  getConstantsCacheStats,
+  preWarmConstantsCache 
+} from '@/lib/iracing-api-core';
 
 export async function GET() {
   try {
-    console.log('🧪 Testing car name lookup performance...');
+    console.log('🧪 Testing car name and constants lookup performance...');
     
     // Show initial cache stats
-    const initialStats = getCarCacheStats();
-    console.log('📊 Initial cache stats:', initialStats);
+    const initialCarStats = getCarCacheStats();
+    const initialConstantsStats = getConstantsCacheStats();
+    console.log('📊 Initial cache stats:', { cars: initialCarStats, constants: initialConstantsStats });
     
-    // Pre-warm cache if needed
-    await preWarmCarCache();
+    // Pre-warm caches if needed
+    await Promise.all([
+      preWarmCarCache(),
+      preWarmConstantsCache()
+    ]);
     
-    // Test with some common car IDs (these should be real iRacing car IDs)
+    // Test with some common car IDs and categories
     const testCarIds = [173, 203, 5, 1, 2]; // Mix of car IDs from your data
+    const testCategories = ['Road', 'Oval', 'Dirt', 'Sports Car'];
     
     const startTime = Date.now();
     
-    // First round - should fetch from API and cache
-    console.log('📥 First round - loading into cache...');
-    const firstRoundPromises = testCarIds.map(async (carId) => {
-      const start = Date.now();
-      const carName = await getCarName(carId);
-      const end = Date.now();
-      return { carId, carName, timeMs: end - start };
-    });
-    const firstRoundResults = await Promise.all(firstRoundPromises);
+    // Test car lookups
+    console.log('� Testing car name lookups...');
+    const carResults = await Promise.all(
+      testCarIds.map(async (carId) => {
+        const start = Date.now();
+        const carName = await getCarName(carId);
+        const end = Date.now();
+        return { carId, carName, timeMs: end - start };
+      })
+    );
     
-    const afterFirstRound = Date.now();
+    const afterCarLookups = Date.now();
     
-    // Second round - should use cache (much faster)
-    console.log('⚡ Second round - using cache...');
-    const secondRoundPromises = testCarIds.map(async (carId) => {
-      const start = Date.now();
-      const carName = await getCarName(carId);
-      const end = Date.now();
-      return { carId, carName, timeMs: end - start };
-    });
-    const secondRoundResults = await Promise.all(secondRoundPromises);
+    // Test category lookups
+    console.log('📊 Testing category lookups...');
+    const categoryResults = await Promise.all(
+      testCategories.map(async (categoryName) => {
+        const start = Date.now();
+        const categoryId = await getCategoryId(categoryName);
+        const end = Date.now();
+        return { categoryName, categoryId, timeMs: end - start };
+      })
+    );
     
     const endTime = Date.now();
-    const finalStats = getCarCacheStats();
+    
+    // Get final stats
+    const finalCarStats = getCarCacheStats();
+    const finalConstantsStats = getConstantsCacheStats();
     
     return NextResponse.json({
       success: true,
       cacheStats: {
-        initial: initialStats,
-        final: finalStats,
+        cars: {
+          initial: initialCarStats,
+          final: finalCarStats,
+        },
+        constants: {
+          initial: initialConstantsStats,
+          final: finalConstantsStats,
+        },
       },
       performance: {
-        firstRoundTime: afterFirstRound - startTime,
-        secondRoundTime: endTime - afterFirstRound,
+        carLookupsTime: afterCarLookups - startTime,
+        categoryLookupsTime: endTime - afterCarLookups,
         totalTime: endTime - startTime,
-        speedImprovement: `${Math.round(((afterFirstRound - startTime) / (endTime - afterFirstRound)) * 100) / 100}x faster`,
+        averageCarLookupTime: Math.round((afterCarLookups - startTime) / testCarIds.length),
+        averageCategoryLookupTime: Math.round((endTime - afterCarLookups) / testCategories.length),
       },
       results: {
-        firstRound: firstRoundResults,
-        secondRound: secondRoundResults,
+        cars: carResults,
+        categories: categoryResults,
       },
-      cacheTest: {
-        allMatching: firstRoundResults.every((first, index) => 
-          first.carName === secondRoundResults[index].carName
-        ),
-        averageFirstRoundTime: Math.round(firstRoundResults.reduce((sum, r) => sum + r.timeMs, 0) / firstRoundResults.length),
-        averageSecondRoundTime: Math.round(secondRoundResults.reduce((sum, r) => sum + r.timeMs, 0) / secondRoundResults.length),
+      analysis: {
+        carsFound: carResults.filter(r => !r.carName.startsWith('Car ')).length,
+        categoriesFound: categoryResults.filter(r => r.categoryId !== null).length,
+        availableCategories: finalConstantsStats.availableCategories,
       },
       timestamp: new Date().toISOString(),
     });
     
   } catch (error) {
-    console.error('Car lookup test error:', error);
+    console.error('Lookup test error:', error);
     return NextResponse.json(
-      { error: 'Failed to test car lookup performance', details: error },
+      { error: 'Failed to test lookup performance', details: error },
       { status: 500 }
     );
   }
