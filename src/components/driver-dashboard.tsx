@@ -144,7 +144,12 @@ export default function DriverDashboard({ custId, driverName }: { custId: number
     if (!driver) return { allYears: ['all'], allCategories: ['all'], allSeasons: ['all'] };
     const races = driver.recentRaces;
     const years = ['all', ...Array.from(new Set(races.map(r => r.year.toString()))).sort((a, b) => Number(b) - Number(a))];
-    const categories = ['all', ...Array.from(new Set(races.map(r => r.category)))];
+    
+    // Filter out null/undefined categories before creating the set
+    const validCategories = races.map(r => r.category).filter(cat => cat != null);
+    console.log('Valid categories from API:', validCategories);
+    const categories = ['all', ...Array.from(new Set(validCategories))];
+    
     const seasons = ['all', ...Array.from(new Set(races.map(r => r.season)))];
     return { allYears: years, allCategories: categories, allSeasons: seasons };
   }, [driver]);
@@ -163,8 +168,8 @@ export default function DriverDashboard({ custId, driverName }: { custId: number
       const categoryMatch = category === 'all' || race.category === category;
       return yearMatch && seasonMatch && categoryMatch;
     });
-    const tracks = ['all', ...Array.from(new Set(relevantRaces.map(r => r.trackName)))];
-    const cars = ['all', ...Array.from(new Set(relevantRaces.map(r => r.car)))];
+    const tracks = ['all', ...Array.from(new Set(relevantRaces.map(r => r.trackName).filter(t => t != null)))];
+    const cars = ['all', ...Array.from(new Set(relevantRaces.map(r => r.car).filter(c => c != null)))];
     return { availableTracks: tracks, availableCars: cars };
   }, [driver, year, season, category]);
 
@@ -356,21 +361,21 @@ export default function DriverDashboard({ custId, driverName }: { custId: number
                 <label className='text-sm font-medium'>Category</label>
                 <Select value={category} onValueChange={setCategory}>
                   <SelectTrigger aria-label="Category filter"><SelectValue /></SelectTrigger>
-                  <SelectContent>{allCategories.map(c => <SelectItem key={c} value={c}>{c === 'all' ? 'All Categories' : c}</SelectItem>)}</SelectContent>
+                  <SelectContent>{allCategories.filter(c => c != null).map(c => <SelectItem key={c} value={c}>{c === 'all' ? 'All Categories' : c}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
               <div>
                 <label className='text-sm font-medium'>Track</label>
                 <Select value={track} onValueChange={setTrack}>
                   <SelectTrigger aria-label="Track filter"><SelectValue /></SelectTrigger>
-                  <SelectContent>{availableTracks.map(t => <SelectItem key={t} value={t}>{t === 'all' ? 'All Tracks' : t}</SelectItem>)}</SelectContent>
+                  <SelectContent>{availableTracks.filter(t => t != null).map(t => <SelectItem key={t} value={t}>{t === 'all' ? 'All Tracks' : t}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
               <div>
                 <label className='text-sm font-medium'>Car</label>
                 <Select value={car} onValueChange={setCar}>
                   <SelectTrigger aria-label="Car filter"><SelectValue /></SelectTrigger>
-                  <SelectContent>{availableCars.map(c => <SelectItem key={c} value={c}>{c === 'all' ? 'All Cars' : c}</SelectItem>)}</SelectContent>
+                  <SelectContent>{availableCars.filter(c => c != null).map(c => <SelectItem key={c} value={c}>{c === 'all' ? 'All Cars' : c}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
           </CardContent>
