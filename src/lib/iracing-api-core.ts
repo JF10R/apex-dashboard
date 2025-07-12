@@ -623,6 +623,7 @@ export const getDriverData = async (custId: number): Promise<Driver | null> => {
     // Log first race summary to verify API provides car name directly  
     if ((recentRacesRaw?.races || []).length > 0) {
       const firstRace = (recentRacesRaw?.races || [])[0];
+      console.log('✅ Full first race object from API:', JSON.stringify(firstRace, null, 2));
       console.log('✅ API car name fields available:', JSON.stringify({
         carId: firstRace.carId,
         car: firstRace.car, // Primary field used for car names
@@ -632,23 +633,50 @@ export const getDriverData = async (custId: number): Promise<Driver | null> => {
         // Show all car-related fields
         carFields: Object.keys(firstRace).filter(key => key.toLowerCase().includes('car'))
       }, null, 2));
+      
+      // Additional debugging: log what the final car assignment will be  
+      let debugCarName: string;
+      if (firstRace.carId) {
+        debugCarName = await getCarName(firstRace.carId);
+        console.log('🚗 Final car assignment for first race:', debugCarName);
+        console.log('🔍 Used car lookup for carId:', firstRace.carId, '-> Car name:', debugCarName);
+      } else {
+        debugCarName = firstRace.car || firstRace.carName || firstRace.carClassName || 'Unknown Car';
+        console.log('🚗 Final car assignment for first race (fallback):', debugCarName);
+      }
+      console.log('🔍 Individual field values:', {
+        'firstRace.car': firstRace.car,
+        'firstRace.carName': firstRace.carName,
+        'firstRace.carClassName': firstRace.carClassName,
+        'firstRace.carId': firstRace.carId
+      });
     }
 
     // Fetch more races for comprehensive season analysis - increase from 20 to 100
     // This ensures that when users filter by specific seasons, they have access to complete season data
     const racesToFetch = Math.min((recentRacesRaw?.races || []).length, 100);
-    const recentRaces: RecentRace[] = (recentRacesRaw?.races || []).slice(0, racesToFetch).map((raceSummary: RawRecentRaceSummary) => {
+    
+    // Process recent races with car name lookup
+    const recentRacesPromises = (recentRacesRaw?.races || []).slice(0, racesToFetch).map(async (raceSummary: RawRecentRaceSummary) => {
       const { year, season } = getSeasonFromDate(new Date(raceSummary.sessionStartTime || new Date()));
       
       // ✅ iRacing API ALWAYS provides accurate category - trust it completely!
       const category = raceSummary.category as RaceCategory;
 
-      return {
+      // 🚗 Use car lookup if we have carId, otherwise fallback to existing fields
+      let carName: string;
+      if (raceSummary.carId) {
+        carName = await getCarName(raceSummary.carId);
+      } else {
+        carName = raceSummary.car || raceSummary.carName || raceSummary.carClassName || 'Unknown Car';
+      }
+
+      const recentRace: RecentRace = {
         id: raceSummary.subsessionId.toString(),
         trackName: raceSummary.track?.trackName || 'Unknown Track',
         seriesName: raceSummary.seriesName || 'Unknown Series',
         date: raceSummary.sessionStartTime || new Date().toISOString(),
-        car: raceSummary.car || raceSummary.carName || raceSummary.carClassName || `Car ${raceSummary.carId}`,
+        car: carName,
         category,
         year, // from getSeasonFromDate
         season, // from getSeasonFromDate
@@ -669,7 +697,12 @@ export const getDriverData = async (custId: number): Promise<Driver | null> => {
                             : "0.00",
         avgLapTime: 'N/A',
       };
+      
+      return recentRace;
     });
+    
+    // Await all car name lookups
+    const recentRaces: RecentRace[] = await Promise.all(recentRacesPromises);
     
     console.log(`Fetched ${recentRaces.length} races (increased from 20 limit for better season filtering)`);
     
@@ -891,3 +924,152 @@ export const getDriverData = async (custId: number): Promise<Driver | null> => {
     return null; // Graceful failure for other errors
   }
 }
+
+// Car lookup interfaces and functions based on official iRacing API types
+interface IracingCar {
+  carId: number;
+  carName: string;
+  carNameAbbreviated: string;
+  carDirpath: string;
+  carTypes: number[];
+  packageId: number;
+  retired: boolean;
+  [key: string]: any;
+}
+
+// The getCars() response is just an array of Car objects
+type IracingCarsResponse = IracingCar[];
+
+// Cache for car data to avoid repeated API calls
+let carsCache: Map<number, string> | null = null;
+let carsCacheExpiry: number = 0;
+let carsLoadingPromise: Promise<void> | null = null; // Prevent multiple simultaneous loads
+const CARS_CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours
+
+/**
+ * Get car name by car ID from iRacing API
+ * Uses efficient caching to avoid repeated API calls for the same car across multiple drivers
+ */
+export const getCarName = async (carId: number): Promise<string> => {
+  try {
+    // Check if cache is valid and has the car
+    if (carsCache && Date.now() < carsCacheExpiry && carsCache.has(carId)) {
+      return carsCache.get(carId)!;
+    }
+
+    // Fetch fresh car data if cache is expired or doesn't have the car
+    // Use promise to prevent multiple simultaneous loads when processing multiple drivers
+    if (!carsLoadingPromise) {
+      carsLoadingPromise = loadCarsData();
+    }
+    await carsLoadingPromise;
+    
+    if (carsCache && carsCache.has(carId)) {
+      return carsCache.get(carId)!;
+    }
+
+    // Fallback if car not found
+    console.warn(`Car not found for ID ${carId}, using fallback name`);
+    return `Car ${carId}`;
+    
+  } catch (error) {
+    console.error(`Error getting car name for ID ${carId}:`, error);
+    return `Car ${carId}`;
+  }
+};
+
+/**
+ * Load all cars data from iRacing API and cache it
+ * This function is cached and prevents multiple simultaneous API calls
+ */
+const loadCarsData = async (): Promise<void> => {
+  try {
+    const iracingApi = await ensureApiInitialized();
+    console.log('🚗 Fetching cars data from iRacing API...');
+    
+    const carsResponse: any = await iracingApi.car.getCars();
+    console.log('🔍 Raw cars response structure:', {
+      type: typeof carsResponse,
+      isArray: Array.isArray(carsResponse),
+      length: Array.isArray(carsResponse) ? carsResponse.length : 'N/A',
+      firstItem: Array.isArray(carsResponse) && carsResponse.length > 0 ? 
+        Object.keys(carsResponse[0]).slice(0, 10) : null
+    });
+    
+    // Create new cache
+    carsCache = new Map();
+    
+    if (Array.isArray(carsResponse) && carsResponse.length > 0) {
+      console.log(`✅ Found ${carsResponse.length} cars in response`);
+      console.log('🔍 First car object keys:', Object.keys(carsResponse[0]));
+      console.log('🔍 First car sample:', JSON.stringify(carsResponse[0], null, 2));
+      
+      for (const car of carsResponse) {
+        // Use the correct field names from the official iRacing API types
+        const carId = car.carId;
+        const carName = car.carName || car.carNameAbbreviated;
+        
+        if (carId && carName) {
+          carsCache.set(carId, carName);
+        }
+      }
+      console.log(`🗄️ Cached ${carsCache.size} car names`);
+    } else {
+      console.warn('No cars found in API response or response is not an array');
+    }
+    
+    // Set cache expiry
+    carsCacheExpiry = Date.now() + CARS_CACHE_DURATION;
+    
+  } catch (error) {
+    console.error('Error loading cars data from iRacing API:', error);
+    // Don't throw - we'll use fallback car names
+  } finally {
+    // Reset the loading promise so future calls can retry
+    carsLoadingPromise = null;
+  }
+};
+
+/**
+ * Pre-warm the car cache by loading all car data
+ * Useful for better performance when processing multiple drivers
+ */
+export const preWarmCarCache = async (): Promise<void> => {
+  try {
+    if (!carsLoadingPromise && (!carsCache || Date.now() >= carsCacheExpiry)) {
+      console.log('🔥 Pre-warming car cache...');
+      carsLoadingPromise = loadCarsData();
+      await carsLoadingPromise;
+      console.log('✅ Car cache pre-warmed successfully');
+    } else {
+      console.log('💾 Car cache already warm');
+    }
+  } catch (error) {
+    console.error('Failed to pre-warm car cache:', error);
+  }
+};
+
+/**
+ * Get cache statistics for monitoring
+ */
+export const getCarCacheStats = (): {
+  isLoaded: boolean;
+  carCount: number;
+  isExpired: boolean;
+  expiresAt: string | null;
+  timeUntilExpiry: string | null;
+} => {
+  const now = Date.now();
+  const isExpired = carsCacheExpiry <= now;
+  const timeUntilExpiry = carsCacheExpiry > now 
+    ? `${Math.round((carsCacheExpiry - now) / (1000 * 60))} minutes`
+    : null;
+  
+  return {
+    isLoaded: carsCache !== null,
+    carCount: carsCache?.size || 0,
+    isExpired,
+    expiresAt: carsCacheExpiry > 0 ? new Date(carsCacheExpiry).toISOString() : null,
+    timeUntilExpiry,
+  };
+};
