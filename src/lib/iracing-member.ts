@@ -239,7 +239,8 @@ export const getMemberCareerStats = async (custId: number): Promise<MemberCareer
         customerId: custId,
       });
       
-      const careerStats = Array.isArray(response) ? response : [];
+      // The API returns an object with a 'stats' array, not a direct array
+      const careerStats = response?.stats || [];
       console.log(`✅ Fetched career stats for ${careerStats.length} categories`);
       
       // Map API response to our expected format
@@ -273,7 +274,8 @@ export const getMemberRecentRaces = async (custId: number): Promise<MemberRecent
         customerId: custId,
       });
       
-      const races = Array.isArray(response) ? response : [];
+      // The API returns an object with a 'races' array, not a direct array
+      const races = response?.races || [];
       console.log(`✅ Fetched ${races.length} recent races for member ${custId}`);
       
       // Map API response to our expected format

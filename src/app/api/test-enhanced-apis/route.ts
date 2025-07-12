@@ -3,15 +3,11 @@ import {
   getMemberSummary,
   getMemberRecentRaces,
   getMemberCareer,
-  getMemberRecap,
   getMemberChartData,
-  getResultsEventLog,
-  getResultsLapChartData,
-  clearStatsCache,
-  clearResultsCache,
-  getStatsCacheStats,
-  getResultsCacheStats
-} from '@/lib/iracing-api-core';
+  getSubsessionResults,
+  clearAllCaches,
+  getComprehensiveCacheStats
+} from '@/lib/iracing-api-modular';
 
 export async function GET(request: Request) {
   try {
@@ -19,18 +15,16 @@ export async function GET(request: Request) {
     const custId = parseInt(searchParams.get('custId') || '539129');
     const clearCache = searchParams.get('clearCache') === 'true';
     
-    console.log('🧪 Testing enhanced Stats and Results APIs...');
+    console.log('🧪 Testing enhanced modular APIs...');
     
     if (clearCache) {
-      clearStatsCache();
-      clearResultsCache();
+      clearAllCaches();
       console.log('🗑️ Cleared all caches');
     }
     
     // Show initial cache stats
-    const initialStatsCache = getStatsCacheStats();
-    const initialResultsCache = getResultsCacheStats();
-    console.log('📊 Initial cache stats:', { stats: initialStatsCache, results: initialResultsCache });
+    const initialCacheStats = getComprehensiveCacheStats();
+    console.log('📊 Initial cache stats:', initialCacheStats);
     
     const startTime = Date.now();
     
@@ -40,38 +34,31 @@ export async function GET(request: Request) {
       memberSummary,
       memberRecentRaces,
       memberCareer,
-      memberRecap,
       iRatingChart,
       safetyRatingChart
     ] = await Promise.all([
       getMemberSummary(custId),
       getMemberRecentRaces(custId),
       getMemberCareer(custId),
-      getMemberRecap(custId),
-      getMemberChartData(custId, 1, 2), // iRating chart for Road
-      getMemberChartData(custId, 3, 2), // Safety Rating chart for Road
+      getMemberChartData(custId, 1, 'irating'), // iRating chart for Road
+      getMemberChartData(custId, 1, 'safety_rating'), // Safety Rating chart for Road
     ]);
     
     const afterStatsTime = Date.now();
     
     // Test enhanced Results APIs with recent race data
     console.log('🏁 Testing Results APIs...');
-    let eventLog = null;
-    let lapChartData = null;
+    let subsessionResults = null;
     
-    if (memberRecentRaces?.races && memberRecentRaces.races.length > 0) {
-      const recentRace = memberRecentRaces.races[0];
-      [eventLog, lapChartData] = await Promise.all([
-        getResultsEventLog(recentRace.subsessionId),
-        getResultsLapChartData(recentRace.subsessionId),
-      ]);
+    if (memberRecentRaces && memberRecentRaces.length > 0) {
+      const recentRace = memberRecentRaces[0];
+      subsessionResults = await getSubsessionResults(recentRace.subsession_id);
     }
     
     const endTime = Date.now();
     
     // Get final cache stats
-    const finalStatsCache = getStatsCacheStats();
-    const finalResultsCache = getResultsCacheStats();
+    const finalCacheStats = getComprehensiveCacheStats();
     
     return NextResponse.json({
       success: true,
@@ -82,30 +69,22 @@ export async function GET(request: Request) {
         totalTime: endTime - startTime,
       },
       cacheStats: {
-        stats: {
-          initial: initialStatsCache,
-          final: finalStatsCache,
-        },
-        results: {
-          initial: initialResultsCache,
-          final: finalResultsCache,
-        },
+        initial: initialCacheStats,
+        final: finalCacheStats,
       },
       data: {
         stats: {
           summary: memberSummary,
-          recentRacesCount: memberRecentRaces?.races?.length || 0,
-          careerStats: memberCareer?.stats?.length || 0,
-          recap: memberRecap ? { year: memberRecap.year, hasData: !!memberRecap.stats } : null,
+          recentRacesCount: memberRecentRaces?.length || 0,
+          careerStats: memberCareer?.length || 0,
           charts: {
-            iRating: iRatingChart?.data?.length || 0,
-            safetyRating: safetyRatingChart?.data?.length || 0,
+            iRating: iRatingChart?.chart_data?.length || 0,
+            safetyRating: safetyRatingChart?.chart_data?.length || 0,
           },
         },
         results: {
-          eventLogEntries: eventLog?.eventLog?.length || 0,
-          lapChartEntries: lapChartData?.lapChartData?.length || 0,
-          recentRaceSubsessionId: memberRecentRaces?.races?.[0]?.subsessionId || null,
+          subsessionResults: subsessionResults ? 'loaded' : 'not available',
+          recentRaceSubsessionId: memberRecentRaces?.[0]?.subsession_id || null,
         },
       },
       analysis: {
@@ -113,16 +92,13 @@ export async function GET(request: Request) {
           memberSummary: !!memberSummary,
           memberRecentRaces: !!memberRecentRaces,
           memberCareer: !!memberCareer,
-          memberRecap: !!memberRecap,
           chartData: !!(iRatingChart && safetyRatingChart),
         },
         resultsAPIsWorking: {
-          eventLog: !!eventLog,
-          lapChartData: !!lapChartData,
+          subsessionResults: !!subsessionResults,
         },
         cacheWorking: {
-          statsEntriesAdded: finalStatsCache.activeEntries - initialStatsCache.activeEntries,
-          resultsEntriesAdded: finalResultsCache.activeEntries - initialResultsCache.activeEntries,
+          overall: 'Cache stats available in response',
         },
       },
       timestamp: new Date().toISOString(),

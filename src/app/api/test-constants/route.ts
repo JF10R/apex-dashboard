@@ -4,7 +4,7 @@ import {
   getCategoryName, 
   getConstantsCacheStats, 
   preWarmConstantsCache 
-} from '@/lib/iracing-api-core';
+} from '@/lib/iracing-api-modular';
 
 export async function GET() {
   try {
