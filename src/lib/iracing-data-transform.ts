@@ -103,20 +103,67 @@ export function calculateFastestLap(laps: Lap[]): string {
 export function getCategoryFromSeriesName(seriesName: string): RaceCategory {
   const name = seriesName.toLowerCase();
   
-  if (name.includes('formula') || name.includes('f1') || name.includes('f2') || name.includes('f3')) {
+  // Formula and Open Wheel cars
+  if (name.includes('formula') || 
+      name.includes('f1') || 
+      name.includes('f2') || 
+      name.includes('f3') ||
+      name.includes('f4') ||
+      name.includes('skip barber') ||
+      name.includes('pro mazda') ||
+      name.includes('usf2000') ||
+      name.includes('indy pro 2000') ||
+      name.includes('indy lights') ||
+      name.includes('super formula') ||
+      name.includes('dallara') ||
+      name.includes('williams fw') ||
+      name.includes('mclaren mp4') ||
+      name.includes('lotus 79') ||
+      name.includes('lotus 49') ||
+      name.includes('ray ff1600') ||
+      name.includes('formula ford') ||
+      name.includes('formula vee') ||
+      name.includes('formula renault') ||
+      name.includes('formula mazda')) {
     return 'Formula Car';
   }
-  if (name.includes('dirt oval') || name.includes('dirt track')) {
+  
+  // Dirt racing
+  if (name.includes('dirt oval') || 
+      name.includes('dirt track') ||
+      name.includes('sprint car') ||
+      name.includes('late model') ||
+      name.includes('modified')) {
     return 'Dirt Oval';
   }
-  if (name.includes('oval') || name.includes('nascar') || name.includes('indycar')) {
+  
+  // Oval racing
+  if (name.includes('oval') || 
+      name.includes('nascar') || 
+      name.includes('indycar') ||
+      name.includes('stock car') ||
+      name.includes('xfinity') ||
+      name.includes('truck') ||
+      name.includes('arca')) {
     return 'Oval';
   }
-  if (name.includes('prototype') || name.includes('lmp') || name.includes('dpi')) {
+  
+  // Prototype racing
+  if (name.includes('prototype') || 
+      name.includes('lmp') || 
+      name.includes('dpi') ||
+      name.includes('gtp') ||
+      name.includes('riley') ||
+      name.includes('oreca') ||
+      name.includes('ligier') ||
+      name.includes('cadillac dpi') ||
+      name.includes('acura arx') ||
+      name.includes('porsche 963') ||
+      name.includes('bmm m hybrid')) {
     return 'Prototype';
   }
   
-  return 'Sports Car'; // Default fallback
+  return 'Sports Car'; // Default fallback for GT cars, touring cars, etc.
 }
 
 /**
