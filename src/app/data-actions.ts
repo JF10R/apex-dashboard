@@ -102,7 +102,7 @@ export async function getDriverPageData(custId: number, forceRefresh: boolean = 
             car: carInfo.car_name,
             avgLapTime: '0:00.000', // Not available in this data
             iratingChange: (race.newiRating || race.new_irating || 0) - (race.oldiRating || race.old_irating || 0),
-            safetyRatingChange: (race.newSubLevel || race.new_safety_rating || 0) - (race.oldSubLevel || race.old_safety_rating || 0),
+            safetyRatingChange: ((race.newSubLevel || race.new_safety_rating || 0) - (race.oldSubLevel || race.old_safety_rating || 0)) * 0.01, // Convert sub-level to decimal
             participants: [], // Not available in this data
             avgRaceIncidents: 0, // Not available in this data
             avgRaceLapTime: '0:00.000' // Not available in this data
