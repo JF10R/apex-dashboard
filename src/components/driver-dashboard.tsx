@@ -341,35 +341,35 @@ export default function DriverDashboard({ custId, driverName }: { custId: number
               <div>
                 <label className='text-sm font-medium'>Year</label>
                 <Select value={year} onValueChange={setYear}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger aria-label="Year filter"><SelectValue /></SelectTrigger>
                   <SelectContent>{allYears.map(y => <SelectItem key={y} value={y}>{y === 'all' ? 'All Years' : y}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
                <div>
                 <label className='text-sm font-medium'>Season</label>
                 <Select value={season} onValueChange={setSeason} disabled={year === 'all'}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger aria-label="Season filter"><SelectValue /></SelectTrigger>
                   <SelectContent>{availableSeasons.map(s => <SelectItem key={s} value={s}>{s === 'all' ? 'All Seasons' : s}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
               <div>
                 <label className='text-sm font-medium'>Category</label>
                 <Select value={category} onValueChange={setCategory}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger aria-label="Category filter"><SelectValue /></SelectTrigger>
                   <SelectContent>{allCategories.map(c => <SelectItem key={c} value={c}>{c === 'all' ? 'All Categories' : c}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
               <div>
                 <label className='text-sm font-medium'>Track</label>
                 <Select value={track} onValueChange={setTrack}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger aria-label="Track filter"><SelectValue /></SelectTrigger>
                   <SelectContent>{availableTracks.map(t => <SelectItem key={t} value={t}>{t === 'all' ? 'All Tracks' : t}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
               <div>
                 <label className='text-sm font-medium'>Car</label>
                 <Select value={car} onValueChange={setCar}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger aria-label="Car filter"><SelectValue /></SelectTrigger>
                   <SelectContent>{availableCars.map(c => <SelectItem key={c} value={c}>{c === 'all' ? 'All Cars' : c}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
@@ -387,7 +387,7 @@ export default function DriverDashboard({ custId, driverName }: { custId: number
           {availableIRatingCategories.length > 0 && (
             <div className="w-48">
               <Select value={iRatingCategory} onValueChange={setIRatingCategory}>
-                <SelectTrigger id="irating-category-select">
+                <SelectTrigger id="irating-category-select" aria-label="Select iRating Category">
                   <SelectValue placeholder="Select iRating Category" />
                 </SelectTrigger>
                 <SelectContent>

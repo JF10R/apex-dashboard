@@ -7,6 +7,8 @@ jest.mock('@/lib/cache', () => ({
     get: jest.fn(),
     set: jest.fn(),
     clear: jest.fn(),
+    getCacheInfo: jest.fn(() => ({ exists: false })),
+    getExpired: jest.fn(),
   },
   cacheKeys: {
     driverSearch: jest.fn((query: string) => `search:${query}`),
@@ -51,10 +53,16 @@ describe('Data Actions with Jeff Noel', () => {
     currentIRating: 2150,
     currentSafetyRating: 'A 3.42',
     avgRacePace: '1:42.123',
-    iratingHistory: [
-      { month: 'Jan', value: 2000 },
-      { month: 'Feb', value: 2150 }
-    ],
+    iratingHistories: {
+      'Road': [
+        { month: 'Jan', value: 2000 },
+        { month: 'Feb', value: 2150 }
+      ],
+      'Oval': [
+        { month: 'Jan', value: 1900 },
+        { month: 'Feb', value: 2050 }
+      ]
+    },
     safetyRatingHistory: [
       { month: 'Jan', value: 3.2 },
       { month: 'Feb', value: 3.42 }
@@ -162,7 +170,8 @@ describe('Data Actions with Jeff Noel', () => {
 
       expect(result).toEqual({
         data: jeffNoelData,
-        error: null
+        error: null,
+        fromCache: false
       })
       expect(mockGetDriverData).toHaveBeenCalledWith(539129)
     })

@@ -2,6 +2,10 @@ import { getDriverData } from './iracing-api-core';
 import IracingAPI from 'iracing-api';
 import { type MemberSummaryResponse, type HistoryPoint } from './iracing-types';
 
+// Mock the environment variables before importing the module
+process.env.IRACING_EMAIL = 'test@example.com';
+process.env.IRACING_PASSWORD = 'password';
+
 // Mock the IracingAPI module
 jest.mock('iracing-api', () => {
   // Create mocks that can be referenced from outside
@@ -64,7 +68,7 @@ describe('getDriverData', () => {
 
     // Default successful login mock (actual call is in initializeAndLogin)
     // This mock will be used by the IracingAPI instance created in iracing-api-core
-    mockLogin.mockResolvedValue({ success: true, authcode: 'someauthcode' }); // Adjust to actual success response
+    mockLogin.mockResolvedValue({ authcode: 'success', verificationRequired: false }); // Successful login
 
     // Default mock implementations for successful data calls
     mockMemberGetMemberData.mockResolvedValue({ members: [{ custId: 123, displayName: 'Test Driver', irating: 3000 }] });
