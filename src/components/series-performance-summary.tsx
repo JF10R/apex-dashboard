@@ -44,6 +44,10 @@ export default function SeriesPerformanceSummary({ seriesStats }: SeriesPerforma
         </CardTitle>
         <CardDescription>
           Performance summary by series for the selected filters.
+          <br />
+          <span className="text-xs text-amber-600 dark:text-amber-400">
+            ⚠️ Note: Data based on recent races available from iRacing API. Historical season data may be incomplete.
+          </span>
         </CardDescription>
       </CardHeader>
       <CardContent>

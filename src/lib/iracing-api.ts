@@ -703,10 +703,13 @@ export const getDriverData = async (custId: number): Promise<Driver | null> => {
     const driverInfo = memberData.members[0]; // This access might need to change
     const driverName = driverInfo.displayName; // This access might need to change
 
+    // Fetch more races for comprehensive season analysis - increase from 20 to 100
+    // This ensures that when users filter by specific seasons, they have access to complete season data
+    const racesToFetch = Math.min((recentRacesRaw?.races || []).length, 100);
     const recentRaces: RecentRace[] = (
       await Promise.all(
         // This access (recentRacesRaw.races) might need to change based on actual structure.
-        (recentRacesRaw?.races || []).slice(0, 20).map(async (raceSummary: RawRecentRaceSummary) => {
+        (recentRacesRaw?.races || []).slice(0, racesToFetch).map(async (raceSummary: RawRecentRaceSummary) => {
           const raceResult = await getRaceResultData(raceSummary.subsessionId);
           if (!raceResult) return null;
 

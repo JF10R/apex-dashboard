@@ -646,7 +646,10 @@ export const getDriverData = async (custId: number): Promise<Driver | null> => {
     const driverInfo = memberData.members[0];
     const driverName = driverInfo.displayName;
 
-    const recentRaces: RecentRace[] = (recentRacesRaw?.races || []).slice(0, 20).map((raceSummary: RawRecentRaceSummary) => {
+    // Fetch more races for comprehensive season analysis - increase from 20 to 100
+    // This ensures that when users filter by specific seasons, they have access to complete season data
+    const racesToFetch = Math.min((recentRacesRaw?.races || []).length, 100);
+    const recentRaces: RecentRace[] = (recentRacesRaw?.races || []).slice(0, racesToFetch).map((raceSummary: RawRecentRaceSummary) => {
       const { year, season } = getSeasonFromDate(new Date(raceSummary.sessionStartTime || new Date()));
       // Determine category based on seriesName or fallback
       let category: RaceCategory = getCategoryFromSeriesName(raceSummary.seriesName || '');
@@ -678,7 +681,27 @@ export const getDriverData = async (custId: number): Promise<Driver | null> => {
         avgLapTime: 'N/A',
       };
     });
+    
+    console.log(`Fetched ${recentRaces.length} races (increased from 20 limit for better season filtering)`);
+    
+    // Log season distribution for debugging
+    const seasonStats = recentRaces.reduce((acc, race) => {
+      const key = `${race.year} ${race.season}`;
+      acc[key] = (acc[key] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+    console.log('Season distribution in fetched races:', seasonStats);
 
+    // Check for incomplete season data and warn users
+    const season2025S2Races = recentRaces.filter(race => race.year === 2025 && race.season === 'Season 2');
+    if (season2025S2Races.length > 0) {
+      console.warn(`⚠️  API LIMITATION: Only ${season2025S2Races.length} Season 2 races available from iRacing API.`);
+      console.warn(`   This may represent a small subset of actual Season 2 participation.`);
+      console.warn(`   iRacing's getMemberRecentRaces API only returns the most recent races,`);
+      console.warn(`   not comprehensive seasonal data. Series performance calculations for`);
+      console.warn(`   Season 2 are based on available data only.`);
+    }
+    
     // Determine which racing categories this driver actually participates in
     const activeCategories = [...new Set(recentRaces.map(race => race.category))];
     console.log('Active racing categories for driver:', activeCategories);

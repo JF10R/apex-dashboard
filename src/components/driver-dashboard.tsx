@@ -375,6 +375,25 @@ export default function DriverDashboard({ custId, driverName }: { custId: number
               </div>
           </CardContent>
         </Card>
+        
+        {/* Data limitation warning when season filters are active */}
+        {season !== 'all' && (
+          <Card className="mb-4 border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30">
+            <CardContent className="p-4">
+              <div className="flex items-start gap-3">
+                <div className="text-amber-600 dark:text-amber-400 mt-0.5">⚠️</div>
+                <div className="text-sm">
+                  <p className="font-medium text-amber-800 dark:text-amber-200 mb-1">Limited Historical Data</p>
+                  <p className="text-amber-700 dark:text-amber-300">
+                    iRacing's API only provides recent race data. Series performance and statistics for 
+                    <span className="font-medium"> {season}</span> may represent a subset of your actual participation in that season.
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+        
         <div className="grid gap-4 md:grid-cols-2">
           <StatCard title="iRating" value={filteredStats.iRating} icon={TrendingUp} description={areFiltersActive ? "Based on latest filtered race" : "Driver skill rating"} />
           <StatCard title="Safety Rating" value={driver.currentSafetyRating} icon={ShieldCheck} description={areFiltersActive ? "Overall safety rating" : "On-track cleanliness"} />
