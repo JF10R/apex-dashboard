@@ -92,22 +92,22 @@ export async function getDriverPageData(custId: number, forceRefresh: boolean = 
         racePaceHistory: [],
         recentRaces: recentRaces.map((race: any) => ({
           id: race.subsession_id?.toString() || '0',
-          trackName: race.track_name || 'Unknown Track',
-          date: race.start_time || new Date().toISOString(),
-          year: new Date(race.start_time || new Date()).getFullYear(),
-          season: `Season ${new Date().getFullYear()}`,
-          category: 'Sports Car' as RaceCategory,
-          seriesName: race.series_name || 'Unknown Series',
-          startPosition: race.starting_position || 0,
-          finishPosition: race.finish_position || 0,
+          trackName: race.track?.trackName || race.track_name || 'Unknown Track',
+          date: race.sessionStartTime || race.start_time || new Date().toISOString(),
+          year: new Date(race.sessionStartTime || race.start_time || new Date()).getFullYear(),
+          season: `${race.seasonYear || new Date().getFullYear()} Q${race.seasonQuarter || Math.ceil((new Date().getMonth() + 1) / 3)}`,
+          category: getCategoryFromSeriesName(race.seriesName || race.series_name || 'Unknown Series'),
+          seriesName: race.seriesName || race.series_name || 'Unknown Series',
+          startPosition: race.startPosition || race.starting_position || 0,
+          finishPosition: race.finishPosition || race.finish_position || 0,
           incidents: race.incidents || 0,
-          strengthOfField: race.strength_of_field || 0,
-          lapsLed: 0, // Not available in this data
+          strengthOfField: race.strengthOfField || race.strength_of_field || 0,
+          lapsLed: race.lapsLed || 0,
           fastestLap: '0:00.000', // Not available in this data
-          car: race.car_name || 'Unknown Car',
+          car: getCarNameFromSeriesName(race.seriesName || race.series_name || 'Unknown Car'),
           avgLapTime: '0:00.000', // Not available in this data
-          iratingChange: (race.new_irating || 0) - (race.old_irating || 0),
-          safetyRatingChange: (race.new_safety_rating || 0) - (race.old_safety_rating || 0),
+          iratingChange: (race.newiRating || race.new_irating || 0) - (race.oldiRating || race.old_irating || 0),
+          safetyRatingChange: (race.newSubLevel || race.new_safety_rating || 0) - (race.oldSubLevel || race.old_safety_rating || 0),
           participants: [], // Not available in this data
           avgRaceIncidents: 0, // Not available in this data
           avgRaceLapTime: '0:00.000' // Not available in this data
@@ -198,4 +198,59 @@ export async function getRaceResultAction(subsessionId: number): Promise<{ data:
     const error = e instanceof Error ? e.message : 'An unknown error occurred.'
     return { data: null, error: `Failed to fetch race result: ${error}` }
   }
+}
+
+// Helper functions for data transformation
+function getCategoryFromSeriesName(seriesName: string): RaceCategory {
+  const name = seriesName.toLowerCase();
+  
+  // Sports Car categories
+  if (name.includes('ferrari') || name.includes('gt3') || name.includes('imsa') || 
+      name.includes('endurance') || name.includes('sports car') || 
+      name.includes('multiclass')) {
+    return 'Sports Car';
+  }
+  
+  // Prototype categories
+  if (name.includes('prototype')) {
+    return 'Prototype';
+  }
+  
+  // Oval categories
+  if (name.includes('nascar') || name.includes('xfinity') || name.includes('truck') ||
+      name.includes('legends') || name.includes('late model') || name.includes('modified')) {
+    return 'Oval';
+  }
+  
+  // Formula Car categories
+  if (name.includes('formula') || name.includes('f1') || name.includes('f2') ||
+      name.includes('f3') || name.includes('indycar') || name.includes('skip barber') ||
+      name.includes('pro mazda') || name.includes('indy pro')) {
+    return 'Formula Car';
+  }
+  
+  // Dirt Oval categories
+  if (name.includes('dirt')) {
+    return 'Dirt Oval';
+  }
+  
+  // Default fallback to Sports Car for mixed or unclear cases
+  return 'Sports Car';
+}
+
+function getCarNameFromSeriesName(seriesName: string): string {
+  const name = seriesName.toLowerCase();
+  
+  // Extract car name from series name patterns
+  if (name.includes('ferrari 296 challenge')) return 'Ferrari 296 Challenge';
+  if (name.includes('ferrari 296 gt3')) return 'Ferrari 296 GT3';
+  if (name.includes('legends')) return 'Legends Ford \'34 Coupe';
+  if (name.includes('nascar')) return 'NASCAR';
+  if (name.includes('gt3')) return 'GT3';
+  if (name.includes('formula')) return 'Formula Car';
+  if (name.includes('indycar')) return 'IndyCar';
+  if (name.includes('prototype')) return 'Prototype';
+  
+  // If we can't extract a specific car name, use the series name
+  return seriesName;
 }
