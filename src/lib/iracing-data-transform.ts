@@ -128,23 +128,68 @@ export function getCategoryFromSeriesName(seriesName: string): RaceCategory {
     return 'Formula Car';
   }
   
-  // Dirt racing
+  // Dirt racing - be more comprehensive
   if (name.includes('dirt oval') || 
       name.includes('dirt track') ||
       name.includes('sprint car') ||
       name.includes('late model') ||
-      name.includes('modified')) {
+      name.includes('modified') ||
+      name.includes('world of outlaws') ||
+      name.includes('woo') ||
+      name.includes('lucas oil') ||
+      name.includes('super late model') ||
+      name.includes('pro late model') ||
+      name.includes('street stock') ||
+      name.includes('micro sprint') ||
+      name.includes('midget') ||
+      name.includes('winged sprint') ||
+      name.includes('non-wing') ||
+      name.includes('nonwing') ||
+      name.includes('410 sprint') ||
+      name.includes('360 sprint') ||
+      name.includes('305 sprint') ||
+      name.includes('big block') ||
+      name.includes('small block') ||
+      name.includes('super dirt') ||
+      name.includes('dirt series') ||
+      name.includes('dirt track')) {
     return 'Dirt Oval';
   }
   
-  // Oval racing
+  // Oval racing - be more comprehensive
   if (name.includes('oval') || 
       name.includes('nascar') || 
       name.includes('indycar') ||
       name.includes('stock car') ||
       name.includes('xfinity') ||
       name.includes('truck') ||
-      name.includes('arca')) {
+      name.includes('arca') ||
+      (name.includes('cup') && (name.includes('nascar') || name.includes('winston') || name.includes('sprint') || name.includes('monster') || name.includes('nextel'))) ||
+      name.includes('camping world') ||
+      name.includes('gander') ||
+      name.includes('nationwide') ||
+      name.includes('busch series') ||
+      name.includes('craftsman truck') ||
+      name.includes('winston cup') ||
+      name.includes('nextel cup') ||
+      name.includes('sprint cup') ||
+      name.includes('monster energy') ||
+      name.includes('toyota camry') ||
+      name.includes('chevrolet camaro') ||
+      name.includes('ford mustang') ||
+      name.includes('gen 6') ||
+      name.includes('gen6') ||
+      name.includes('next gen') ||
+      name.includes('nextgen') ||
+      name.includes('superspeedway') ||
+      name.includes('short track') ||
+      name.includes('intermediate') ||
+      name.includes('restrictor plate') ||
+      name.includes('talladega') ||
+      name.includes('daytona') ||
+      name.includes('indianapolis 500') ||
+      name.includes('indy 500') ||
+      name.includes('brickyard')) {
     return 'Oval';
   }
   
