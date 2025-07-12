@@ -32,232 +32,6 @@ globalThis.fetch = (url, options) => {
 };
 // END FETCH PATCH
 
-// ⚠️ LEGACY Car ID Mapping - iRacing API now provides car names directly
-// This mapping is maintained only as emergency fallback for rare edge cases.
-// Always prefer using API-provided carName/carClassName fields over this lookup.
-const CAR_NAMES: Record<number, string> = {
-  // Legacy Cars
-  1: 'Skip Barber RT2000',
-  2: 'Mazda MX-5 Cup',
-  4: 'Dallara DW12',
-  5: 'Legends Ford 34 Coupe',
-  6: 'Stock Car',
-  15: 'Formula Vee',
-  18: 'Lotus 79',
-  19: 'Radical SR8',
-  20: 'Corvette C6.R GT1',
-  21: 'BMW Z4 GT3',
-  30: 'Dallara IndyCar',
-  41: 'Porsche 911 GT3 Cup',
-  42: 'McLaren MP4-12C GT3',
-  45: 'Ferrari 458 Italia GT3',
-  58: 'Audi R8 LMS GT3',
-  71: 'Formula Renault 2.0',
-  72: 'Pro Mazda',
-  73: 'Indy Lights',
-  79: 'McLaren F1',
-  82: 'Toyota Camry',
-  91: 'Global Mazda MX-5 Cup',
-  93: 'Cadillac CTS-V Racecar',
-  96: 'Mercedes AMG GT3',
-  98: 'BMW M8 GTE',
-  101: 'Ferrari 488 GT3',
-  107: 'Audi R18',
-  122: 'McLaren 720S GT3',
-  140: 'Formula 3.5',
-  154: 'Porsche 911 RSR',
-  165: 'Super Formula Lights',
-  184: 'Lamborghini Huracán GT3 EVO',
-  191: 'W12',
-  203: 'Ferrari 296 Challenge',
-  
-  // Additional Formula Cars
-  16: 'Pro Mazda PM-18',
-  75: 'Skip Barber Formula 2000',
-  76: 'Williams FW31',
-  77: 'McLaren MP4-30',
-  78: 'Dallara F3',
-  86: 'Formula Renault 3.5',
-  139: 'Dallara IR18',
-  164: 'Dallara iR-01',
-  166: 'Formula Ford 1600',
-  167: 'Lotus 49',
-  168: 'McLaren MP4-12',
-  169: 'Formula Mazda',
-  170: 'Dallara F317',
-  171: 'Dallara IR-05',
-  172: 'Ray FF1600',
-  
-  // More GT Cars
-  22: 'Ford GT',
-  23: 'Ford Mustang FR500S',
-  24: 'Chevrolet Corvette C6 Z06',
-  25: 'Chevrolet Camaro',
-  26: 'Pontiac Solstice',
-  27: 'Jetta TDI Cup',
-  28: 'Mazda MX-5 Roadster',
-  29: 'Kia Optima',
-  31: 'Chevrolet Impala COT',
-  32: 'Ford Fusion COT',
-  33: 'Toyota Camry COT',
-  34: 'Dodge Charger COT',
-  35: 'Riley DP',
-  36: 'Ford GT GT1',
-  37: 'Chevrolet Corvette C6.R',
-  38: 'Aston Martin DBR9',
-  39: 'Ferrari F430 GT2',
-  40: 'Porsche 911 GT3 RSR',
-  
-  // Sports Cars and Prototypes
-  43: 'BMW M3 GT2',
-  44: 'Ford GT GT2',
-  46: 'McLaren MP4-12C GT3',
-  47: 'RUF RT 12R',
-  48: 'Radical SR8',
-  49: 'Star Mazda',
-  50: 'Chevrolet Corvette C7 Daytona Prototype',
-  51: 'HPD ARX-01c',
-  52: 'Riley MkXX Daytona Prototype',
-  53: 'Ford EcoBoost Riley DP',
-  54: 'Chevrolet Corvette DP',
-  55: 'Cadillac CTS-V.R',
-  56: 'BMW Z4 GT3',
-  57: 'McLaren MP4-12C',
-  59: 'Audi R8 LMS',
-  60: 'Mercedes AMG GT3',
-  
-  // Oval Cars  
-  61: 'Chevrolet SS-Gen6',
-  62: 'Ford Fusion-Gen6',
-  63: 'Toyota Camry-Gen6',
-  64: 'Chevrolet Silverado',
-  65: 'Ford F-150',
-  66: 'Toyota Tundra',
-  67: 'Sprint Car',
-  68: 'Silver Crown',
-  69: 'Midget',
-  70: 'Street Stock',
-  
-  // Modern Formula Cars
-  80: 'Dallara F3.5',
-  81: 'Williams FW31',
-  83: 'McLaren MP4-30',
-  84: 'Dallara F3',
-  85: 'Williams FW31',
-  87: 'Pro Mazda',
-  88: 'USF2000',
-  89: 'Indy Pro 2000',
-  90: 'Dallara DW12',
-  
-  // Recent Additions
-  92: 'Mazda MX-5 Cup',
-  94: 'BMW M4 GT4',
-  95: 'Porsche 718 Cayman GT4',
-  97: 'Acura NSX GT3',
-  99: 'Ferrari 488 GTE',
-  100: 'Ford GT GTE',
-  102: 'Porsche 911 RSR GTE',
-  103: 'BMW M8 GTE',
-  104: 'Chevrolet Corvette C8.R',
-  105: 'Audi R8 LMS EVO',
-  106: 'Lamborghini Huracán GT3 EVO',
-  108: 'Oreca 07 LMP2',
-  109: 'Ligier JS P320',
-  110: 'Dallara P217 LMP2',
-  
-  // Additional recent cars
-  111: 'BMW M4 GT3',
-  112: 'Porsche 911 GT3 R',
-  113: 'Mercedes-AMG GT3 2020',
-  114: 'Audi R8 LMS GT3 evo II',
-  115: 'McLaren 720S GT3 2019',
-  116: 'Lexus RC F GT3',
-  117: 'Acura NSX GT3 Evo22',
-  118: 'Ferrari 296 GT3',
-  119: 'Lamborghini Huracán GT3 EVO2',
-  120: 'Bentley Continental GT3 2018',
-  121: 'Aston Martin Vantage GT3',
-  123: 'Ford Mustang GT3',
-  124: 'Cadillac V-Series.R GTP',
-  125: 'Porsche 963 GTP',
-  126: 'BMW M Hybrid V8',
-  127: 'Acura ARX-06 GTP',
-  
-  // Formula and Open Wheel
-  128: 'Dallara iR-01',
-  129: 'Super Formula Lights',
-  130: 'Formula Vee',
-  131: 'Skip Barber Formula 2000',
-  132: 'Pro Mazda PM-18',
-  133: 'Indy Pro 2000',
-  134: 'USF2000',
-  135: 'Formula Renault 2.0',
-  136: 'Formula Renault 3.5',
-  137: 'Dallara F3',
-  138: 'Formula Ford 1600',
-  141: 'Lotus 79',
-  142: 'Lotus 49',
-  143: 'Williams FW31',
-  144: 'McLaren MP4-30',
-  145: 'Mercedes W12',
-  146: 'Red Bull RB19',
-  147: 'Ferrari SF-23',
-  148: 'McLaren MCL60',
-  149: 'Alpine A523',
-  150: 'Aston Martin AMR23',
-  
-  // Dirt Cars
-  151: 'Sprint Car 410',
-  152: 'Late Model',
-  153: 'Modified',
-  155: 'Micro Sprint',
-  156: 'Winged Sprint Car',
-  157: 'Non-Winged Sprint Car',
-  158: 'Super Late Model',
-  159: 'Pro Late Model',
-  160: 'Street Stock',
-  161: 'Dirt Modified',
-  162: 'Dirt Late Model',
-  163: 'Dirt Sprint Car',
-  
-  // More recent additions
-  173: 'Toyota GR86',
-  174: 'Hyundai Elantra N TC',
-  175: 'Honda Civic Type R TCR',
-  176: 'Audi RS 3 LMS',
-  177: 'CUPRA León Competición',
-  178: 'Hyundai Veloster N TCR',
-  179: 'Volkswagen Jetta TDI',
-  180: 'Subaru WRX STI',
-  181: 'Mitsubishi Lancer Evolution',
-  182: 'Ford Focus RS',
-  183: 'Renault Clio Cup',
-  185: 'Porsche 992 Cup',
-  186: 'Ferrari 488 Challenge Evo',
-  187: 'Lamborghini Super Trofeo EVO',
-  188: 'McLaren 570S GT4',
-  189: 'Aston Martin Vantage GT4',
-  190: 'Ginetta G55 GT4',
-  192: 'Chevrolet Camaro ZL1',
-  193: 'Ford Mustang Dark Horse',
-  194: 'Dodge Challenger',
-  195: 'Nissan Z',
-  196: 'Toyota Supra',
-  197: 'BMW M2',
-  198: 'Audi TT Cup',
-  199: 'Mazda Global MX-5 Cup',
-  200: 'Spec Racer Ford',
-  201: 'Formula Ford',
-  202: 'Radical SR10',
-  204: 'Porsche 911 GT2 RS CS',
-  205: 'BMW M4 Competition',
-};
-
-// Legacy fallback function - API provides car names directly now
-function getCarName(carId: number): string {
-  console.warn('🔧 Using legacy car name lookup - API should provide carName directly');
-  return CAR_NAMES[carId] || `Car ${carId}`;
-}
 export enum ApiErrorType {
   CAPTCHA_REQUIRED = 'CAPTCHA_REQUIRED',
   INVALID_CREDENTIALS = 'INVALID_CREDENTIALS',
@@ -543,7 +317,10 @@ interface RawRecentRaceSummary {
   seriesId: number;
   seriesName: string;
   carId: number;
+  car: string; // iRacing API provides car name directly in 'car' field!
+  carName?: string; // Alternative field name (fallback)
   carClassId: number;
+  carClassName: string; // iRacing API also provides car class name!
   sessionStartTime: string;
   startPosition: number;
   finishPosition: number;
@@ -843,20 +620,18 @@ export const getDriverData = async (custId: number): Promise<Driver | null> => {
     const driverInfo = memberData.members[0];
     const driverName = driverInfo.displayName;
 
-    // Log first race summary to check if API provides car name directly
+    // Log first race summary to verify API provides car name directly  
     if ((recentRacesRaw?.races || []).length > 0) {
       const firstRace = (recentRacesRaw?.races || [])[0];
-      console.log('Sample race data to check car info:', JSON.stringify({
+      console.log('✅ API car name fields available:', JSON.stringify({
         carId: firstRace.carId,
-        carName: firstRace.carName,
+        car: firstRace.car, // Primary field used for car names
+        carName: firstRace.carName, // Alternative field name
         carClassId: firstRace.carClassId,
         carClassName: firstRace.carClassName,
         // Show all car-related fields
         carFields: Object.keys(firstRace).filter(key => key.toLowerCase().includes('car'))
       }, null, 2));
-      
-      // ✅ TODO: Once we confirm API provides carName directly, replace getCarName(raceSummary.carId) 
-      // with raceSummary.carName || raceSummary.carClassName || getCarName(raceSummary.carId)
     }
 
     // Fetch more races for comprehensive season analysis - increase from 20 to 100
@@ -873,7 +648,7 @@ export const getDriverData = async (custId: number): Promise<Driver | null> => {
         trackName: raceSummary.track?.trackName || 'Unknown Track',
         seriesName: raceSummary.seriesName || 'Unknown Series',
         date: raceSummary.sessionStartTime || new Date().toISOString(),
-        car: getCarName(raceSummary.carId),
+        car: raceSummary.car || raceSummary.carName || raceSummary.carClassName || `Car ${raceSummary.carId}`,
         category,
         year, // from getSeasonFromDate
         season, // from getSeasonFromDate
