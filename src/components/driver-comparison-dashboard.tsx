@@ -1,11 +1,9 @@
 'use client';
 
-import { useState, useTransition, useMemo, useEffect } from 'react';
-import { Bot, Loader2, Users } from 'lucide-react';
+import { useState, useMemo, useEffect } from 'react';
+import { Users } from 'lucide-react';
 import { type Driver, type RecentRace, type SearchedDriver } from '@/lib/mock-data';
-import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { getComparisonAnalysis } from '@/app/actions';
 import { Skeleton } from './ui/skeleton';
 import { ComparisonHistoryChart } from './comparison-history-chart';
 import CommonRacesTable from './common-races-table';
@@ -47,9 +45,6 @@ export default function DriverComparisonDashboard({ driverA: driverAInfo, driver
   const [driverAData, setDriverAData] = useState<Driver | null>(null);
   const [driverBData, setDriverBData] = useState<Driver | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-
-  const [isPending, startTransition] = useTransition();
-  const [analysis, setAnalysis] = useState<{ summary: string | null; error: string | null } | null>(null);
   
   useEffect(() => {
     if (!driverAInfo || !driverBInfo) return;
@@ -79,15 +74,6 @@ export default function DriverComparisonDashboard({ driverA: driverAInfo, driver
     }
     fetchData();
   }, [driverAInfo, driverBInfo, toast]);
-
-
-  const handleAnalysis = () => {
-    if (!driverAData || !driverBData) return;
-    startTransition(async () => {
-      const result = await getComparisonAnalysis(driverAData, driverBData);
-      setAnalysis(result);
-    });
-  };
 
   const commonRaces = useMemo(() => {
     if (!driverAData || !driverBData) return [];
@@ -189,43 +175,6 @@ export default function DriverComparisonDashboard({ driverA: driverAInfo, driver
                 yAxisFormatter={(value) => value.toFixed(2)}
             />
         </div>
-      </section>
-
-      <section>
-        <h2 className="text-2xl font-headline font-bold tracking-tight mb-4">AI Head-to-Head</h2>
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 font-headline"><Bot className="w-5 h-5" /> AI-Powered Comparison</CardTitle>
-            <CardDescription>
-              Get an AI-generated comparison of these drivers, including an analysis of any races they've competed in together.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="min-h-[6rem] p-4 rounded-lg bg-background/50 flex items-center justify-center">
-              {analysis?.summary && !isPending && (
-                <p className="text-sm text-muted-foreground whitespace-pre-wrap">{analysis.summary}</p>
-              )}
-              {analysis?.error && !isPending && (
-                  <p className="text-destructive">{analysis.error}</p>
-              )}
-              {isPending && (
-                  <div className="space-y-2 w-full">
-                      <Skeleton className="h-4 w-full" />
-                      <Skeleton className="h-4 w-full" />
-                      <Skeleton className="h-4 w-3/4" />
-                  </div>
-              )}
-              {!analysis && !isPending && (
-                  <p className="text-sm text-muted-foreground">Click the button to generate a head-to-head analysis.</p>
-              )}
-            </div>
-
-            <Button onClick={handleAnalysis} disabled={isPending || !driverAData || !driverBData} className="mt-4">
-              {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {isPending ? 'Analyzing...' : 'Analyze Head-to-Head'}
-            </Button>
-          </CardContent>
-        </Card>
       </section>
     </div>
   );

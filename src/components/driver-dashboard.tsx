@@ -1,13 +1,11 @@
 'use client';
 
-import { useState, useTransition, useMemo, useEffect, useCallback } from 'react';
-import { MessageSquare, Loader2, ShieldCheck, TrendingUp } from 'lucide-react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
+import { ShieldCheck, TrendingUp } from 'lucide-react';
 import { type Driver, type HistoryPoint } from '@/lib/mock-data';
 import { StatCard } from './stat-card';
 import { HistoryChart } from './history-chart';
-import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { getAnalysis } from '@/app/actions';
 import { Skeleton } from './ui/skeleton';
 import { RecentRaces } from './recent-races';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
@@ -56,9 +54,6 @@ export default function DriverDashboard({ custId, driverName }: { custId: number
   const { toast } = useToast();
   const [driver, setDriver] = useState<Driver | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-
-  const [isPending, startTransition] = useTransition();
-  const [analysis, setAnalysis] = useState<{ summary: string | null; error: string | null } | null>(null);
 
   const [iRatingCategory, setIRatingCategory] = useState(''); // Will be set to most raced category
   const [category, setCategory] = useState('all');
@@ -123,14 +118,6 @@ export default function DriverDashboard({ custId, driverName }: { custId: number
     fetchData();
   }, [custId, toast]);
 
-
-  const handleAnalysis = () => {
-    if (!driver) return;
-    startTransition(async () => {
-      const result = await getAnalysis(driver);
-      setAnalysis(result);
-    });
-  };
 
   const formatRacePace = useCallback((seconds: number) => {
     if (isNaN(seconds) || seconds === Infinity) return 'N/A';
@@ -467,43 +454,6 @@ export default function DriverDashboard({ custId, driverName }: { custId: number
       
       <section>
         <SeriesPerformanceSummary seriesStats={seriesPerformanceStats} />
-      </section>
-
-      <section>
-        <h2 className="text-2xl font-headline font-bold tracking-tight mb-4">AI Analysis</h2>
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 font-headline">AI-Powered Analysis</CardTitle>
-            <CardDescription>
-              Get an AI-generated summary of this driver's strengths and weaknesses based on their historical data and recent races.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="min-h-[6rem] p-4 rounded-lg bg-background/50 flex items-center justify-center">
-              {analysis?.summary && !isPending && (
-                <p className="text-sm text-muted-foreground whitespace-pre-wrap">{analysis.summary}</p>
-              )}
-              {analysis?.error && !isPending && (
-                  <p className="text-destructive">{analysis.error}</p>
-              )}
-              {isPending && (
-                  <div className="space-y-2 w-full">
-                      <Skeleton className="h-4 w-full" />
-                      <Skeleton className="h-4 w-full" />
-                      <Skeleton className="h-4 w-3/4" />
-                  </div>
-              )}
-              {!analysis && !isPending && (
-                  <p className="text-sm text-muted-foreground">Click the button to generate an analysis.</p>
-              )}
-            </div>
-
-            <Button onClick={handleAnalysis} disabled={isPending || !driver} className="mt-4">
-              {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {isPending ? 'Analyzing...' : 'Analyze with AI'}
-            </Button>
-          </CardContent>
-        </Card>
       </section>
     </div>
   );

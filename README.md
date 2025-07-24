@@ -8,7 +8,7 @@ Apex Stats is a modern, data-driven web application that provides comprehensive 
 - **Comprehensive Driver Dashboard**: Complete overview of iRacing career statistics including iRating, Safety Rating, and race pace trends
 - **Historical Charts**: Interactive visualizations showing performance progression over time
 - **Advanced Filtering**: Filter data by year, season, car category, tracks, and specific vehicles
-- **AI-Powered Insights**: GenKit-powered analysis providing qualitative performance summaries
+- **Performance Insights**: Detailed statistical analysis and performance summaries
 
 ### 🏁 Race Analysis
 - **Detailed Race Results**: Complete race breakdowns with all participant data
@@ -35,7 +35,6 @@ Apex Stats is a modern, data-driven web application that provides comprehensive 
 - **Framework**: Next.js 15 with App Router
 - **Language**: TypeScript with comprehensive type safety
 - **Styling**: Tailwind CSS with shadcn/ui components
-- **AI**: Google AI & Genkit for intelligent analysis
 - **Data**: Official iRacing API integration with `iracing-api` package
 - **Validation**: Zod schemas for runtime type checking
 - **State Management**: React hooks with optimized caching
@@ -66,9 +65,6 @@ Apex Stats is a modern, data-driven web application that provides comprehensive 
    # iRacing API Credentials
    IRACING_EMAIL=your_iracing_email@example.com
    IRACING_PASSWORD=your_iracing_password
-   
-   # Optional: AI Configuration (for enhanced features)
-   GOOGLE_GENAI_API_KEY=your_google_ai_key
    ```
 
 4. **Start the development server:**
@@ -126,7 +122,7 @@ src/
 │   ├── iracing-api-core.ts # Core API implementation
 │   └── iracing-data-transform.ts # Data transformation utilities
 ├── hooks/                 # Custom React hooks
-└── ai/                    # AI integration and flows
+└── components/            # UI components and charts
 ```
 
 ## 🔧 Development
@@ -167,13 +163,6 @@ src/
 - [ ] **Export Features**: PDF reports, CSV data export, and sharing capabilities
 - [ ] **Mobile App**: Native mobile application for iOS and Android
 
-### 🤖 **AI & Machine Learning**
-- [ ] **Predictive Analytics**: Race outcome predictions based on historical data
-- [ ] **Performance Recommendations**: Setup and strategy suggestions
-- [ ] **Incident Analysis**: AI-powered incident cause analysis and prevention tips
-- [ ] **Racecraft Insights**: Overtaking success rates and defensive driving analysis
-- [ ] **Training Recommendations**: Personalized practice suggestions based on weaknesses
-
 ### 🔄 **API & Data Integration**
 - [ ] **Historical Data Import**: Import and analyze years of historical race data
 - [ ] **External Tool Integration**: Connect with popular sim racing tools and telemetry software
@@ -196,7 +185,7 @@ src/
 
 ---
 
-**Note**: This TODO list represents planned future enhancements. The current application provides a solid foundation with core driver analysis, race data visualization, and AI-powered insights. Features are prioritized based on user feedback and iRacing API capabilities.
+**Note**: This TODO list represents planned future enhancements. The current application provides a solid foundation with core driver analysis, race data visualization, and comprehensive performance insights. Features are prioritized based on user feedback and iRacing API capabilities.
 
 ---
 
