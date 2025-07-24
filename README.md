@@ -12,7 +12,8 @@ Apex Stats is a modern, data-driven web application that provides comprehensive 
 
 ### 🏁 Race Analysis
 - **Detailed Race Results**: Complete race breakdowns with all participant data
-- **Lap-by-Lap Analysis**: Individual lap times and performance metrics
+- **Progressive Loading**: Real-time streaming of race data with live progress indicators
+- **Lap-by-Lap Analysis**: Individual lap times and performance metrics with intelligent caching
 - **Enhanced Statistics**: Average lap times, incident analysis, and strength of field calculations
 - **Navigation Integration**: Seamless navigation between driver profiles and race results
 
@@ -24,6 +25,8 @@ Apex Stats is a modern, data-driven web application that provides comprehensive 
 ### 🎨 User Experience
 - **Modern UI**: Clean, responsive design optimized for data visualization
 - **Dark/Light Mode**: Theme toggle for comfortable viewing
+- **Progressive Loading**: Streaming data updates with real-time progress indicators
+- **Intelligent Caching**: Multi-level performance optimization (race results + individual lap data)
 - **Real-time Data**: Live integration with iRacing API for up-to-date information
 - **Mobile Responsive**: Optimized experience across all device sizes
 
@@ -98,9 +101,10 @@ This application uses the official iRacing API through the `iracing-api` TypeScr
 - **Data Transformation**: Utilities for converting API data to application formats
 
 ### Performance
-- **Intelligent Caching**: Multi-level caching for optimal performance
-- **Background Processing**: Non-blocking data fetching
-- **Efficient Updates**: Minimal API calls with smart data aggregation
+- **Multi-Level Caching**: Race results cached for 1 hour, individual lap data cached separately
+- **Progressive Loading**: Real-time streaming of race data with Server-Sent Events
+- **Background Processing**: Non-blocking data fetching with live progress updates
+- **Efficient Updates**: Minimal API calls with smart data aggregation and cache management
 
 ### Code Quality
 - **TypeScript**: Full type coverage with strict mode
@@ -136,6 +140,8 @@ src/
 ### Key Features for Developers
 - **Hot Reload**: Instant updates during development
 - **Type Checking**: Comprehensive TypeScript validation
+- **Progressive Loading**: Streaming APIs with Server-Sent Events for real-time updates
+- **Caching System**: Multi-level caching with TTL management and cache statistics
 - **API Documentation**: Detailed interface documentation in `/IRACING_API_INTERFACES.md`
 
 ## 🤝 Contributing
