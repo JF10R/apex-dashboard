@@ -1,5 +1,6 @@
 'use client';
 
+import React from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams, useParams } from 'next/navigation';
 import { ArrowLeft, Award, ShieldAlert, Timer, Users } from 'lucide-react';
@@ -8,75 +9,48 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import RaceResultsTable from '@/components/race-results-table';
 import { ThemeToggle } from '@/components/theme-toggle';
-import { getRaceResultAction } from '@/app/data-actions';
+import { LoadingProgress } from '@/components/loading-progress';
 import { type RaceParticipant, type RecentRace } from '@/lib/iracing-types';
-import { useState, useEffect, useMemo } from 'react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-
-import { lapTimeToMs, getOverallFastestLap } from '@/lib/iracing-data-transform'
+import { useProgressiveRaceLoading } from '@/hooks/use-progressive-race-loading';
+import { getOverallFastestLap } from '@/lib/iracing-data-transform';
 
 export default function RaceDetailsPage() {
   const router = useRouter();
   const params = useParams();
   const searchParams = useSearchParams();
-  const [race, setRace] = useState<RecentRace | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const raceId = params?.raceId as string;
+  const subsessionId = searchParams?.get('subsessionId') || raceId;
 
-  const raceId = params.raceId as string;
-  const fromDriver = searchParams.get('from');
+  const {
+    initialData,
+    enhancedData,
+    loading,
+    error,
+    progress
+  } = useProgressiveRaceLoading(subsessionId);
 
-  // Create a mapping of driver names to customer IDs for easy navigation
-  // This hook must be called before any conditional returns
-  const driverNameToCustomerId = useMemo(() => {
-    if (!race?.participants) return {};
-    
-    const mapping: Record<string, string> = {};
-    race.participants.forEach(participant => {
-      if (participant.name && participant.custId) {
-        mapping[participant.name] = participant.custId.toString();
-      }
-    });
-    return mapping;
+  // Use enhanced data if available, otherwise fall back to initial data
+  const race = enhancedData || initialData;
+
+  const trackName = React.useMemo(() => {
+    return race?.trackName || '';
+  }, [race?.trackName]);
+
+  const safeLaps = React.useMemo(() => {
+    return race?.participants?.map((participant: RaceParticipant) => 
+      participant.laps || []
+    ).flat() || [];
   }, [race?.participants]);
 
-  useEffect(() => {
-    const fetchRace = async () => {
-      try {
-        const subsessionId = parseInt(raceId, 10);
-        if (isNaN(subsessionId)) {
-          setError('Invalid race ID');
-          return;
-        }
-
-        const { data, error } = await getRaceResultAction(subsessionId);
-        if (error || !data) {
-          setError(error || 'Race not found');
-          return;
-        }
-
-        setRace(data);
-      } catch (err) {
-        setError('Failed to load race data');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchRace();
-  }, [raceId]);
-
-  // Update document title when race data is loaded
-  useEffect(() => {
-    if (race) {
-      document.title = `${race.trackName} - ${race.seriesName} - Apex Stats`;
-    } else {
-      document.title = `Race ${raceId} - Apex Stats`;
-    }
-  }, [race, raceId]);
+  const fastestLap = React.useMemo(() => {
+    if (!race?.participants) return null;
+    return getOverallFastestLap(race.participants);
+  }, [race?.participants]);
 
   const handleBack = () => {
+    const fromDriver = searchParams?.get('from');
     if (fromDriver) {
       router.push(`/${fromDriver}`);
     } else {
@@ -84,23 +58,7 @@ export default function RaceDetailsPage() {
     }
   };
 
-  if (loading) {
-    return (
-      <main className="container mx-auto p-4 md:p-8 relative">
-        <div className="absolute top-4 right-4">
-          <ThemeToggle />
-        </div>
-        <Card className="max-w-md mx-auto">
-          <CardHeader>
-            <CardTitle>Loading Race Data...</CardTitle>
-            <CardDescription>Please wait while we fetch the race information.</CardDescription>
-          </CardHeader>
-        </Card>
-      </main>
-    );
-  }
-
-  if (error || !race) {
+  if (!subsessionId) {
     return (
       <main className="container mx-auto p-4 md:p-8 relative">
         <div className="absolute top-4 right-4">
@@ -112,8 +70,9 @@ export default function RaceDetailsPage() {
             Back
           </Button>
           <Alert>
+            <ShieldAlert className="h-4 w-4" />
             <AlertDescription>
-              Error loading race data: {error}
+              Missing subsession ID. Please navigate from a race results page.
             </AlertDescription>
           </Alert>
         </div>
@@ -121,14 +80,78 @@ export default function RaceDetailsPage() {
     );
   }
 
-  const winner = race.participants.find((p) => p.finishPosition === 1);
-  const overallFastestLap = getOverallFastestLap(race.participants);
+  if (error) {
+    return (
+      <main className="container mx-auto p-4 md:p-8 relative">
+        <div className="absolute top-4 right-4">
+          <ThemeToggle />
+        </div>
+        <div className="max-w-2xl mx-auto">
+          <Button variant="outline" onClick={handleBack} className="mb-4">
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back
+          </Button>
+          <Alert variant="destructive">
+            <ShieldAlert className="h-4 w-4" />
+            <AlertDescription>
+              {error}
+            </AlertDescription>
+          </Alert>
+        </div>
+      </main>
+    );
+  }
+
+  if (loading && !race) {
+    return (
+      <main className="container mx-auto p-4 md:p-8 relative">
+        <div className="absolute top-4 right-4">
+          <ThemeToggle />
+        </div>
+        <div className="max-w-2xl mx-auto">
+          <Button variant="outline" onClick={handleBack} className="mb-4">
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back
+          </Button>
+          <LoadingProgress 
+            phase={progress.phase}
+            percentage={progress.percentage}
+            currentParticipant={progress.currentParticipant}
+            participantsProcessed={progress.participantsProcessed}
+            totalParticipants={progress.totalParticipants}
+          />
+        </div>
+      </main>
+    );
+  }
+
+  if (!race) {
+    return (
+      <main className="container mx-auto p-4 md:p-8 relative">
+        <div className="absolute top-4 right-4">
+          <ThemeToggle />
+        </div>
+        <div className="max-w-2xl mx-auto">
+          <Button variant="outline" onClick={handleBack} className="mb-4">
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back
+          </Button>
+          <div className="text-center py-8">
+            <p className="text-muted-foreground">No race data available</p>
+          </div>
+        </div>
+      </main>
+    );
+  }
+
+  const winner = race.participants?.find((p: RaceParticipant) => p.finishPosition === 1);
 
   // Handler for when a driver name is clicked in the results table
   const handleDriverClick = (driverName: string) => {
-    const customerId = driverNameToCustomerId[driverName];
-    if (customerId) {
-      router.push(`/${customerId}`);
+    // Look for customer ID in participants
+    const participant = race.participants?.find((p: RaceParticipant) => p.name === driverName);
+    if (participant?.custId) {
+      router.push(`/${participant.custId}`);
     }
   };
 
@@ -137,6 +160,7 @@ export default function RaceDetailsPage() {
       <div className="absolute top-4 right-4 z-10">
         <ThemeToggle />
       </div>
+      
       <div className="mb-6">
         <Button variant="outline" size="sm" onClick={handleBack}>
           <ArrowLeft />
@@ -144,36 +168,92 @@ export default function RaceDetailsPage() {
         </Button>
       </div>
 
+      {/* Progressive Loading Indicator */}
+      {loading && (
+        <div className="mb-6">
+          <LoadingProgress 
+            phase={progress.phase}
+            percentage={progress.percentage}
+            currentParticipant={progress.currentParticipant}
+            participantsProcessed={progress.participantsProcessed}
+            totalParticipants={progress.totalParticipants}
+          />
+        </div>
+      )}
+
       <header className="mb-8">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
           <div>
-            <h1 className="text-4xl font-headline font-bold tracking-tighter">{race.trackName}</h1>
+            <h1 className="text-4xl font-headline font-bold tracking-tighter">
+              {trackName || race.trackName || 'Race Session'}
+            </h1>
             <p className="text-muted-foreground mt-1">
               {new Date(race.date).toLocaleDateString('en-US', { dateStyle: 'full', timeZone: 'UTC' })}
             </p>
           </div>
-          <Badge variant="outline" className="text-base py-1 px-3 w-fit">{race.car}</Badge>
+          <Badge variant="outline" className="text-base py-1 px-3 w-fit">
+            {race.seriesName || 'Series'}
+          </Badge>
         </div>
       </header>
 
       <section className="mb-8">
         <h2 className="text-2xl font-headline font-bold tracking-tight mb-4">Race Summary</h2>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <StatCard title="Winner" value={winner?.name || 'N/A'} icon={Award} description={winner ? `Finished P1` : "Data not available"} />
-          <StatCard title="Avg. Lap Time" value={race.avgRaceLapTime} icon={Timer} description="Across all drivers" />
-          <StatCard title="Avg. Incidents" value={race.avgRaceIncidents > 0 ? race.avgRaceIncidents.toFixed(2) : 'N/A'} icon={ShieldAlert} description="Across all drivers" />
-          <StatCard title="Strength of Field" value={race.strengthOfField.toLocaleString('en-US')} icon={Users} description="Average iRating of drivers" />
+          <StatCard 
+            title="Winner" 
+            value={winner?.name || 'N/A'} 
+            icon={Award} 
+            description={winner ? `Finished P1` : "Data not available"} 
+          />
+          <StatCard 
+            title="Participants" 
+            value={race.participants?.length?.toString() || '0'} 
+            icon={Users} 
+            description="Total drivers" 
+          />
+          {fastestLap && (
+            <StatCard
+              title="Fastest Lap"
+              value={race.fastestLap || 'N/A'}
+              icon={Timer}
+              description="Overall fastest"
+            />
+          )}
+          {race.strengthOfField && (
+            <StatCard 
+              title="Strength of Field" 
+              value={race.strengthOfField.toLocaleString('en-US')} 
+              icon={Users} 
+              description="Average iRating" 
+            />
+          )}
         </div>
       </section>
 
       <section>
-        <RaceResultsTable 
-          participants={race.participants} 
-          overallFastestLap={overallFastestLap} 
-          raceId={raceId}
-          onDriverClick={handleDriverClick}
-        />
+        <Card>
+          <CardHeader>
+            <CardTitle>Race Results</CardTitle>
+            <CardDescription>
+              Final positions and race statistics
+              {loading && progress.phase !== 'complete' && (
+                <span className="ml-2 text-blue-600">
+                  (Loading detailed lap data...)
+                </span>
+              )}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <RaceResultsTable 
+              participants={race.participants || []}
+              overallFastestLap={fastestLap || ''}
+              raceId={raceId}
+              onDriverClick={handleDriverClick}
+            />
+          </CardContent>
+        </Card>
       </section>
     </main>
-  )
+  );
 }

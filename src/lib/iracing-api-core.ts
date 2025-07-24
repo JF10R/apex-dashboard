@@ -132,9 +132,19 @@ import {
   formatLapTimeFrom10000ths,
   formatLapTime,
   lapTimeToSeconds,
-  getSeasonFromDate, 
+  getSeasonFromDate,
+  transformLapData, 
 } from '@/lib/iracing-data-transform'
 import IracingAPI from 'iracing-api'
+
+// Progressive loading types
+export interface ProgressiveLoadingCallbacks {
+  onInitialData: (race: RecentRace) => void;
+  onProgress: (processed: number, total: number, currentParticipant?: string) => void;
+  onParticipantUpdate: (custId: number, laps: Lap[]) => void;
+  onComplete: (race: RecentRace) => void;
+  onError: (error: Error) => void;
+}
 
 const email = process.env.IRACING_EMAIL ?? null;
 const password = process.env.IRACING_PASSWORD ?? null;
@@ -446,6 +456,58 @@ export const searchDriversByName = async (
 // Using a simple Map; for a production app with many users/subs, a more robust cache (e.g., LRU, TTL, or Next.js specific caching) would be better.
 const raceResultPromiseCache = new Map<number, Promise<RecentRace | null>>();
 
+// Cache for individual participant lap data to avoid redundant API calls
+// Key format: `${subsessionId}-${custId}-${simsessionNumber}`
+const lapDataCache = new Map<string, LapDataItem[]>();
+const LAP_DATA_CACHE_DURATION = 60 * 60 * 1000; // 1 hour cache for lap data
+const lapDataCacheExpiry = new Map<string, number>();
+
+// Rate limiting configuration for lap data fetching
+const RATE_LIMIT_CONFIG = {
+  ENABLED: process.env.IRACING_ENABLE_LAP_DATA_FETCHING !== 'false', // Allow disabling completely
+  DELAY_MS: parseInt(process.env.IRACING_RATE_LIMIT_DELAY_MS || '600'), // Default 600ms between calls
+  MAX_PARTICIPANTS: parseInt(process.env.IRACING_MAX_LAP_DATA_PARTICIPANTS || '50'), // Safety limit
+  BATCH_SIZE: parseInt(process.env.IRACING_LAP_DATA_BATCH_SIZE || '5'), // Process in small batches
+  RETRY_DELAY_MULTIPLIER: parseInt(process.env.IRACING_RETRY_DELAY_MULTIPLIER || '2'), // Multiply delay on rate limit errors
+};
+
+/**
+ * Generate cache key for lap data
+ */
+const getLapDataCacheKey = (subsessionId: number, custId: number, simsessionNumber: number): string => {
+  return `${subsessionId}-${custId}-${simsessionNumber}`;
+};
+
+/**
+ * Check if cached lap data is still valid
+ */
+const isLapDataCacheValid = (cacheKey: string): boolean => {
+  const expiry = lapDataCacheExpiry.get(cacheKey);
+  return expiry !== undefined && Date.now() < expiry;
+};
+
+/**
+ * Get cached lap data if valid
+ */
+const getCachedLapData = (subsessionId: number, custId: number, simsessionNumber: number): LapDataItem[] | null => {
+  const cacheKey = getLapDataCacheKey(subsessionId, custId, simsessionNumber);
+  if (isLapDataCacheValid(cacheKey) && lapDataCache.has(cacheKey)) {
+    console.log(`[LAP CACHE] Using cached lap data for ${custId} in subsession ${subsessionId}`);
+    return lapDataCache.get(cacheKey)!;
+  }
+  return null;
+};
+
+/**
+ * Cache lap data with expiry
+ */
+const cacheLapData = (subsessionId: number, custId: number, simsessionNumber: number, lapData: LapDataItem[]): void => {
+  const cacheKey = getLapDataCacheKey(subsessionId, custId, simsessionNumber);
+  lapDataCache.set(cacheKey, lapData);
+  lapDataCacheExpiry.set(cacheKey, Date.now() + LAP_DATA_CACHE_DURATION);
+  console.log(`[LAP CACHE] Cached ${lapData.length} lap items for ${custId} in subsession ${subsessionId}`);
+};
+
 export const getRaceResultData = async (
   subsessionId: number
 ): Promise<RecentRace | null> => {
@@ -517,7 +579,12 @@ export const getRaceResultData = async (
       // Fetch lap data for each participant to get accurate fastest laps
       const lapDataMap = new Map<number, LapDataItem[]>();
       
-      try {
+      // Check if lap data fetching is enabled
+      if (!RATE_LIMIT_CONFIG.ENABLED) {
+        console.log(`[LAP DATA DEBUG] Lap data fetching disabled via IRACING_ENABLE_LAP_DATA_FETCHING=false`);
+        console.log(`[LAP DATA DEBUG] Race statistics will use API basic data only`);
+      } else {
+        try {
         // Get the session number for the race session
         const raceSessionNumber = result.sessionResults?.findIndex(s => s === raceSession) ?? 0;
         console.log(`[LAP DATA DEBUG] Attempting to fetch lap data for subsessionId ${subsessionId}`);
@@ -525,40 +592,84 @@ export const getRaceResultData = async (
         console.log(`[LAP DATA DEBUG] Race session number (index): ${raceSessionNumber}`);
         console.log(`[LAP DATA DEBUG] Number of participants: ${raceSession.results.length}`);
         
-        // Fetch lap data for all participants in the race session
-        // Using simsessionNumber: 0 which represents the main race session
+        // Rate limiting configuration
         const MAIN_RACE_SESSION = 0;
+        const { DELAY_MS, MAX_PARTICIPANTS, BATCH_SIZE, RETRY_DELAY_MULTIPLIER } = RATE_LIMIT_CONFIG;
         
-        for (const participant of raceSession.results) {
-          try {
-            const lapDataResponse = await currentApi.results.getResultsLapData({ 
-              customerId: participant.custId,
-              subsessionId, 
-              simsessionNumber: MAIN_RACE_SESSION
-            }, { 
-              getAllChunks: true 
-            });
-            
-            // Extract and validate lap data using our utility functions
-            const lapDataItems = extractLapDataFromResponse(lapDataResponse);
-            console.log(`[LAP DATA DEBUG] Raw response for ${participant.custId}:`, JSON.stringify(lapDataResponse, null, 2).substring(0, 500));
-            console.log(`[LAP DATA DEBUG] Extracted ${lapDataItems.length} lap items for ${participant.custId}`);
-            if (validateLapDataResponse(lapDataItems) && lapDataItems.length > 0) {
-              lapDataMap.set(participant.custId, lapDataItems);
-              console.log(`[LAP DATA DEBUG] Successfully stored lap data for ${participant.custId}`);
-            } else {
-              console.log(`[LAP DATA DEBUG] Failed validation or empty data for ${participant.custId}`);
+        // Limit participants to prevent runaway API usage
+        const participantsToProcess = raceSession.results.slice(0, MAX_PARTICIPANTS);
+        console.log(`[RATE LIMIT] Processing ${participantsToProcess.length} participants with ${DELAY_MS}ms delays (batch size: ${BATCH_SIZE})`);
+        
+        // Process participants in batches with rate limiting
+        for (let i = 0; i < participantsToProcess.length; i += BATCH_SIZE) {
+          const batch = participantsToProcess.slice(i, i + BATCH_SIZE);
+          console.log(`[RATE LIMIT] Processing batch ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(participantsToProcess.length / BATCH_SIZE)} (${batch.length} participants)`);
+          
+          // Process batch with individual rate limiting
+          for (const participant of batch) {
+            try {
+              // Check cache first
+              const cachedLapData = getCachedLapData(subsessionId, participant.custId, MAIN_RACE_SESSION);
+              if (cachedLapData) {
+                lapDataMap.set(participant.custId, cachedLapData);
+                console.log(`[LAP CACHE] Using cached lap data for ${participant.custId}`);
+                continue;
+              }
+
+              const lapDataResponse = await currentApi.results.getResultsLapData({ 
+                customerId: participant.custId,
+                subsessionId, 
+                simsessionNumber: MAIN_RACE_SESSION
+              }, { 
+                getAllChunks: true 
+              });
+              
+              // Extract and validate lap data using our utility functions
+              const lapDataItems = extractLapDataFromResponse(lapDataResponse);
+              console.log(`[LAP DATA DEBUG] Extracted ${lapDataItems.length} lap items for ${participant.custId}`);
+              if (validateLapDataResponse(lapDataItems) && lapDataItems.length > 0) {
+                lapDataMap.set(participant.custId, lapDataItems);
+                // Cache the lap data for future use
+                cacheLapData(subsessionId, participant.custId, MAIN_RACE_SESSION, lapDataItems);
+                console.log(`[LAP DATA DEBUG] Successfully stored lap data for ${participant.custId}`);
+              } else {
+                console.log(`[LAP DATA DEBUG] Failed validation or empty data for ${participant.custId}`);
+              }
+              
+              // Rate limiting delay between individual calls
+              if (participantsToProcess.indexOf(participant) < participantsToProcess.length - 1) {
+                await new Promise(resolve => setTimeout(resolve, DELAY_MS));
+              }
+              
+            } catch (lapError) {
+              // Continue silently if lap data fetch fails for individual participants
+              console.warn(`Failed to fetch lap data for participant ${participant.custId}:`, lapError);
+              
+              // If we get a rate limit error, increase delay for next calls
+              if (lapError && typeof lapError === 'object' && 'message' in lapError) {
+                const errorMessage = (lapError as Error).message.toLowerCase();
+                if (errorMessage.includes('rate') || errorMessage.includes('limit') || errorMessage.includes('429')) {
+                  console.warn(`[RATE LIMIT] Detected rate limiting, increasing delay to ${DELAY_MS * RETRY_DELAY_MULTIPLIER}ms`);
+                  await new Promise(resolve => setTimeout(resolve, DELAY_MS * RETRY_DELAY_MULTIPLIER));
+                }
+              }
             }
-          } catch (lapError) {
-            // Continue silently if lap data fetch fails for individual participants
-            console.warn(`Failed to fetch lap data for participant ${participant.custId}:`, lapError);
+          }
+          
+          // Longer delay between batches to be extra safe
+          if (i + BATCH_SIZE < participantsToProcess.length) {
+            console.log(`[RATE LIMIT] Batch complete, waiting ${DELAY_MS}ms before next batch...`);
+            await new Promise(resolve => setTimeout(resolve, DELAY_MS));
           }
         }
         
-      } catch (lapFetchError) {
-        console.warn(`[LAP DATA DEBUG] Failed to fetch lap data for subsessionId ${subsessionId}:`, lapFetchError);
-        // Continue without lap data
-      }
+        console.log(`[LAP DATA DEBUG] Completed lap data fetching for ${lapDataMap.size}/${participantsToProcess.length} participants`);
+        
+        } catch (lapFetchError) {
+          console.warn(`[LAP DATA DEBUG] Failed to fetch lap data for subsessionId ${subsessionId}:`, lapFetchError);
+          // Continue without lap data
+        }
+      } // End of RATE_LIMIT_CONFIG.ENABLED check
 
       // Use the transformation utility to convert to our application format
       const transformedResult = transformIracingRaceResult(result, subsessionId, lapDataMap);
@@ -587,6 +698,208 @@ export const getRaceResultData = async (
   raceResultPromiseCache.set(subsessionId, promise);
   return promise;
 }
+
+/**
+ * Progressive loading version of getRaceResultData that provides real-time updates
+ * as lap data is fetched for each participant. Uses cached data when available.
+ */
+export const getRaceResultDataProgressive = async (
+  subsessionId: number,
+  callbacks: ProgressiveLoadingCallbacks
+): Promise<void> => {
+  try {
+    // Check if we already have cached data for this subsession
+    let cachedRace: RecentRace | null = null;
+    if (raceResultPromiseCache.has(subsessionId)) {
+      console.log(`[PROGRESSIVE CACHE] Found cached data for subsessionId ${subsessionId}`);
+      try {
+        cachedRace = await raceResultPromiseCache.get(subsessionId)!;
+        if (cachedRace) {
+          console.log(`[PROGRESSIVE CACHE] Using cached race data, skipping API call`);
+          // Send cached data immediately
+          callbacks.onInitialData(cachedRace);
+          callbacks.onComplete(cachedRace);
+          return;
+        }
+      } catch (cacheError) {
+        console.warn(`[PROGRESSIVE CACHE] Error retrieving cached data, falling back to API:`, cacheError);
+        // Remove invalid cache entry
+        raceResultPromiseCache.delete(subsessionId);
+      }
+    }
+
+    const currentApi = await ensureApiInitialized();
+    const resultResponse: unknown = await currentApi.results.getResult({ subsessionId });
+    
+    // Validate the response structure
+    if (!validateIracingRaceResult(resultResponse)) {
+      if (resultResponse && typeof resultResponse === 'object' && 
+          'subsessionId' in resultResponse && 'sessionResults' in resultResponse) {
+        console.log(`Using raw response for subsessionId ${subsessionId} despite validation failure`);
+      } else {
+        throw new Error('Invalid result data structure from API');
+      }
+    }
+
+    const result = resultResponse as GetResultResponse;
+
+    // Find the race session
+    let raceSession = result.sessionResults?.find(
+      (s) => s.simsessionName && s.simsessionName.toUpperCase().includes('RACE')
+    );
+
+    if (!raceSession && result.sessionResults?.length) {
+      raceSession = result.sessionResults?.find(
+        (s) => s.simsessionName && (
+          s.simsessionName.toUpperCase().includes('FEATURE') ||
+          s.simsessionName.toUpperCase().includes('MAIN') ||
+          s.simsessionName.toUpperCase() === 'R' ||
+          s.simsessionName.toUpperCase() === 'RACE SESSION'
+        )
+      );
+      
+      if (!raceSession) {
+        if (result.sessionResults.length === 1) {
+          raceSession = result.sessionResults[0];
+        } else {
+          raceSession = result.sessionResults.reduce((prev, current) =>
+            (prev.results.length > current.results.length) ? prev : current,
+            result.sessionResults[0]
+          );
+        }
+      }
+    }
+
+    if (!raceSession || !raceSession.results) {
+      throw new Error('Could not determine a valid race session with results');
+    }
+
+    // Create initial race data without detailed lap data
+    const initialLapDataMap = new Map<number, LapDataItem[]>();
+    const initialRace = transformIracingRaceResult(result, subsessionId, initialLapDataMap);
+    
+    if (!initialRace) {
+      throw new Error('Failed to transform initial race result');
+    }
+
+    // Send initial data immediately
+    callbacks.onInitialData(initialRace);
+
+    // Cache the initial race data (will be updated with enhanced data later)
+    console.log(`[PROGRESSIVE CACHE] Caching initial race data for subsessionId ${subsessionId}`);
+    const initialRacePromise = Promise.resolve(initialRace);
+    raceResultPromiseCache.set(subsessionId, initialRacePromise);
+
+    // Check if lap data fetching is enabled
+    if (!RATE_LIMIT_CONFIG.ENABLED) {
+      console.log(`[PROGRESSIVE] Lap data fetching disabled, completing with basic data`);
+      callbacks.onComplete(initialRace);
+      return;
+    }
+
+    // Start progressive lap data loading
+    const { DELAY_MS, MAX_PARTICIPANTS, BATCH_SIZE, RETRY_DELAY_MULTIPLIER } = RATE_LIMIT_CONFIG;
+    const MAIN_RACE_SESSION = 0;
+    const lapDataMap = new Map<number, LapDataItem[]>();
+    
+    const participantsToProcess = raceSession.results.slice(0, MAX_PARTICIPANTS);
+    console.log(`[PROGRESSIVE] Processing ${participantsToProcess.length} participants progressively`);
+    
+    let processedCount = 0;
+    
+    // Process participants in batches
+    for (let i = 0; i < participantsToProcess.length; i += BATCH_SIZE) {
+      const batch = participantsToProcess.slice(i, i + BATCH_SIZE);
+      
+      // Process batch with individual rate limiting
+      for (const participant of batch) {
+        try {
+          callbacks.onProgress(processedCount, participantsToProcess.length, participant.displayName);
+          
+          // Check cache first
+          const cachedLapData = getCachedLapData(subsessionId, participant.custId, MAIN_RACE_SESSION);
+          if (cachedLapData) {
+            lapDataMap.set(participant.custId, cachedLapData);
+            console.log(`[PROGRESSIVE CACHE] Using cached lap data for ${participant.custId}`);
+            
+            // Transform lap data and send participant update
+            const transformedLaps = transformLapData(cachedLapData);
+            callbacks.onParticipantUpdate(participant.custId, transformedLaps);
+            
+            processedCount++;
+            continue;
+          }
+          
+          const lapDataResponse = await currentApi.results.getResultsLapData({ 
+            customerId: participant.custId,
+            subsessionId, 
+            simsessionNumber: MAIN_RACE_SESSION
+          }, { 
+            getAllChunks: true 
+          });
+          
+          const lapDataItems = extractLapDataFromResponse(lapDataResponse);
+          if (validateLapDataResponse(lapDataItems) && lapDataItems.length > 0) {
+            lapDataMap.set(participant.custId, lapDataItems);
+            
+            // Cache the lap data for future use
+            cacheLapData(subsessionId, participant.custId, MAIN_RACE_SESSION, lapDataItems);
+            
+            // Transform lap data and send participant update
+            const transformedLaps = transformLapData(lapDataItems);
+            callbacks.onParticipantUpdate(participant.custId, transformedLaps);
+          }
+          
+          processedCount++;
+          
+          // Rate limiting delay
+          if (processedCount < participantsToProcess.length) {
+            await new Promise(resolve => setTimeout(resolve, DELAY_MS));
+          }
+          
+        } catch (lapError) {
+          console.warn(`Failed to fetch lap data for participant ${participant.custId}:`, lapError);
+          
+          // Handle rate limiting
+          if (lapError && typeof lapError === 'object' && 'message' in lapError) {
+            const errorMessage = (lapError as Error).message.toLowerCase();
+            if (errorMessage.includes('rate') || errorMessage.includes('limit') || errorMessage.includes('429')) {
+              console.warn(`[PROGRESSIVE] Rate limiting detected, increasing delay`);
+              await new Promise(resolve => setTimeout(resolve, DELAY_MS * RETRY_DELAY_MULTIPLIER));
+            }
+          }
+          
+          processedCount++;
+        }
+      }
+      
+      // Delay between batches
+      if (i + BATCH_SIZE < participantsToProcess.length) {
+        await new Promise(resolve => setTimeout(resolve, DELAY_MS));
+      }
+    }
+    
+    // Create final enhanced race data
+    const finalRace = transformIracingRaceResult(result, subsessionId, lapDataMap);
+    if (!finalRace) {
+      throw new Error('Failed to transform final race result');
+    }
+    
+    // Cache the final enhanced race data for future use
+    console.log(`[PROGRESSIVE CACHE] Caching enhanced race data for subsessionId ${subsessionId}`);
+    const finalRacePromise = Promise.resolve(finalRace);
+    raceResultPromiseCache.set(subsessionId, finalRacePromise);
+    
+    callbacks.onComplete(finalRace);
+    console.log(`[PROGRESSIVE] Completed lap data loading for ${lapDataMap.size}/${participantsToProcess.length} participants`);
+    
+  } catch (error) {
+    console.error(`[PROGRESSIVE] Error in progressive race loading for subsessionId ${subsessionId}:`, error);
+    // Remove failed entry from cache to allow retries
+    raceResultPromiseCache.delete(subsessionId);
+    callbacks.onError(error instanceof Error ? error : new Error('Unknown error occurred'));
+  }
+};
 
 
 export const getDriverData = async (custId: number): Promise<Driver | null> => {
@@ -1600,4 +1913,83 @@ export const getResultsCacheStats = () => {
     expiredEntries: entries.length - activeEntries.length,
     cacheKeys: entries.map(([key]) => key),
   };
+};
+
+/**
+ * Clear lap data cache for a specific participant or all lap data
+ */
+export const clearLapDataCache = (subsessionId?: number, custId?: number, simsessionNumber?: number): void => {
+  if (subsessionId !== undefined && custId !== undefined && simsessionNumber !== undefined) {
+    // Clear specific participant lap data
+    const cacheKey = getLapDataCacheKey(subsessionId, custId, simsessionNumber);
+    lapDataCache.delete(cacheKey);
+    lapDataCacheExpiry.delete(cacheKey);
+    console.log(`[LAP CACHE] Cleared lap data for participant ${custId} in subsession ${subsessionId}`);
+  } else if (subsessionId !== undefined) {
+    // Clear all lap data for a subsession
+    const keysToDelete: string[] = [];
+    for (const key of lapDataCache.keys()) {
+      if (key.startsWith(`${subsessionId}-`)) {
+        keysToDelete.push(key);
+      }
+    }
+    keysToDelete.forEach(key => {
+      lapDataCache.delete(key);
+      lapDataCacheExpiry.delete(key);
+    });
+    console.log(`[LAP CACHE] Cleared ${keysToDelete.length} lap data entries for subsession ${subsessionId}`);
+  } else {
+    // Clear all lap data
+    lapDataCache.clear();
+    lapDataCacheExpiry.clear();
+    console.log(`[LAP CACHE] Cleared all lap data cache`);
+  }
+};
+
+/**
+ * Get lap data cache statistics
+ */
+export const getLapDataCacheStats = () => {
+  const now = Date.now();
+  let validEntries = 0;
+  let expiredEntries = 0;
+  
+  for (const [key, expiry] of lapDataCacheExpiry.entries()) {
+    if (expiry > now) {
+      validEntries++;
+    } else {
+      expiredEntries++;
+    }
+  }
+  
+  return {
+    totalEntries: lapDataCache.size,
+    validEntries,
+    expiredEntries,
+    cacheDurationMs: LAP_DATA_CACHE_DURATION,
+    cacheDurationMinutes: LAP_DATA_CACHE_DURATION / (1000 * 60),
+  };
+};
+
+/**
+ * Clean up expired lap data cache entries
+ */
+export const cleanupExpiredLapDataCache = (): void => {
+  const now = Date.now();
+  const keysToDelete: string[] = [];
+  
+  for (const [key, expiry] of lapDataCacheExpiry.entries()) {
+    if (expiry <= now) {
+      keysToDelete.push(key);
+    }
+  }
+  
+  keysToDelete.forEach(key => {
+    lapDataCache.delete(key);
+    lapDataCacheExpiry.delete(key);
+  });
+  
+  if (keysToDelete.length > 0) {
+    console.log(`[LAP CACHE] Cleaned up ${keysToDelete.length} expired lap data entries`);
+  }
 };
