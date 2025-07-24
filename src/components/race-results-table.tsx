@@ -161,9 +161,9 @@ function LapTimesDialog({
             <ScrollArea className="max-h-[350px]">
               {lapData.laps && lapData.laps.length > 0 ? (
                 <div className="space-y-1">
-                  {lapData.laps.map((lap) => (
+                  {lapData.laps.map((lap, index) => (
                     <div
-                      key={lap.lapNumber}
+                      key={`lap-${lap.lapNumber}-${index}`}
                       className={cn(
                         'flex justify-between items-center p-2 rounded text-sm',
                         lap.invalid && 'bg-red-100 dark:bg-red-900/20',
@@ -229,7 +229,7 @@ export default function RaceResultsTable({
             </TableHeader>
             <TableBody>
               {participants.sort((a, b) => a.finishPosition - b.finishPosition).map((p) => (
-                <TableRow key={p.name} className="group">
+                <TableRow key={`participant-${p.custId}`} className="group">
                   <TableCell className="text-center font-bold">{p.finishPosition}</TableCell>
                   <TableCell className="text-center text-muted-foreground">{p.startPosition}</TableCell>
                   <TableCell>

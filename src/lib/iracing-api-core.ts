@@ -237,10 +237,8 @@ async function initializeAndLogin() {
 // This promise can be awaited by functions that need the API.
 // Skip initialization during build time to avoid hitting rate limits
 const isBuildTime = typeof window === 'undefined' && (
-  process.env.NODE_ENV === 'production' || 
   process.env.NEXT_PHASE === 'phase-production-build' ||
-  process.env.npm_lifecycle_event === 'build' ||
-  process.env.npm_command === 'run-script'
+  (process.env.npm_lifecycle_event === 'build' && process.env.NODE_ENV !== 'development')
 );
 
 if (!isBuildTime) {
@@ -255,10 +253,8 @@ if (!isBuildTime) {
 async function ensureApiInitialized(): Promise<IracingAPI> {
   // During build time, throw an error instead of trying to initialize
   const isBuildTime = typeof window === 'undefined' && (
-    process.env.NODE_ENV === 'production' || 
     process.env.NEXT_PHASE === 'phase-production-build' ||
-    process.env.npm_lifecycle_event === 'build' ||
-    process.env.npm_command === 'run-script'
+    (process.env.npm_lifecycle_event === 'build' && process.env.NODE_ENV !== 'development')
   );
   
   if (isBuildTime) {

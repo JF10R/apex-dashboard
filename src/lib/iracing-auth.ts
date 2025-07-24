@@ -172,10 +172,9 @@ async function initializeAndLogin() {
   }
 }
 
-// Check if we're in a build environment
+// Check if we're in a build environment - be more specific to avoid blocking dev mode
 const isBuildTime = process.env.NEXT_PHASE === 'phase-production-build' || 
-                   process.env.npm_lifecycle_event === 'build' ||
-                   process.env.npm_command === 'run-script';
+                   (process.env.npm_lifecycle_event === 'build' && process.env.NODE_ENV !== 'development');
 
 if (isBuildTime) {
   console.log('Skipping iRacing API initialization during build process');
@@ -188,10 +187,9 @@ if (isBuildTime) {
  * Helper function for API functions to ensure initialization is complete and successful
  */
 export async function ensureApiInitialized(): Promise<IracingAPI> {
-  // Check if we're in a build environment
+  // Check if we're in a build environment - be more specific to avoid blocking dev mode
   const isBuildTime = process.env.NEXT_PHASE === 'phase-production-build' || 
-                     process.env.npm_lifecycle_event === 'build' ||
-                     process.env.npm_command === 'run-script';
+                     (process.env.npm_lifecycle_event === 'build' && process.env.NODE_ENV !== 'development');
 
   if (isBuildTime) {
     console.log('Skipping iRacing API initialization during build process');
