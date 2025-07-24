@@ -5,7 +5,7 @@
  * Provides comprehensive race results with proper caching.
  */
 
-import { ensureApiInitialized } from './iracing-auth';
+import { ensureApiInitialized } from './iracing-auth-persistent';
 import { getCached, caches } from './iracing-cache';
 
 // Based on official iRacing API Results types

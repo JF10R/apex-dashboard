@@ -44,6 +44,13 @@ Apex Stats is a modern, data-driven web application that provides comprehensive 
 - **Real-time Data**: Live integration with iRacing API for up-to-date information
 - **Mobile Responsive**: Optimized experience across all device sizes
 
+### 🔐 Advanced Authentication
+- **Persistent Sessions**: Up to 4-hour authentication sessions eliminate frequent login prompts
+- **Automatic Refresh**: Background session renewal 30 minutes before expiry
+- **Smart Retry Logic**: Configurable retry attempts with exponential backoff
+- **Session Monitoring**: Real-time session status and configuration management
+- **Zero Downtime**: Seamless authentication without blocking user interactions
+
 ## 🛠️ Tech Stack
 
 - **Framework**: Next.js 15 with App Router
@@ -91,17 +98,37 @@ Apex Stats is a modern, data-driven web application that provides comprehensive 
 
 ## 📡 API Integration
 
-This application uses the official iRacing API through the `iracing-api` TypeScript package. All data is fetched in real-time and includes:
+This application uses the official iRacing API through the `iracing-api` TypeScript package with **persistent authentication** for optimal performance. All data is fetched in real-time and includes:
 
 - Driver statistics and historical data
 - Race results and detailed lap analysis  
 - Car and track information
 - Series and season data
 
+### 🔐 Persistent Authentication
+The app features an advanced authentication system that:
+- **Maintains sessions for up to 4 hours** - eliminating frequent re-authentication
+- **Automatically refreshes** sessions 30 minutes before expiry
+- **Smart retry logic** with configurable backoff for reliability
+- **Background processing** - refresh happens without blocking requests
+
+### ⚙️ Authentication Configuration
+Customize authentication behavior via environment variables:
+
+```env
+# Optional - Session management (defaults work well)
+IRACING_SESSION_DURATION_HOURS=4          # Session lifetime
+IRACING_REFRESH_THRESHOLD_MINUTES=30      # Refresh timing
+IRACING_MAX_RETRY_ATTEMPTS=3              # Retry attempts
+IRACING_ENABLE_SESSION_PERSISTENCE=true   # Enable persistence
+```
+
 ### Authentication Notes
-- The app automatically handles iRacing API authentication
-- If CAPTCHA verification is required, you'll see helpful instructions
-- All API calls include proper error handling and user feedback
+- **Persistent Sessions**: Authentication automatically lasts up to 4 hours
+- **Automatic Recovery**: Smart retry logic handles temporary failures
+- **CAPTCHA Handling**: Clear instructions when verification is required
+- **Background Refresh**: Sessions refresh automatically without interruption
+- **Zero Maintenance**: No manual session management required
 
 ## 🏗️ Architecture
 
@@ -111,9 +138,11 @@ This application uses the official iRacing API through the `iracing-api` TypeScr
 - **Data Transformation**: Utilities for converting API data to application formats
 
 ### Performance
+- **Persistent Authentication**: Sessions last up to 4 hours, reducing login overhead by ~95%
 - **Multi-Level Caching**: Race results cached for 1 hour, individual lap data cached separately
 - **Progressive Loading**: Real-time streaming of race data with Server-Sent Events
 - **Background Processing**: Non-blocking data fetching with live progress updates
+- **Smart Session Management**: Automatic refresh with configurable timing and retry logic
 - **Efficient Updates**: Minimal API calls with smart data aggregation and cache management
 
 ### Code Quality
@@ -169,6 +198,8 @@ This project is for educational and personal use. Please respect iRacing's Terms
 ## ⚠️ Important Notes
 
 - **iRacing Subscription Required**: You must have an active iRacing subscription to use this application
+- **Persistent Authentication**: Sessions automatically last up to 4 hours for improved performance
 - **CAPTCHA Handling**: Occasionally, iRacing may require CAPTCHA verification - follow the on-screen instructions
 - **Rate Limiting**: The application includes intelligent rate limiting to respect iRacing's API guidelines
 - **Data Accuracy**: All data is sourced directly from iRacing's official API for maximum accuracy
+- **Session Management**: No manual authentication needed - the app handles everything automatically

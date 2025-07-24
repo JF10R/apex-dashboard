@@ -5,7 +5,7 @@
  * Provides search functionality with proper caching.
  */
 
-import { ensureApiInitialized } from './iracing-auth';
+import { ensureApiInitialized } from './iracing-auth-persistent';
 import { getCached, caches } from './iracing-cache';
 
 // Based on official iRacing API Lookup types

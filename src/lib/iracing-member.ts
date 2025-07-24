@@ -5,7 +5,7 @@
  * Provides detailed member information with proper caching.
  */
 
-import { ensureApiInitialized } from './iracing-auth';
+import { ensureApiInitialized } from './iracing-auth-persistent';
 import { getCached, caches } from './iracing-cache';
 
 // Based on official iRacing API Member types

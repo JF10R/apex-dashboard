@@ -6,7 +6,7 @@
  */
 
 // Authentication and Core
-export * from './iracing-auth';
+export * from './iracing-auth-persistent';
 export * from './iracing-cache';
 
 // Data Modules
@@ -207,4 +207,4 @@ export type {
 export type {
   // Auth types
   ApiError,
-} from './iracing-auth';
+} from './iracing-auth-persistent';

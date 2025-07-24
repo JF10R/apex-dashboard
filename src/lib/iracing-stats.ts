@@ -5,7 +5,7 @@
  * Provides comprehensive stats with proper caching and type safety.
  */
 
-import { ensureApiInitialized } from './iracing-auth';
+import { ensureApiInitialized } from './iracing-auth-persistent';
 import { getCached, caches } from './iracing-cache';
 
 // Based on official iRacing API Stats types
