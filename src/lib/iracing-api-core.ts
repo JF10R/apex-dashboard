@@ -1193,6 +1193,32 @@ export const getDriverData = async (custId: number): Promise<Driver | null> => {
       }
     }
     
+    // Add current iRating as the final point to each category's iRating history
+    // This ensures the graph shows the most up-to-date value and matches the displayed current iRating
+    if (currentIRating > 0) {
+      const currentMonth = new Date().toLocaleString('en-US', { month: 'short', year: 'numeric', timeZone: 'UTC' });
+      
+      // Add current iRating to each active category's history
+      for (const category of Object.keys(iratingHistories)) {
+        // Only add if this category has history data and we have a current iRating
+        if (iratingHistories[category].length > 0) {
+          // Check if the last point is already current month with current value
+          const lastPoint = iratingHistories[category][iratingHistories[category].length - 1];
+          const isDifferentValue = lastPoint.value !== currentIRating;
+          const isDifferentMonth = lastPoint.month !== currentMonth;
+          
+          // Add current point if it's different from the last point or if it's a new month
+          if (isDifferentValue || isDifferentMonth) {
+            iratingHistories[category].push({
+              month: currentMonth,
+              value: currentIRating,
+            });
+            console.log(`Added current iRating (${currentIRating}) to ${category} history as final point`);
+          }
+        }
+      }
+    }
+
     // For safety rating, we'll use a simpler fallback approach for now
     let currentSafetyRating = 'N/A';
     console.log('Safety rating will be determined from chart data or fallback methods');
