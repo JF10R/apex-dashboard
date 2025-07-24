@@ -65,7 +65,7 @@ export function LoadingProgress({
         <div className="space-y-2">
           <div className="flex justify-between text-sm">
             <span>Progress</span>
-            <span>{percentage}%</span>
+            <span>{Math.round(percentage * 10) / 10}%</span>
           </div>
           <Progress value={percentage} className="w-full" />
         </div>

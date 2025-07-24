@@ -104,7 +104,7 @@ export function useProgressiveRaceLoading(raceId: string) {
                   updateProgress({
                     participantsProcessed: data.processed,
                     currentParticipant: data.currentParticipant,
-                    percentage: 20 + (data.processed / data.total) * 70 // 20-90%
+                    percentage: Math.round((20 + (data.processed / data.total) * 70) * 10) / 10 // 20-90%, rounded to 1 decimal
                   });
                   break;
                   
