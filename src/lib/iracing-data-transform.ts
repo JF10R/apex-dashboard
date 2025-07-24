@@ -19,6 +19,9 @@ import {
   GetResultsLapDataResponseSchema,
 } from './iracing-types'
 
+// Import car lookup function for proper car name resolution
+import { getCarName } from './iracing-api-core'
+
 /**
  * Format lap time from iRacing's 10,000ths of a second format to MM:SS.mmm
  */
@@ -145,11 +148,11 @@ export function getSeasonFromDate(date: Date): { year: number; season: string } 
  * Transform official iRacing API race result to our RecentRace interface
  * Now supports lap data integration for enhanced accuracy
  */
-export function transformIracingRaceResult(
+export async function transformIracingRaceResult(
   apiResult: GetResultResponse, 
   subsessionId: number,
   lapDataMap?: Map<number, LapDataItem[]>
-): RecentRace | null {
+): Promise<RecentRace | null> {
   try {
     // Try to validate the API response structure
     let validatedResult: GetResultResponse;
@@ -259,6 +262,28 @@ export function transformIracingRaceResult(
     // Find our participant if we have race data (would need to be passed as parameter)
     const ourParticipant = participants[0]; // This would need to be determined based on who requested the data
 
+    // 🚗 Use car lookup to get proper car name instead of car class name
+    let carName: string = 'Unknown Car';
+    
+    // Try to get car ID from various possible sources in the API response
+    const carId = (validatedResult as any).carId || 
+                  (validatedResult.carClasses && 
+                   validatedResult.carClasses[0]?.carsInClass && 
+                   validatedResult.carClasses[0].carsInClass[0]?.carId) ||
+                  (ourParticipant && (ourParticipant as any).carId);
+    
+    if (carId) {
+      try {
+        carName = await getCarName(carId);
+      } catch (error) {
+        console.warn(`Failed to lookup car name for carId ${carId}, using fallback`);
+        carName = validatedResult.carClasses[0]?.name || `Car ${carId}`;
+      }
+    } else {
+      // Fallback to car class name if no carId available
+      carName = validatedResult.carClasses[0]?.name || 'Unknown Car';
+    }
+
     const recentRace: RecentRace = {
       id: subsessionId.toString(),
       trackName: validatedResult.track.trackName,
@@ -273,7 +298,7 @@ export function transformIracingRaceResult(
       strengthOfField: validatedResult.eventStrengthOfField,
       lapsLed: ourParticipant ? 0 : 0, // Would need lap-by-lap data to calculate
       fastestLap: formatLapTimeFrom10000ths(validatedResult.eventBestLapTime),
-      car: validatedResult.carClasses[0]?.name || 'Unknown Car',
+      car: carName,
       avgLapTime,
       iratingChange: 0, // Would need before/after comparison
       safetyRatingChange: 0, // Would need before/after comparison
