@@ -82,6 +82,7 @@ export interface MemberRecentRace {
   new_irating: number;
   old_safety_rating: number;
   new_safety_rating: number;
+  license_level: number;
 }
 
 export interface MemberChartData {
@@ -199,22 +200,50 @@ export const getMemberStats = async (
       
       const response = await iracingApi.stats.getMemberSummary(params);
       
+      console.log('Member summary response structure:', JSON.stringify(response, null, 2));
+      
       // The API returns a different format than expected, adapt it
-      const stats = response ? [{
-        category: 'Overall',
-        category_id: categoryId || 0,
-        irating: 0,
-        safety_rating: 0,
-        starts: response.thisYear?.numOfficialSessions || 0,
-        wins: response.thisYear?.numOfficialWins || 0,
-        top5s: 0,
-        poles: 0,
-        avg_finish: 0,
-        laps: 0,
-        laps_led: 0,
-        incidents: 0,
-        avg_incidents: 0,
-      }] : [];
+      // Look for license information in the response structure
+      let stats: MemberStat[] = [];
+      
+      if (response) {
+        // Check if response has direct license info (like the DirtOvalSchema you mentioned)
+        const responseAny = response as any;
+        if (responseAny.licenseLevel !== undefined && responseAny.safetyRating !== undefined) {
+          stats = [{
+            category: 'Overall',
+            category_id: categoryId || 0,
+            irating: responseAny.irating || 0,
+            safety_rating: responseAny.safetyRating || 0,
+            starts: responseAny.mprNumRaces || 0,
+            wins: 0,
+            top5s: 0,
+            poles: 0,
+            avg_finish: 0,
+            laps: 0,
+            laps_led: 0,
+            incidents: 0,
+            avg_incidents: 0,
+          }];
+        } else {
+          // Fallback to existing format
+          stats = [{
+            category: 'Overall',
+            category_id: categoryId || 0,
+            irating: 0,
+            safety_rating: 0,
+            starts: response.thisYear?.numOfficialSessions || 0,
+            wins: response.thisYear?.numOfficialWins || 0,
+            top5s: 0,
+            poles: 0,
+            avg_finish: 0,
+            laps: 0,
+            laps_led: 0,
+            incidents: 0,
+            avg_incidents: 0,
+          }];
+        }
+      }
       
       console.log(`✅ Fetched ${stats.length} stat categories for member ${custId}`);
       
@@ -300,6 +329,7 @@ export const getMemberRecentRaces = async (custId: number): Promise<MemberRecent
         new_irating: race.newiRating || 0,
         old_safety_rating: race.oldSubLevel || 0,
         new_safety_rating: race.newSubLevel || 0,
+        license_level: race.licenseLevel || 0,
       })) as MemberRecentRace[];
     },
     180 // 3 minutes cache for recent races

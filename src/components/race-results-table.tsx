@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import type { RaceParticipant, Lap } from '@/lib/mock-data';
+import type { RaceParticipant, Lap } from '@/lib/iracing-types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -71,11 +71,13 @@ function LapTimesDialog({
   driverId, // custId as string
   raceId,
   driverFastestLap,
+  participantLaps, // Add this prop to pass lap data directly
 }: {
   driverName: string;
   driverId: string; // custId as string for API route
   raceId: string;
   driverFastestLap: string;
+  participantLaps?: Lap[]; // Optional lap data from parent
 }) {
   const [lapData, setLapData] = useState<LapData | null>(null);
   const [loading, setLoading] = useState(false);
@@ -83,8 +85,24 @@ function LapTimesDialog({
   const [isOpen, setIsOpen] = useState(false);
 
   const fetchLapData = async () => {
-    if (lapData) return; // Already loaded
+    // If we already have lap data from props, use it immediately
+    if (participantLaps && participantLaps.length > 0) {
+      console.log(`✅ Using cached lap data for ${driverName} (${participantLaps.length} laps) - No API call needed`);
+      const data: LapData = {
+        driverName,
+        raceId: parseInt(raceId, 10),
+        laps: participantLaps,
+        fastestLap: driverFastestLap,
+        totalLaps: participantLaps.length
+      };
+      setLapData(data);
+      return;
+    }
+
+    // Fallback to API call if lap data not available in props
+    if (lapData) return; // Already loaded via API
     
+    console.log(`⚠️ Making API call for lap data for ${driverName} - lap data not available in props`);
     setLoading(true);
     setError(null);
     
@@ -233,6 +251,7 @@ export default function RaceResultsTable({
                       driverId={p.custId.toString()}
                       raceId={raceId}
                       driverFastestLap={p.fastestLap}
+                      participantLaps={p.laps}
                     />
                   </TableCell>
                 </TableRow>

@@ -4,10 +4,12 @@ import {
   searchMembers,
   getMemberProfile,
   getMemberRecentRaces,
-  getSubsessionResults,
+  getMemberStats,
   getAllCars,
   getAllCategories,
-} from '@/lib/iracing-api-modular'
+} from '@/lib/iracing-api-modular';
+import { getRaceResultData } from '@/lib/iracing-api-core';
+
 import { ApiError, ApiErrorType } from '@/lib/iracing-auth'
 import { type RecentRace, type Driver, type SearchedDriver, type RaceCategory } from '@/lib/iracing-types'
 import { cache, cacheKeys, cacheTTL } from '@/lib/cache'
@@ -82,44 +84,119 @@ export async function getDriverPageData(custId: number, forceRefresh: boolean = 
       // Transform race data with dynamic car/category lookups
       const transformedRaces = await Promise.all(
         recentRaces.map(async (race: any) => {
-          const carId = race.carId || race.car_id || 0
-          const carInfo = await getCarInfo(carId)
-          
+          // Defensive mapping for all possible field names and fallback values
+          const carId = race.carId ?? race.car_id ?? 0;
+          const carInfo = await getCarInfo(carId);
+
           return {
-            id: race.subsession_id?.toString() || '0',
-            trackName: race.track?.trackName || race.track_name || 'Unknown Track',
-            date: race.sessionStartTime || race.start_time || new Date().toISOString(),
-            year: new Date(race.sessionStartTime || race.start_time || new Date()).getFullYear(),
-            season: `${race.seasonYear || new Date().getFullYear()} Q${race.seasonQuarter || Math.ceil((new Date().getMonth() + 1) / 3)}`,
+            id: race.subsession_id?.toString() ?? race.id?.toString() ?? '0',
+            trackName: race.track?.trackName ?? race.track_name ?? 'Unknown Track',
+            date: race.sessionStartTime ?? race.start_time ?? new Date().toISOString(),
+            year: new Date(race.sessionStartTime ?? race.start_time ?? new Date()).getFullYear(),
+            season: `${race.seasonYear ?? new Date().getFullYear()} Q${race.seasonQuarter ?? Math.ceil((new Date().getMonth() + 1) / 3)}`,
             category: carInfo.category as RaceCategory,
-            seriesName: race.seriesName || race.series_name || 'Unknown Series',
-            startPosition: race.startPosition || race.starting_position || 0,
-            finishPosition: race.finishPosition || race.finish_position || 0,
-            incidents: race.incidents || 0,
-            strengthOfField: race.strengthOfField || race.strength_of_field || 0,
-            lapsLed: race.lapsLed || 0,
-            fastestLap: '0:00.000', // Not available in this data
+            seriesName: race.seriesName ?? race.series_name ?? 'Unknown Series',
+            startPosition: race.startPosition ?? race.starting_position ?? 0,
+            finishPosition: race.finishPosition ?? race.finish_position ?? 0,
+            incidents: race.incidents ?? 0,
+            strengthOfField: race.strengthOfField ?? race.strength_of_field ?? 0,
+            lapsLed: race.lapsLed ?? race.laps_led ?? 0,
+            fastestLap: race.fastestLap ?? race.fastest_lap ?? '0:00.000',
             car: carInfo.car_name,
-            avgLapTime: '0:00.000', // Not available in this data
-            iratingChange: (race.newiRating || race.new_irating || 0) - (race.oldiRating || race.old_irating || 0),
-            safetyRatingChange: ((race.newSubLevel || race.new_safety_rating || 0) - (race.oldSubLevel || race.old_safety_rating || 0)) * 0.01, // Convert sub-level to decimal
-            participants: [], // Not available in this data
-            avgRaceIncidents: 0, // Not available in this data
-            avgRaceLapTime: '0:00.000' // Not available in this data
+            avgLapTime: race.avgLapTime ?? race.avg_lap_time ?? '0:00.000',
+            iratingChange: (race.newiRating ?? race.new_irating ?? 0) - (race.oldiRating ?? race.old_irating ?? 0),
+            safetyRatingChange: ((race.newSubLevel ?? race.new_safety_rating ?? 0) - (race.oldSubLevel ?? race.old_safety_rating ?? 0)) * 0.01,
+            participants: race.participants ?? [],
+            avgRaceIncidents: race.avgRaceIncidents ?? race.avg_race_incidents ?? 0,
+            avgRaceLapTime: race.avgRaceLapTime ?? race.avg_race_lap_time ?? '0:00.000'
           }
         })
       );
+
+      // Calculate current iRating and safety rating from most recent race
+      const mostRecentRace = transformedRaces[0];
+      const currentIRating = mostRecentRace ? 
+        (mostRecentRace.iratingChange > 0 ? 
+          parseInt(mostRecentRace.id) // This should be gotten from race data
+          : 1500) // Fallback
+        : 1500;
+
+      // Get current iRating and safety rating from member stats (more accurate than race data)
+      let actualCurrentIRating = 1500;
+      let actualCurrentSafetyRating = 'B 3.00';
+      
+      try {
+        // Get member stats which should include current license information
+        const memberStats = await getMemberStats(custId);
+        if (memberStats && memberStats.length > 0) {
+          const roadStats = memberStats.find((stat: any) => stat.category === 'Road' || stat.category === 'Overall');
+          if (roadStats) {
+            actualCurrentIRating = roadStats.irating || 1500;
+            
+            // If member stats has proper license info, use that
+            if (roadStats.safety_rating > 0) {
+              const safetyScore = roadStats.safety_rating.toFixed(2);
+              actualCurrentSafetyRating = `Road ${safetyScore}`;
+            }
+          }
+        }
+      } catch (error) {
+        console.log('Failed to get member stats, falling back to race data:', error);
+      }
+      
+      // Fallback to race data if member stats unavailable
+      if (actualCurrentIRating === 1500 && recentRaces && recentRaces.length > 0) {
+        const latestRace = recentRaces[0];
+        actualCurrentIRating = latestRace.new_irating || 1500;
+        
+        // Convert safety rating from sub-level to proper format
+        const currentSubLevel = latestRace.new_safety_rating || 245;
+        const licenseLevel = latestRace.license_level || 14; // License level from race data
+        
+        // Map license level to letter based on iRacing's system
+        // Adjusted thresholds based on user confirmation that level 14 should be B
+        const licenseClass = licenseLevel >= 20 ? 'A' : 
+                           licenseLevel >= 12 ? 'B' :  // Adjusted to 12 to capture level 14
+                           licenseLevel >= 8 ? 'C' : 
+                           licenseLevel >= 4 ? 'D' : 'R';
+        
+        // Safety rating score from sub-level (0-499 range to 0.00-4.99 range)
+        const safetyScore = (currentSubLevel / 100).toFixed(2);
+        actualCurrentSafetyRating = `${licenseClass} ${safetyScore}`;
+      }
+
+      // Build iRating history from recent races (daily tracking)
+      const roadRatingHistory: Array<{month: string, value: number}> = [];
+      const ovalRatingHistory: Array<{month: string, value: number}> = [];
+      
+      // Process races in reverse chronological order to build history
+      const reversedRaces = [...transformedRaces].reverse();
+      let runningRoadRating = actualCurrentIRating;
+      let runningOvalRating = actualCurrentIRating;
+      
+      reversedRaces.forEach((race) => {
+        const raceDate = new Date(race.date);
+        const dayKey = `${raceDate.getFullYear()}-${String(raceDate.getMonth() + 1).padStart(2, '0')}-${String(raceDate.getDate()).padStart(2, '0')}`;
+        
+        if (race.category === 'Oval' || race.category === 'Dirt Oval') {
+          runningOvalRating -= race.iratingChange; // Subtract to get previous rating
+          ovalRatingHistory.push({ month: dayKey, value: runningOvalRating });
+        } else {
+          runningRoadRating -= race.iratingChange; // Subtract to get previous rating
+          roadRatingHistory.push({ month: dayKey, value: runningRoadRating });
+        }
+      });
 
       // Transform member profile to Driver format
       const data: Driver = {
         id: memberProfile.cust_id,
         name: memberProfile.display_name,
-        currentIRating: 1500, // Default value, would need to get from stats
-        currentSafetyRating: 'B 3.00', // Default value, would need to get from stats
+        currentIRating: actualCurrentIRating,
+        currentSafetyRating: actualCurrentSafetyRating,
         avgRacePace: '1:30.000', // Default value, would need to calculate
         iratingHistories: {
-          'Road': [],
-          'Oval': []
+          'Road': roadRatingHistory,
+          'Oval': ovalRatingHistory
         },
         safetyRatingHistory: [],
         racePaceHistory: [],
@@ -169,36 +246,13 @@ export async function getRaceResultAction(subsessionId: number): Promise<{ data:
       return { data: cachedData, error: null };
     }
 
-    const subsessionData = await getSubsessionResults(subsessionId);
-    if (!subsessionData) {
+    // Use the proven getRaceResultData function from the core API
+    const data = await getRaceResultData(subsessionId);
+    
+    if (!data) {
       return { data: null, error: 'Race result could not be found.' };
     }
-
-    // Transform subsession data to RecentRace format
-    // Note: This is a simplified mapping - you might need to adjust based on your RecentRace interface
-    const data: RecentRace = {
-      id: subsessionData.subsession_id.toString(),
-      trackName: 'Unknown Track', // Would need track lookup
-      date: new Date().toISOString(),
-      year: new Date().getFullYear(),
-      season: '2024 Season 1', // Would need season lookup
-      category: 'Sports Car' as RaceCategory,
-      seriesName: 'Unknown Series', // Would need series lookup
-      startPosition: 1, // Would need to find user's result
-      finishPosition: 1, // Would need to find user's result
-      incidents: 0, // Would need to find user's result
-      strengthOfField: 0,
-      lapsLed: 0,
-      fastestLap: '0:00.000',
-      car: 'Unknown Car', // Would need car lookup
-      avgLapTime: '0:00.000',
-      iratingChange: 0,
-      safetyRatingChange: 0,
-      participants: [], // Would need to transform subsession_results
-      avgRaceIncidents: 0,
-      avgRaceLapTime: '0:00.000'
-    };
-
+    
     // Cache the race result (longer TTL since race results don't change)
     cache.set(cacheKey, data, cacheTTL.RACE_RESULT);
     
@@ -212,56 +266,23 @@ export async function getRaceResultAction(subsessionId: number): Promise<{ data:
   }
 }
 
-// Dynamic car info lookup using cars API
+// Simple car info helper function
+// Simple car info helper function
 async function getCarInfo(carId: number): Promise<{ car_name: string; category: string }> {
   try {
-    // Use cache to avoid repeated API calls
-    const cacheKey = `car-info-${carId}`;
-    const cached = cache.get<{ car_name: string; category: string }>(cacheKey);
-    if (cached) {
-      return cached;
-    }
-
-    // Get cars data from the cars API endpoint
     const response = await fetch('http://localhost:9002/api/cars');
     const cars = await response.json();
-    
-    // Find the car in the results
     const carData = cars.find((car: any) => car.car_id === carId);
     
-    let carInfo: { car_name: string; category: string };
-    
     if (carData) {
-      carInfo = { car_name: carData.car_name, category: carData.category };
+      return { car_name: carData.car_name, category: carData.category };
     } else {
-      carInfo = { car_name: `Car ${carId}`, category: 'Sports Car' };
+      return { car_name: `Car ${carId}`, category: 'Sports Car' };
     }
-    
-    // Cache the result
-    cache.set(cacheKey, carInfo, cacheTTL.SEARCH_RESULTS);
-    
-    return carInfo;
   } catch (error) {
     console.error(`Error getting car info for ID ${carId}:`, error);
     return { car_name: `Car ${carId}`, category: 'Sports Car' };
   }
 }
 
-// Helper function to map car types to our category system (kept for potential future use)
-function mapCarTypeToCategory(carTypes: any[]): RaceCategory {
-  // Check car types for category indicators
-  for (const type of carTypes) {
-    const typeName = (type.car_type || '').toLowerCase();
-    
-    if (typeName.includes('oval')) return 'Oval';
-    if (typeName.includes('dirt') && typeName.includes('oval')) return 'Dirt Oval';
-    if (typeName.includes('formula')) return 'Formula Car';
-    if (typeName.includes('prototype')) return 'Prototype';
-    if (typeName.includes('sports') || typeName.includes('gt')) return 'Sports Car';
-  }
-  
-  // Default fallback
-  return 'Sports Car';
-}
 
-// ...existing code...
