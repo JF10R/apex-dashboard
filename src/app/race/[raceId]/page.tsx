@@ -39,13 +39,18 @@ export default function RaceDetailsPage() {
   }, [race?.trackName]);
 
   const safeLaps = React.useMemo(() => {
-    return race?.participants?.map((participant: RaceParticipant) => 
+    // Ensure participants is an array before processing
+    if (!race?.participants || !Array.isArray(race.participants)) {
+      return [];
+    }
+    
+    return race.participants.map((participant: RaceParticipant) => 
       participant.laps || []
-    ).flat() || [];
+    ).flat();
   }, [race?.participants]);
 
   const fastestLap = React.useMemo(() => {
-    if (!race?.participants) return null;
+    if (!race?.participants || !Array.isArray(race.participants)) return null;
     return getOverallFastestLap(race.participants);
   }, [race?.participants]);
 

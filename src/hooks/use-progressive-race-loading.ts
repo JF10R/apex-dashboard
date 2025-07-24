@@ -112,6 +112,12 @@ export function useProgressiveRaceLoading(raceId: string) {
                   setState(prev => {
                     if (!prev.initialData) return prev;
                     
+                    // Ensure participants exists and is an array before processing
+                    if (!prev.initialData.participants || !Array.isArray(prev.initialData.participants)) {
+                      console.warn('Cannot update participant: participants data is invalid');
+                      return prev;
+                    }
+                    
                     const updatedParticipants = prev.initialData.participants.map(p => 
                       p.custId === data.custId ? { ...p, laps: data.laps } : p
                     );
