@@ -61,6 +61,17 @@ export function lapTimeToSeconds(time: string): number {
  * Transform lap data from official API format to application format
  */
 export function transformLapData(lapDataItems: LapDataItem[]): Lap[] {
+  // Debug: Log lap number distribution
+  const lapNumbers = lapDataItems.map(item => item.lapNumber);
+  const uniqueLapNumbers = [...new Set(lapNumbers)];
+  const duplicates = lapNumbers.filter((num, index) => lapNumbers.indexOf(num) !== index);
+  
+  if (duplicates.length > 0) {
+    console.warn(`[LAP DATA DEBUG] Found duplicate lap numbers:`, duplicates);
+    console.warn(`[LAP DATA DEBUG] All lap numbers:`, lapNumbers);
+    console.warn(`[LAP DATA DEBUG] Unique lap numbers:`, uniqueLapNumbers.sort((a, b) => a - b));
+  }
+  
   return lapDataItems.map((lapInfo, index) => {
     const lapTimeIn10000ths = lapInfo.lapTime;
     const lapTime = lapTimeIn10000ths > 0 ? formatLapTimeFrom10000ths(lapTimeIn10000ths) : 'N/A';
@@ -70,7 +81,9 @@ export function transformLapData(lapDataItems: LapDataItem[]): Lap[] {
     const isInvalid = lapInfo.incident || lapEvents.length > 0 || lapTimeIn10000ths <= 0;
     
     return {
-      lapNumber: lapInfo.lapNumber || (index + 1),
+      // Use lapNumber from API data, but ensure it's never undefined (fallback to index)
+      // Don't use || because it would treat lap 0 as falsy
+      lapNumber: lapInfo.lapNumber !== undefined ? lapInfo.lapNumber : index,
       time: lapTime,
       invalid: isInvalid,
     };
