@@ -1,5 +1,19 @@
 # Apex Stats: Your iRacing Performance Dashboard
 
+## ⚠️ Work in Progress
+
+**This project is currently in active development and some features may not be working as expected.** Please be patient as we continue to improve and refine the application.
+
+## 🙏 Credits & Inspiration
+
+This project was inspired by and built upon the excellent work from:
+- [iRacing API TypeScript Package](https://github.com/themich4/iracing-api) by TheMich4
+- [Season Summary Dashboard](https://github.com/TheMich4/season-summary) by TheMich4
+
+Special thanks to these projects for providing the foundation and inspiration for this dashboard.
+
+---
+
 Apex Stats is a modern, data-driven web application that provides comprehensive analysis and visualization of iRacing driver performance. Built with the latest web technologies and integrated with the official iRacing API, it offers detailed statistics, historical trend analysis, and AI-powered insights to help drivers understand their racing performance.
 
 ## ✨ Features
@@ -139,55 +153,6 @@ src/
 - **Progressive Loading**: Streaming APIs with Server-Sent Events for real-time updates
 - **Caching System**: Multi-level caching with TTL management and cache statistics
 - **API Documentation**: Detailed interface documentation in `/IRACING_API_INTERFACES.md`
-
-## 📋 TODO - Features Not Yet Implemented
-
-### 🏎️ **Race Analysis & Statistics**
-- [ ] **Live Timing Data**: Real-time race progression and telemetry during active sessions
-- [ ] **Detailed Telemetry**: Sector times, speed traps, and corner-by-corner analysis
-- [ ] **Weather Impact Analysis**: Track conditions effect on lap times and strategy
-- [ ] **Track-Specific Analytics**: Corner speed analysis and racing line optimization
-- [ ] **Setup Analysis**: Car setup impact on performance metrics
-
-### 📊 **Advanced Performance Features**
-- [ ] **League Integration**: Custom league standings and championship points
-- [ ] **World Records Integration**: Official track records and personal bests comparison
-- [ ] **Season Statistics**: Complete championship standings and points progression
-- [ ] **Team/Multi-Class Analysis**: Team performance tracking and class-specific metrics
-- [ ] **Consistency Metrics**: Lap time variance and race pace consistency analysis
-
-### 🎯 **User Experience Enhancements**
-- [ ] **Favorites System**: Save favorite tracks, series, and race configurations
-- [ ] **Custom Dashboards**: Personalized metric displays and layout preferences
-- [ ] **Notification System**: Alerts for friends' races, personal records, and followed series
-- [ ] **Export Features**: PDF reports, CSV data export, and sharing capabilities
-- [ ] **Mobile App**: Native mobile application for iOS and Android
-
-### 🔄 **API & Data Integration**
-- [ ] **Historical Data Import**: Import and analyze years of historical race data
-- [ ] **External Tool Integration**: Connect with popular sim racing tools and telemetry software
-- [ ] **Social Features**: Follow other drivers, share achievements, and community features
-- [ ] **Multi-Sim Support**: Integration with other racing simulators beyond iRacing
-- [ ] **Data Backup & Sync**: Cloud backup and cross-device synchronization
-
-### 🛠️ **Technical Improvements**
-- [ ] **Offline Mode**: Basic functionality when internet connection is unavailable
-- [ ] **Advanced Caching**: Persistent cache across sessions and intelligent prefetching
-- [ ] **Performance Monitoring**: Real-time performance metrics and optimization insights
-- [ ] **Error Recovery**: Advanced error handling and automatic retry mechanisms
-- [ ] **Database Integration**: Move from API-only to hybrid API/database architecture
-
-### 📱 **Platform Expansion**
-- [ ] **Desktop Application**: Electron-based desktop app with enhanced features
-- [ ] **Browser Extension**: Quick access to driver stats from iRacing website
-- [ ] **Discord Bot**: Server integration for league and team functionality
-- [ ] **Streaming Integration**: OBS plugins for live streaming race data overlays
-
----
-
-**Note**: This TODO list represents planned future enhancements. The current application provides a solid foundation with core driver analysis, race data visualization, and comprehensive performance insights. Features are prioritized based on user feedback and iRacing API capabilities.
-
----
 
 ## 🤝 Contributing
 
