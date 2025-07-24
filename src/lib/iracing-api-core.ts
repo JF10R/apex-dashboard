@@ -606,14 +606,15 @@ export const getRaceResultData = async (
           console.log(`[RATE LIMIT] Processing batch ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(participantsToProcess.length / BATCH_SIZE)} (${batch.length} participants)`);
           
           // Process batch with individual rate limiting
-          for (const participant of batch) {
+          for (let j = 0; j < batch.length; j++) {
+            const participant = batch[j];
             try {
               // Check cache first
               const cachedLapData = getCachedLapData(subsessionId, participant.custId, MAIN_RACE_SESSION);
               if (cachedLapData) {
                 lapDataMap.set(participant.custId, cachedLapData);
-                console.log(`[LAP CACHE] Using cached lap data for ${participant.custId}`);
-                continue;
+                console.log(`[LAP CACHE] Using cached lap data for ${participant.custId} (no delay needed)`);
+                continue; // Skip rate limiting delay for cached data
               }
 
               const lapDataResponse = await currentApi.results.getResultsLapData({ 
@@ -636,8 +637,10 @@ export const getRaceResultData = async (
                 console.log(`[LAP DATA DEBUG] Failed validation or empty data for ${participant.custId}`);
               }
               
-              // Rate limiting delay between individual calls
-              if (participantsToProcess.indexOf(participant) < participantsToProcess.length - 1) {
+              // Rate limiting delay between API calls (not needed for cached data)
+              const isNotLastInBatch = j < batch.length - 1;
+              const isNotLastOverall = i + j < participantsToProcess.length - 1;
+              if (isNotLastInBatch || isNotLastOverall) {
                 await new Promise(resolve => setTimeout(resolve, DELAY_MS));
               }
               
