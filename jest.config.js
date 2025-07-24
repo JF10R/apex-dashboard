@@ -14,6 +14,7 @@ const customJestConfig = {
     '^@/lib/(.*)$': '<rootDir>/src/lib/$1',
     '^@/hooks/(.*)$': '<rootDir>/src/hooks/$1',
     '^@/ai/(.*)$': '<rootDir>/src/ai/$1',
+    '^iracing-api$': '<rootDir>/__mocks__/iracing-api.js',
   },
   testEnvironment: 'jest-environment-jsdom',
   testPathIgnorePatterns: ['<rootDir>/.next/', '<rootDir>/node_modules/'],
