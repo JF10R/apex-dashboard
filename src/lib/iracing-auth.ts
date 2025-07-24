@@ -172,13 +172,33 @@ async function initializeAndLogin() {
   }
 }
 
-// Immediately attempt to initialize and log in when the module loads
-apiInitializationPromise = initializeAndLogin();
+// Check if we're in a build environment
+const isBuildTime = process.env.NEXT_PHASE === 'phase-production-build' || 
+                   process.env.npm_lifecycle_event === 'build' ||
+                   process.env.npm_command === 'run-script';
+
+if (isBuildTime) {
+  console.log('Skipping iRacing API initialization during build process');
+} else {
+  // Immediately attempt to initialize and log in when the module loads
+  apiInitializationPromise = initializeAndLogin();
+}
 
 /**
  * Helper function for API functions to ensure initialization is complete and successful
  */
 export async function ensureApiInitialized(): Promise<IracingAPI> {
+  // Check if we're in a build environment
+  const isBuildTime = process.env.NEXT_PHASE === 'phase-production-build' || 
+                     process.env.npm_lifecycle_event === 'build' ||
+                     process.env.npm_command === 'run-script';
+
+  if (isBuildTime) {
+    console.log('Skipping iRacing API initialization during build process');
+    // Return a mock API or throw an error to prevent build-time API calls
+    throw new Error('API not available during build process');
+  }
+
   if (!apiInitializationPromise) {
     console.warn('API initialization promise was not set, attempting to initialize now.');
     apiInitializationPromise = initializeAndLogin();
