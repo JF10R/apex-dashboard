@@ -87,7 +87,6 @@ function LapTimesDialog({
   const fetchLapData = async () => {
     // If we already have lap data from props, use it immediately
     if (participantLaps && participantLaps.length > 0) {
-      console.log(`✅ Using cached lap data for ${driverName} (${participantLaps.length} laps) - No API call needed`);
       const data: LapData = {
         driverName,
         raceId: parseInt(raceId, 10),
@@ -102,7 +101,6 @@ function LapTimesDialog({
     // Fallback to API call if lap data not available in props
     if (lapData) return; // Already loaded via API
     
-    console.log(`⚠️ Making API call for lap data for ${driverName} - lap data not available in props`);
     setLoading(true);
     setError(null);
     

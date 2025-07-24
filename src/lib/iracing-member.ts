@@ -200,8 +200,6 @@ export const getMemberStats = async (
       
       const response = await iracingApi.stats.getMemberSummary(params);
       
-      console.log('Member summary response structure:', JSON.stringify(response, null, 2));
-      
       // The API returns a different format than expected, adapt it
       // Look for license information in the response structure
       let stats: MemberStat[] = [];

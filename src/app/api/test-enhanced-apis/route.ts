@@ -10,6 +10,11 @@ import {
 } from '@/lib/iracing-api-modular';
 
 export async function GET(request: Request) {
+  // Only allow test endpoints in development
+  if (process.env.NODE_ENV === 'production') {
+    return NextResponse.json({ error: 'Test endpoints not available in production' }, { status: 404 });
+  }
+
   try {
     const { searchParams } = new URL(request.url);
     const custId = parseInt(searchParams.get('custId') || '539129');

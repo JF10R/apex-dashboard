@@ -62,16 +62,6 @@ export function lapTimeToSeconds(time: string): number {
  */
 export function transformLapData(lapDataItems: LapDataItem[]): Lap[] {
   // Debug: Log lap number distribution
-  const lapNumbers = lapDataItems.map(item => item.lapNumber);
-  const uniqueLapNumbers = [...new Set(lapNumbers)];
-  const duplicates = lapNumbers.filter((num, index) => lapNumbers.indexOf(num) !== index);
-  
-  if (duplicates.length > 0) {
-    console.warn(`[LAP DATA DEBUG] Found duplicate lap numbers:`, duplicates);
-    console.warn(`[LAP DATA DEBUG] All lap numbers:`, lapNumbers);
-    console.warn(`[LAP DATA DEBUG] Unique lap numbers:`, uniqueLapNumbers.sort((a, b) => a - b));
-  }
-  
   return lapDataItems.map((lapInfo, index) => {
     const lapTimeIn10000ths = lapInfo.lapTime;
     const lapTime = lapTimeIn10000ths > 0 ? formatLapTimeFrom10000ths(lapTimeIn10000ths) : 'N/A';
@@ -132,10 +122,6 @@ export function getCategoryFromSeriesName(seriesName: string): RaceCategory {
   
   if (name.includes('oval') || name.includes('nascar') || name.includes('indycar')) {
     return 'Oval';
-  }
-  
-  if (name.includes('prototype') || name.includes('lmp') || name.includes('gtp')) {
-    return 'Prototype';
   }
   
   return 'Sports Car'; // Default fallback

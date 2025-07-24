@@ -7,6 +7,11 @@ import {
 } from '@/lib/iracing-api-modular';
 
 export async function GET() {
+  // Only allow test endpoints in development
+  if (process.env.NODE_ENV === 'production') {
+    return NextResponse.json({ error: 'Test endpoints not available in production' }, { status: 404 });
+  }
+
   try {
     console.log('🧪 Testing constants lookup performance...');
     

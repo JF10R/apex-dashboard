@@ -169,7 +169,6 @@ async function initializeAndLogin() {
     const tempApi = new IracingAPI({ logger: true });
     console.log('Attempting to log in to iRacing API...');
     const loginResponse = await tempApi.login(email, password);
-    console.log('Raw login API response:', JSON.stringify(loginResponse, null, 2));
 
     // Check the actual login response content for success indication
     // Based on the iracing-api library, successful login should have no error property
@@ -183,7 +182,6 @@ async function initializeAndLogin() {
         loginResponse
       );
       console.error(createUserFriendlyErrorMessage(ApiErrorType.LOGIN_FAILED));
-      console.error('Full login response:', JSON.stringify(loginResponse, null, 2));
     } else if (loginResponse && loginResponse.verificationRequired === true) {
       // Case 2: Recaptcha is explicitly required
       api = null;
@@ -194,7 +192,6 @@ async function initializeAndLogin() {
         loginResponse
       );
       console.error(createUserFriendlyErrorMessage(ApiErrorType.CAPTCHA_REQUIRED));
-      console.error('Login response indicating CAPTCHA required:', JSON.stringify(loginResponse, null, 2));
     } else if (loginResponse && loginResponse.message && loginResponse.message.toLowerCase().includes('invalid email address or password')) {
       // Case 3: Invalid credentials
       api = null;
@@ -205,7 +202,6 @@ async function initializeAndLogin() {
         loginResponse
       );
       console.error(createUserFriendlyErrorMessage(ApiErrorType.INVALID_CREDENTIALS));
-      console.error('Login response:', JSON.stringify(loginResponse, null, 2));
     } else if (!loginResponse || (loginResponse.authcode !== undefined && loginResponse.authcode === 0 && loginResponse.verificationRequired !== false)) {
       // Case 4: No response or unsuccessful login (authcode 0 usually means failure)
       api = null;
@@ -216,13 +212,11 @@ async function initializeAndLogin() {
         loginResponse
       );
       console.error(createUserFriendlyErrorMessage(ApiErrorType.LOGIN_FAILED));
-      console.error('Unexpected login response:', JSON.stringify(loginResponse, null, 2));
     } else {
       // Case 5: Successful login - no error, no verification required, or success indicators present
       api = tempApi;
       apiInitializedSuccessfully = true;
       console.log('✅ iRacing API initialized and login appears successful.');
-      console.log('Login response:', JSON.stringify(loginResponse, null, 2));
     }
   } catch (error) {
     console.error('Failed to initialize or login to iRacing API (exception during login call):', error);
@@ -606,16 +600,12 @@ export const getRaceResultData = async (
       
       // Check if lap data fetching is enabled
       if (!RATE_LIMIT_CONFIG.ENABLED) {
-        console.log(`[LAP DATA DEBUG] Lap data fetching disabled via IRACING_ENABLE_LAP_DATA_FETCHING=false`);
-        console.log(`[LAP DATA DEBUG] Race statistics will use API basic data only`);
+        console.log(`[LAP DATA] Lap data fetching disabled via IRACING_ENABLE_LAP_DATA_FETCHING=false`);
       } else {
         try {
         // Get the session number for the race session
         const raceSessionNumber = result.sessionResults?.findIndex(s => s === raceSession) ?? 0;
-        console.log(`[LAP DATA DEBUG] Attempting to fetch lap data for subsessionId ${subsessionId}`);
-        console.log(`[LAP DATA DEBUG] Race session found: ${raceSession.simsessionName}`);
-        console.log(`[LAP DATA DEBUG] Race session number (index): ${raceSessionNumber}`);
-        console.log(`[LAP DATA DEBUG] Number of participants: ${raceSession.results.length}`);
+        console.log(`[LAP DATA] Fetching lap data for subsessionId ${subsessionId} (${raceSession.results.length} participants)`);
         
         // Rate limiting configuration
         const MAIN_RACE_SESSION = 0;
