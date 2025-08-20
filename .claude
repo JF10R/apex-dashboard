@@ -1,0 +1,83 @@
+# Apex Dashboard - iRacing Analytics Platform
+
+## Project Overview
+A comprehensive Next.js dashboard for iRacing data analytics, featuring driver comparisons, race statistics, and performance tracking.
+
+## Tech Stack
+- **Framework**: Next.js 15.3.3 with App Router
+- **Language**: TypeScript with strict typing
+- **Styling**: Tailwind CSS with shadcn/ui components
+- **Authentication**: iRacing API with persistent session management
+- **Caching**: Multi-layer caching system for API optimization
+- **Testing**: Jest with comprehensive test coverage
+- **Development**: Turbopack for fast development builds
+
+## Key Features
+- Progressive race data loading with real-time updates
+- Driver comparison and performance analytics
+- Race result tracking and historical data
+- Cached API responses for optimal performance
+- Mobile-responsive design with theme support
+- Advanced search and filtering capabilities
+
+## Architecture
+- **API Layer**: Modular iRacing API integration (`src/lib/iracing-*.ts`)
+- **Components**: Reusable UI components with proper TypeScript typing
+- **Hooks**: Custom React hooks for data fetching and state management
+- **Caching**: Intelligent caching system for API responses
+- **Progressive Loading**: Server-Sent Events for real-time data updates
+
+## Development Environment
+- **OS**: Windows 11 with PowerShell
+- **IDE**: VS Code with TypeScript support
+- **Package Manager**: npm
+- **Development Server**: Next.js with Turbopack (port 9002)
+
+## File Structure
+```
+src/
+├── app/                    # Next.js App Router pages
+├── components/             # Reusable UI components
+├── hooks/                  # Custom React hooks
+├── lib/                    # Core utilities and API modules
+│   ├── iracing-*.ts       # iRacing API modules
+│   ├── cache.ts           # Caching system
+│   └── utils.ts           # Utility functions
+└── __tests__/             # Test files
+```
+
+## Coding Standards
+- Use TypeScript with strict type checking
+- Follow React best practices and hooks patterns
+- Implement proper error handling and loading states
+- Use consistent naming conventions (camelCase for variables, PascalCase for components)
+- Add JSDoc comments for complex functions
+- Ensure all API calls are properly cached
+- Handle array/object validation before using methods like `.map()`
+
+## API Integration
+- iRacing API with OAuth 2.0 authentication
+- Persistent session management (4-hour sessions)
+- Rate limiting and cache fallback strategies
+- Progressive data loading for large datasets
+- Comprehensive error handling and retry logic
+
+## Common Patterns
+- Use `getCached()` for all API calls with appropriate TTL
+- Implement loading and error states for all async operations
+- Validate data types before array/object operations
+- Use React.memo for performance optimization
+- Implement proper TypeScript interfaces for all data structures
+
+## Testing
+- Jest for unit and integration testing
+- Component testing with React Testing Library
+- API mocking for reliable test execution
+- Coverage reporting and quality gates
+
+## Performance Considerations
+- Multi-layer caching strategy (memory, session, persistent)
+- Progressive loading for large datasets
+- Code splitting and lazy loading
+- Image optimization and responsive design
+- Bundle analysis and optimization
