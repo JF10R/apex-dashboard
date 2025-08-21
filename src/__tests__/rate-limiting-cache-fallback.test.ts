@@ -113,7 +113,8 @@ describe('Rate Limiting and Cache Fallback', () => {
         old_irating: 2100,
         new_irating: 2150,
         old_safety_rating: 3.38,
-        new_safety_rating: 3.42
+        new_safety_rating: 3.42,
+        license_level: 4
       }
     ];
     

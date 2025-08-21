@@ -494,7 +494,7 @@ export const getRaceResultData = async (
       } // End of RATE_LIMIT_CONFIG.ENABLED check
 
       // Use the transformation utility to convert to our application format
-      const transformedResult = transformIracingRaceResult(result, subsessionId, lapDataMap);
+      const transformedResult = await transformIracingRaceResult(result, subsessionId, lapDataMap);
       
       return transformedResult;
 
@@ -598,7 +598,7 @@ export const getRaceResultDataProgressive = async (
 
     // Create initial race data without detailed lap data
     const initialLapDataMap = new Map<number, LapDataItem[]>();
-    const initialRace = transformIracingRaceResult(result, subsessionId, initialLapDataMap);
+    const initialRace = await transformIracingRaceResult(result, subsessionId, initialLapDataMap);
     
     if (!initialRace) {
       throw new Error('Failed to transform initial race result');
@@ -702,7 +702,7 @@ export const getRaceResultDataProgressive = async (
     }
     
     // Create final enhanced race data
-    const finalRace = transformIracingRaceResult(result, subsessionId, lapDataMap);
+    const finalRace = await transformIracingRaceResult(result, subsessionId, lapDataMap);
     if (!finalRace) {
       throw new Error('Failed to transform final race result');
     }

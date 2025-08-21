@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { ShieldCheck, TrendingUp } from 'lucide-react';
-import { type Driver, type HistoryPoint } from '@/lib/mock-data';
+import { type Driver, type HistoryPoint } from '@/lib/iracing-types';
 import { StatCard } from './stat-card';
 import { HistoryChart } from './history-chart';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
