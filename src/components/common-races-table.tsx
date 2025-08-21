@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import type { RecentRace } from '@/lib/mock-data';
+import type { RecentRace } from '@/lib/iracing-types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Users, Info } from 'lucide-react';

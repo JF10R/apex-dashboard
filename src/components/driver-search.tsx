@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Loader2, Search, Star, StarOff } from 'lucide-react';
-import { type SearchedDriver } from '@/lib/mock-data';
+import { type SearchedDriver } from '@/lib/iracing-types';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverAnchor } from '@/components/ui/popover';
 import { Button } from './ui/button';

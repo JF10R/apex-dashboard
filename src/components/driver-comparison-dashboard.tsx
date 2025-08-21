@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import { Users } from 'lucide-react';
-import { type Driver, type RecentRace, type SearchedDriver } from '@/lib/mock-data';
+import { type Driver, type RecentRace, type SearchedDriver } from '@/lib/iracing-types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from './ui/skeleton';
 import { ComparisonHistoryChart } from './comparison-history-chart';

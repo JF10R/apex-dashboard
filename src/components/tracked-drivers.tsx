@@ -6,7 +6,7 @@ import { Star, StarOff, Users, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { type SearchedDriver } from '@/lib/mock-data';
+import { type SearchedDriver } from '@/lib/iracing-types';
 import { useTrackedDrivers } from '@/hooks/use-tracked-drivers';
 
 interface TrackedDriversProps {

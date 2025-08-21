@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { type SearchedDriver } from '@/lib/mock-data';
+import { type SearchedDriver } from '@/lib/iracing-types';
 
 const TRACKED_DRIVERS_KEY = 'apex-stats-tracked-drivers';
 

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getRaceResultAction } from '@/app/data-actions';
 import { cache, cacheKeys, cacheTTL } from '@/lib/cache';
-import { type RecentRace } from '@/lib/mock-data';
+import { type RecentRace } from '@/lib/iracing-types';
 
 export async function GET(
   request: NextRequest,

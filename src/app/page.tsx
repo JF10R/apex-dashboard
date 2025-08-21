@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { type SearchedDriver } from '@/lib/mock-data';
+import { type SearchedDriver } from '@/lib/iracing-types';
 import DriverSearch from '@/components/driver-search';
 import TrackedDrivers from '@/components/tracked-drivers';
 import RecentProfiles from '@/components/recent-profiles';

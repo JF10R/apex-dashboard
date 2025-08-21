@@ -3,7 +3,7 @@
 import { Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart as RechartsLineChart, Legend } from 'recharts';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from '@/components/ui/chart';
-import type { HistoryPoint } from '@/lib/mock-data';
+import type { HistoryPoint } from '@/lib/iracing-types';
 import { mergeHistoryData } from '@/lib/utils';
 
 interface ComparisonHistoryChartProps {

@@ -11,7 +11,7 @@ import DriverDashboard from '@/components/driver-dashboard';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { useTrackedDrivers } from '@/hooks/use-tracked-drivers';
 import { useRecentProfiles } from '@/hooks/use-recent-profiles';
-import { type Driver } from '@/lib/mock-data';
+import { type Driver } from '@/lib/iracing-types';
 import { AppHeader } from '@/components/app-header';
 import { CacheStatus } from '@/components/cache-status';
 import { cacheKeys } from '@/lib/cache';

@@ -6,7 +6,7 @@ import { useSearchParams } from 'next/navigation';
 import { ArrowLeft, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { type SearchedDriver } from '@/lib/mock-data';
+import { type SearchedDriver } from '@/lib/iracing-types';
 import DriverComparisonDashboard from '@/components/driver-comparison-dashboard';
 import DriverSearch from '@/components/driver-search';
 import { ThemeToggle } from '@/components/theme-toggle';
