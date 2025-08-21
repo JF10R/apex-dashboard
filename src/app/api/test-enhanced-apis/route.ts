@@ -4,7 +4,7 @@ import {
   getMemberRecentRaces,
   getMemberCareer,
   getMemberChartData,
-  getSubsessionResults,
+  getSeasonResults,
   clearAllCaches,
   getComprehensiveCacheStats
 } from '@/lib/iracing-api-core';
@@ -57,7 +57,7 @@ export async function GET(request: Request) {
     
     if (memberRecentRaces && memberRecentRaces.length > 0) {
       const recentRace = memberRecentRaces[0];
-      subsessionResults = await getSubsessionResults(recentRace.subsession_id);
+      subsessionResults = await getSeasonResults(recentRace.season_id || 0, recentRace.event_type || 5, recentRace.race_week_num || 1);
     }
     
     const endTime = Date.now();

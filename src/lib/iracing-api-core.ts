@@ -774,14 +774,16 @@ export const getMemberProfile = async (custId: number): Promise<any | null> => {
     if (response && Array.isArray(response.members) && response.members.length > 0) {
       const member = response.members[0];
       return {
-        cust_id: member.custId || member.cust_id,
-        display_name: member.displayName || member.display_name,
-        first_name: member.firstName || member.first_name,
-        last_name: member.lastName || member.last_name,
-        club_id: member.clubId || member.club_id,
-        club_name: member.clubName || member.club_name,
-        ai_enabled: member.aiEnabled || member.ai_enabled || false,
-        flags: member.flags || 0,
+        // Use actual properties available from iRacing API response
+        cust_id: member.custId,
+        display_name: member.displayName,
+        // These properties may not be available in member data, use fallbacks
+        first_name: member.displayName ? member.displayName.split(' ')[0] : '',
+        last_name: member.displayName ? member.displayName.split(' ').slice(1).join(' ') : '',
+        club_id: member.clubId,
+        club_name: member.clubName,
+        ai_enabled: member.ai || false, // Use 'ai' property which exists in the API
+        flags: 0, // Property not available, use default
         // Include other member fields that might be present
         ...member
       };
@@ -2035,4 +2037,28 @@ export const cleanupExpiredLapDataCache = (): void => {
   if (keysToDelete.length > 0) {
     console.log(`[LAP CACHE] Cleaned up ${keysToDelete.length} expired lap data entries`);
   }
+};
+
+// Re-export functions from other modules for unified access
+export { getMemberSummary, getMemberCareer } from './iracing-stats';
+export { getMemberChartData } from './iracing-member';
+export { clearAllCaches } from './iracing-cache';
+
+/**
+ * Enhanced comprehensive cache stats that includes all cache types
+ */
+export const getComprehensiveCacheStats = () => {
+  const { getCarCacheStats, getConstantsCacheStats, getLapDataCacheStats, getResultsCacheStats } = require('./iracing-api-core');
+  const { getAllCacheStats } = require('./iracing-cache');
+  
+  return {
+    overall: 'Comprehensive cache statistics from all modules',
+    modules: {
+      cars: getCarCacheStats(),
+      constants: getConstantsCacheStats(),
+      lapData: getLapDataCacheStats(),
+      results: getResultsCacheStats(),
+      general: getAllCacheStats(),
+    },
+  };
 };

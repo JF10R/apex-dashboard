@@ -27,8 +27,10 @@ jest.mock('@/lib/iracing-api-core', () => ({
   getMemberRecentRaces: jest.fn(),
   getMemberStats: jest.fn(),
   getAllCars: jest.fn(),
+  getAllCategories: jest.fn(),
   getCarName: jest.fn(),
   getRaceResultData: jest.fn(),
+  getDriverData: jest.fn(),
 }))
 
 // Mock the auth module separately
@@ -52,10 +54,12 @@ const mockGetMemberProfile = getMemberProfile as jest.MockedFunction<typeof getM
 const mockGetMemberRecentRaces = getMemberRecentRaces as jest.MockedFunction<typeof getMemberRecentRaces>
 
 // Import and mock the additional functions
-import { getMemberStats, getAllCars, getCarName } from '@/lib/iracing-api-core'
+import { getMemberStats, getAllCars, getAllCategories, getCarName, getDriverData } from '@/lib/iracing-api-core'
 const mockGetMemberStats = getMemberStats as jest.MockedFunction<typeof getMemberStats>
 const mockGetAllCars = getAllCars as jest.MockedFunction<typeof getAllCars>
+const mockGetAllCategories = getAllCategories as jest.MockedFunction<typeof getAllCategories>
 const mockGetCarName = getCarName as jest.MockedFunction<typeof getCarName>
+const mockGetDriverData = getDriverData as jest.MockedFunction<typeof getDriverData>
 
 describe('Data Actions with Jeff Noel', () => {
   const jeffNoelDriver = {
@@ -117,7 +121,27 @@ describe('Data Actions with Jeff Noel', () => {
         retired: false
       }
     ])
+    mockGetAllCategories.mockResolvedValue([
+      { categoryId: 1, categoryName: 'Sports Car' },
+      { categoryId: 2, categoryName: 'Formula Car' }
+    ])
     mockGetMemberStats.mockResolvedValue([])
+    
+    // Setup getDriverData mock to return accurate chart data
+    mockGetDriverData.mockResolvedValue({
+      id: 539129,
+      name: 'Jeff Noel',
+      currentIRating: 2150,
+      currentSafetyRating: 'B 3.42',
+      avgRacePace: '1:42.123',
+      iratingHistories: { 
+        'Road': [{ month: 'Jan 2024', value: 2100 }],
+        'Oval': [{ month: 'Jan 2024', value: 1800 }]
+      },
+      safetyRatingHistory: [{ month: 'Jan 2024', value: 3.42 }],
+      racePaceHistory: [{ month: 'Jan 2024', value: 102.123 }],
+      recentRaces: []
+    })
   })
 
   describe('searchDriversAction', () => {

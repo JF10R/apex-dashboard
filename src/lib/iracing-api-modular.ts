@@ -106,5 +106,4 @@ export const getComprehensiveCacheStats = () => {
   };
 };
 
-// Type re-exports for backward compatibility
-export type { ApiError } from './iracing-api-core';
+// Type re-exports are handled by the regular export above
