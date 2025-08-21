@@ -52,7 +52,17 @@ jest.mock('@/lib/iracing-auth', () => ({
   }
 }));
 
-import { getMemberProfile, getMemberRecentRaces } from '@/lib/iracing-api-modular';
+// Mock the iRacing API core module
+jest.mock('@/lib/iracing-api-core', () => ({
+  getMemberProfile: jest.fn(),
+  getMemberRecentRaces: jest.fn(),
+  getMemberStats: jest.fn(() => Promise.resolve([])),
+  getAllCars: jest.fn(() => Promise.resolve([])),
+  getCarName: jest.fn(() => Promise.resolve('Test Car')),
+  getDriverData: jest.fn(),
+}));
+
+import { getMemberProfile, getMemberRecentRaces } from '@/lib/iracing-api-core';
 
 const mockCache = cache as jest.Mocked<typeof cache>;
 const mockGetMemberProfile = getMemberProfile as jest.MockedFunction<typeof getMemberProfile>;

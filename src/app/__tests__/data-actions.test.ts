@@ -1,5 +1,5 @@
 import { searchDriversAction, getDriverPageData } from '@/app/data-actions'
-import { searchMembers, getMemberProfile, getMemberRecentRaces } from '@/lib/iracing-api-modular'
+import { searchMembers, getMemberProfile, getMemberRecentRaces } from '@/lib/iracing-api-core'
 
 // Mock the cache module
 jest.mock('@/lib/cache', () => ({
@@ -21,10 +21,14 @@ jest.mock('@/lib/cache', () => ({
 }))
 
 // Mock the API functions
-jest.mock('@/lib/iracing-api-modular', () => ({
+jest.mock('@/lib/iracing-api-core', () => ({
   searchMembers: jest.fn(),
   getMemberProfile: jest.fn(),
   getMemberRecentRaces: jest.fn(),
+  getMemberStats: jest.fn(),
+  getAllCars: jest.fn(),
+  getCarName: jest.fn(),
+  getRaceResultData: jest.fn(),
 }))
 
 // Mock the auth module separately
@@ -46,6 +50,12 @@ jest.mock('@/lib/iracing-auth', () => ({
 const mockSearchMembers = searchMembers as jest.MockedFunction<typeof searchMembers>
 const mockGetMemberProfile = getMemberProfile as jest.MockedFunction<typeof getMemberProfile>
 const mockGetMemberRecentRaces = getMemberRecentRaces as jest.MockedFunction<typeof getMemberRecentRaces>
+
+// Import and mock the additional functions
+import { getMemberStats, getAllCars, getCarName } from '@/lib/iracing-api-core'
+const mockGetMemberStats = getMemberStats as jest.MockedFunction<typeof getMemberStats>
+const mockGetAllCars = getAllCars as jest.MockedFunction<typeof getAllCars>
+const mockGetCarName = getCarName as jest.MockedFunction<typeof getCarName>
 
 describe('Data Actions with Jeff Noel', () => {
   const jeffNoelDriver = {
@@ -95,6 +105,19 @@ describe('Data Actions with Jeff Noel', () => {
     // Mock cache to return null (no cache hit) for all tests
     const { cache } = require('@/lib/cache')
     cache.get.mockReturnValue(null)
+    
+    // Setup default mock implementations for car-related functions
+    mockGetCarName.mockResolvedValue('Test Car')
+    mockGetAllCars.mockResolvedValue([
+      {
+        carId: 101,
+        carName: 'Test Car',
+        carTypes: [{ carType: 'GT3' }],
+        categories: [{ categoryName: 'Sports Car' }],
+        retired: false
+      }
+    ])
+    mockGetMemberStats.mockResolvedValue([])
   })
 
   describe('searchDriversAction', () => {

@@ -30,9 +30,8 @@ jest.mock('./iracing-api-core', () => {
 // Now manually import the types we need
 import { type MemberSummaryResponse, type HistoryPoint } from './iracing-types';
 
-// Import the mocked function
-import { getMemberProfile } from './iracing-api-modular';
-import { getDriverData } from './iracing-api-core';
+// Import the functions to test
+import { getMemberProfile, getDriverData } from './iracing-api-core';
 
 const mockGetMemberProfile = getMemberProfile as jest.MockedFunction<typeof getMemberProfile>;
 const mockGetDriverData = getDriverData as jest.MockedFunction<typeof getDriverData>;

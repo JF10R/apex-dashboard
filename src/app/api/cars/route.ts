@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getAllCars } from '@/lib/iracing-api-modular'
+import { getAllCars } from '@/lib/iracing-api-core'
 
 export async function GET(request: NextRequest) {
   try {

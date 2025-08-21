@@ -723,6 +723,213 @@ export const getRaceResultDataProgressive = async (
   }
 };
 
+/**
+ * Search for members/drivers by name
+ * Enhanced version that unifies the search functionality from the modular API
+ */
+export const searchMembers = async (searchTerm: string): Promise<Array<{ display_name: string; cust_id: number }>> => {
+  try {
+    const currentApi = await ensureApiInitialized();
+    const results = await currentApi.lookup.getDrivers({ searchTerm });
+    
+    // Check for API error responses
+    if (results && typeof results === 'object' && 'error' in results) {
+      console.error('API error in searchMembers:', (results as any).message);
+      return [];
+    }
+    
+    // Transform results to expected format
+    const drivers = Array.isArray(results) ? results : [];
+    return drivers.map((driver: any) => ({
+      display_name: driver.displayName || driver.display_name,
+      cust_id: driver.custId || driver.cust_id
+    }));
+    
+  } catch (error) {
+    if (error instanceof ApiError) {
+      console.error(`API error in searchMembers: ${error.message}`);
+      throw error;
+    }
+    console.error('Error in searchMembers:', error);
+    return [];
+  }
+};
+
+/**
+ * Get member profile data
+ * Enhanced version that unifies the member data fetching from the modular API
+ */
+export const getMemberProfile = async (custId: number): Promise<any | null> => {
+  try {
+    const currentApi = await ensureApiInitialized();
+    const response = await currentApi.member.getMemberData({ customerIds: [custId.toString()] });
+    
+    // Extract the member data from the response
+    if (response && Array.isArray(response.members) && response.members.length > 0) {
+      const member = response.members[0];
+      return {
+        cust_id: member.custId || member.cust_id,
+        display_name: member.displayName || member.display_name,
+        first_name: member.firstName || member.first_name,
+        last_name: member.lastName || member.last_name,
+        club_id: member.clubId || member.club_id,
+        club_name: member.clubName || member.club_name,
+        ai_enabled: member.aiEnabled || member.ai_enabled || false,
+        flags: member.flags || 0,
+        // Include other member fields that might be present
+        ...member
+      };
+    }
+    
+    return null;
+  } catch (error) {
+    if (error instanceof ApiError) {
+      console.error(`API error in getMemberProfile: ${error.message}`);
+      throw error;
+    }
+    console.error('Error in getMemberProfile:', error);
+    return null;
+  }
+};
+
+/**
+ * Get member recent races  
+ * Enhanced version that unifies the recent races fetching from the modular API
+ */
+export const getMemberRecentRaces = async (custId: number): Promise<any[]> => {
+  try {
+    const currentApi = await ensureApiInitialized();
+    const response = await currentApi.stats.getMemberRecentRaces({ customerId: custId });
+    
+    // Transform the response to expected format
+    if (response && Array.isArray(response.races)) {
+      return response.races.map((race: any) => ({
+        subsession_id: race.subsessionId || race.subsession_id,
+        series_id: race.seriesId || race.series_id,
+        series_name: race.seriesName || race.series_name,
+        season_id: race.seasonId || race.season_id,
+        race_week_num: race.raceWeekNum || race.race_week_num,
+        event_type: race.eventType || race.event_type,
+        event_type_name: race.eventTypeName || race.event_type_name,
+        start_time: race.sessionStartTime || race.start_time,
+        finish_position: race.finishPosition || race.finish_position,
+        starting_position: race.startPosition || race.starting_position,
+        car_id: race.carId || race.car_id,
+        car_name: race.carName || race.car_name,
+        track_id: race.track?.trackId || race.track_id,
+        track_name: race.track?.trackName || race.track_name,
+        incidents: race.incidents,
+        strength_of_field: race.strengthOfField || race.strength_of_field,
+        old_irating: race.oldiRating || race.old_irating,
+        new_irating: race.newiRating || race.new_irating,
+        old_safety_rating: race.oldSubLevel || race.old_safety_rating,
+        new_safety_rating: race.newSubLevel || race.new_safety_rating,
+        license_level: race.licenseLevel || race.license_level,
+        seasonYear: race.seasonYear,
+        seasonQuarter: race.seasonQuarter,
+        // Include other race fields
+        ...race
+      }));
+    }
+    
+    return [];
+  } catch (error) {
+    if (error instanceof ApiError) {
+      console.error(`API error in getMemberRecentRaces: ${error.message}`);
+      throw error;
+    }
+    console.error('Error in getMemberRecentRaces:', error);
+    return [];
+  }
+};
+
+/**
+ * Get member stats data
+ * Enhanced version that provides member statistics
+ */
+export const getMemberStats = async (custId: number): Promise<any[]> => {
+  try {
+    const currentApi = await ensureApiInitialized();
+    const response = await currentApi.stats.getMemberSummary({ customerId: custId });
+    
+    // Transform response to expected format
+    if (response && typeof response === 'object') {
+      // The member summary might contain stats for different categories
+      // Return as array for consistency with existing code
+      return [response];
+    }
+    
+    return [];
+  } catch (error) {
+    if (error instanceof ApiError) {
+      console.error(`API error in getMemberStats: ${error.message}`);
+      throw error;
+    }
+    console.error('Error in getMemberStats:', error);
+    return [];
+  }
+};
+
+/**
+ * Get all cars data
+ * Enhanced version that uses the existing car caching system
+ */
+export const getAllCars = async (): Promise<any[]> => {
+  try {
+    const currentApi = await ensureApiInitialized();
+    const response = await currentApi.car.getCars();
+    
+    if (Array.isArray(response)) {
+      return response.map((car: any) => ({
+        carId: car.carId || car.car_id,
+        carName: car.carName || car.car_name,
+        carNameAbbreviated: car.carNameAbbreviated || car.car_name_abbreviated,
+        carDirpath: car.carDirpath || car.car_dirpath,
+        carTypes: car.carTypes || car.car_types || [],
+        packageId: car.packageId || car.package_id,
+        retired: car.retired || false,
+        // Include categories if present
+        categories: car.categories || [],
+        // Include all original fields for compatibility
+        ...car
+      }));
+    }
+    
+    return [];
+  } catch (error) {
+    if (error instanceof ApiError) {
+      console.error(`API error in getAllCars: ${error.message}`);
+      throw error;
+    }
+    console.error('Error in getAllCars:', error);
+    return [];
+  }
+};
+
+/**
+ * Get all categories data
+ * Enhanced version that uses the existing constants caching system
+ */
+export const getAllCategories = async (): Promise<any[]> => {
+  try {
+    const currentApi = await ensureApiInitialized();
+    const response = await currentApi.constants.getCategories();
+    
+    if (Array.isArray(response)) {
+      return response;
+    }
+    
+    return [];
+  } catch (error) {
+    if (error instanceof ApiError) {
+      console.error(`API error in getAllCategories: ${error.message}`);
+      throw error;
+    }
+    console.error('Error in getAllCategories:', error);
+    return [];
+  }
+};
+
 
 export const getDriverData = async (custId: number): Promise<Driver | null> => {
   try {

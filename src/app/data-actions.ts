@@ -7,8 +7,9 @@ import {
   getMemberStats,
   getAllCars,
   getAllCategories,
-} from '@/lib/iracing-api-modular';
-import { getRaceResultData } from '@/lib/iracing-api-core';
+  getRaceResultData,
+  getCarName
+} from '@/lib/iracing-api-core';
 
 import { ApiError, ApiErrorType } from '@/lib/iracing-auth'
 import { type RecentRace, type Driver, type SearchedDriver, type RaceCategory } from '@/lib/iracing-types'
@@ -266,22 +267,69 @@ export async function getRaceResultAction(subsessionId: number): Promise<{ data:
   }
 }
 
-// Simple car info helper function
-// Simple car info helper function
+// Enhanced car info helper function using unified API
 async function getCarInfo(carId: number): Promise<{ car_name: string; category: string }> {
   try {
-    const response = await fetch('http://localhost:9002/api/cars');
-    const cars = await response.json();
-    const carData = cars.find((car: any) => car.car_id === carId);
+    // Use the unified API's car lookup system with caching
+    const carName = await getCarName(carId);
+    
+    // Get all cars to find category information
+    const cars = await getAllCars();
+    const carData = cars.find((car: any) => car.carId === carId);
     
     if (carData) {
-      return { car_name: carData.car_name, category: carData.category };
+      // Map car to category using the same logic as the /api/cars route
+      const category = mapCarToCategory(carData);
+      return { car_name: carName, category };
     } else {
-      return { car_name: `Car ${carId}`, category: 'Sports Car' };
+      return { car_name: carName, category: 'Sports Car' };
     }
   } catch (error) {
     console.error(`Error getting car info for ID ${carId}:`, error);
     return { car_name: `Car ${carId}`, category: 'Sports Car' };
+  }
+}
+
+// Helper function to map car to category (moved from /api/cars route)
+function mapCarToCategory(car: any): string {
+  // First, try to use the categories array from iRacing
+  if (car.categories && car.categories.length > 0) {
+    const category = car.categories[0];
+    if (category.categoryName) {
+      const categoryName = category.categoryName.toLowerCase();
+      if (categoryName.includes('formula')) return 'Formula Car';
+      if (categoryName.includes('oval') && categoryName.includes('dirt')) return 'Dirt Oval';
+      if (categoryName.includes('oval')) return 'Oval';
+      if (categoryName.includes('prototype')) return 'Prototype';
+      if (categoryName.includes('sports') || categoryName.includes('road')) return 'Sports Car';
+    }
+  }
+  
+  // Fallback to car types if categories don't work
+  if (car.carTypes && car.carTypes.length > 0) {
+    const carType = car.carTypes[0];
+    if (carType.carType) {
+      const typeName = carType.carType.toLowerCase();
+      if (typeName.includes('formula')) return 'Formula Car';
+      if (typeName.includes('oval') && typeName.includes('dirt')) return 'Dirt Oval';
+      if (typeName.includes('oval')) return 'Oval';
+      if (typeName.includes('prototype')) return 'Prototype';
+    }
+  }
+  
+  // Final fallback to car name analysis
+  const carName = (car.carName || '').toLowerCase();
+  if (carName.includes('formula') || carName.includes('skip barber') || carName.includes('f1') || carName.includes('f3') || carName.includes('fr2.0')) {
+    return 'Formula Car';
+  } else if (carName.includes('legends') || carName.includes('modified') || carName.includes('sprint') || carName.includes('late model') || carName.includes('super speedway')) {
+    return 'Oval';
+  } else if (carName.includes('dirt') && carName.includes('oval')) {
+    return 'Dirt Oval';
+  } else if (carName.includes('prototype') || carName.includes('lmp') || carName.includes('dpi') || carName.includes('radical')) {
+    return 'Prototype';
+  } else {
+    // Default for GT3, Challenge, and most road cars
+    return 'Sports Car';
   }
 }
 

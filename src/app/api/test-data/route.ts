@@ -5,7 +5,7 @@ import {
   getMemberSummary,
   getMemberCareer,
   getMemberChartData
-} from '@/lib/iracing-api-modular';
+} from '@/lib/iracing-api-core';
 
 export async function GET(request: Request) {
   // Only allow test endpoints in development

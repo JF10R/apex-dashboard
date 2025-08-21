@@ -6,7 +6,7 @@ import {
   getCategoryId,
   getConstantsCacheStats,
   preWarmConstantsCache 
-} from '@/lib/iracing-api-modular';
+} from '@/lib/iracing-api-core';
 
 export async function GET() {
   // Only allow test endpoints in development
