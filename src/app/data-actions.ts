@@ -8,8 +8,11 @@ import {
   getAllCars,
   getAllCategories,
   getRaceResultData,
-  getCarName
+  getCarName,
+  getDriverData
 } from '@/lib/iracing-api-core';
+
+import { CategoryMappingService } from '@/lib/category-mapping-service';
 
 import { ApiError, ApiErrorType } from '@/lib/iracing-auth'
 import { type RecentRace, type Driver, type SearchedDriver, type RaceCategory } from '@/lib/iracing-types'
@@ -166,27 +169,43 @@ export async function getDriverPageData(custId: number, forceRefresh: boolean = 
         actualCurrentSafetyRating = `${licenseClass} ${safetyScore}`;
       }
 
-      // Build iRating history from recent races (daily tracking)
-      const roadRatingHistory: Array<{month: string, value: number}> = [];
-      const ovalRatingHistory: Array<{month: string, value: number}> = [];
+      // Use the proven getDriverData function to get accurate chart data
+      // This fetches real historical data from iRacing's chart APIs instead of calculating from deltas
+      console.log('🔄 Fetching accurate chart data from iRacing APIs...');
+      const accurateDriverData = await getDriverData(custId);
       
-      // Process races in reverse chronological order to build history
-      const reversedRaces = [...transformedRaces].reverse();
-      let runningRoadRating = actualCurrentIRating;
-      let runningOvalRating = actualCurrentIRating;
+      // Extract the accurate iRating histories and safety rating history
+      let iratingHistories = {};
+      let safetyRatingHistory: Array<{month: string, value: number}> = [];
+      let racePaceHistory: Array<{month: string, value: number}> = [];
       
-      reversedRaces.forEach((race) => {
-        const raceDate = new Date(race.date);
-        const dayKey = `${raceDate.getFullYear()}-${String(raceDate.getMonth() + 1).padStart(2, '0')}-${String(raceDate.getDate()).padStart(2, '0')}`;
+      if (accurateDriverData) {
+        // Use the accurate chart data from the core API
+        iratingHistories = accurateDriverData.iratingHistories || {};
+        safetyRatingHistory = accurateDriverData.safetyRatingHistory || [];
         
-        if (race.category === 'Oval' || race.category === 'Dirt Oval') {
-          runningOvalRating -= race.iratingChange; // Subtract to get previous rating
-          ovalRatingHistory.push({ month: dayKey, value: runningOvalRating });
-        } else {
-          runningRoadRating -= race.iratingChange; // Subtract to get previous rating
-          roadRatingHistory.push({ month: dayKey, value: runningRoadRating });
+        // Update current iRating with the accurate value if available
+        if (accurateDriverData.currentIRating > 0) {
+          actualCurrentIRating = accurateDriverData.currentIRating;
         }
-      });
+        
+        // Update current safety rating with the accurate value if available
+        if (accurateDriverData.currentSafetyRating && accurateDriverData.currentSafetyRating !== 'N/A') {
+          actualCurrentSafetyRating = accurateDriverData.currentSafetyRating;
+        }
+        
+        // Get the accurate race pace history as well
+        racePaceHistory = accurateDriverData.racePaceHistory || [];
+        
+        console.log('✅ Successfully fetched accurate chart data:', {
+          categories: Object.keys(iratingHistories),
+          safetyRatingPoints: safetyRatingHistory.length,
+          racePacePoints: racePaceHistory.length,
+          currentIRating: actualCurrentIRating
+        });
+      } else {
+        console.warn('⚠️ Core API returned null, falling back to empty histories');
+      }
 
       // Transform member profile to Driver format
       const data: Driver = {
@@ -194,13 +213,10 @@ export async function getDriverPageData(custId: number, forceRefresh: boolean = 
         name: memberProfile.display_name,
         currentIRating: actualCurrentIRating,
         currentSafetyRating: actualCurrentSafetyRating,
-        avgRacePace: '1:30.000', // Default value, would need to calculate
-        iratingHistories: {
-          'Road': roadRatingHistory,
-          'Oval': ovalRatingHistory
-        },
-        safetyRatingHistory: [],
-        racePaceHistory: [],
+        avgRacePace: accurateDriverData?.avgRacePace || '1:30.000', // Use accurate data if available
+        iratingHistories: iratingHistories,
+        safetyRatingHistory: safetyRatingHistory,
+        racePaceHistory: racePaceHistory || [],
         recentRaces: transformedRaces
       };
 
@@ -267,20 +283,25 @@ export async function getRaceResultAction(subsessionId: number): Promise<{ data:
   }
 }
 
-// Enhanced car info helper function using unified API
+// Enhanced car info helper function using unified API and CategoryMappingService
 async function getCarInfo(carId: number): Promise<{ car_name: string; category: string }> {
   try {
     // Use the unified API's car lookup system with caching
     const carName = await getCarName(carId);
     
-    // Get all cars to find category information
+    // Use the CategoryMappingService for category lookup
+    const category = await CategoryMappingService.getCarCategory(carId);
+    if (category) {
+      return { car_name: carName, category };
+    }
+    
+    // Fallback: Get car data and use mapping function
     const cars = await getAllCars();
     const carData = cars.find((car: any) => car.carId === carId);
     
     if (carData) {
-      // Map car to category using the same logic as the /api/cars route
-      const category = mapCarToCategory(carData);
-      return { car_name: carName, category };
+      const mappedCategory = await mapCarToCategory(carData);
+      return { car_name: carName, category: mappedCategory };
     } else {
       return { car_name: carName, category: 'Sports Car' };
     }
@@ -290,46 +311,42 @@ async function getCarInfo(carId: number): Promise<{ car_name: string; category: 
   }
 }
 
-// Helper function to map car to category (moved from /api/cars route)
-function mapCarToCategory(car: any): string {
-  // First, try to use the categories array from iRacing
-  if (car.categories && car.categories.length > 0) {
-    const category = car.categories[0];
-    if (category.categoryName) {
-      const categoryName = category.categoryName.toLowerCase();
-      if (categoryName.includes('formula')) return 'Formula Car';
-      if (categoryName.includes('oval') && categoryName.includes('dirt')) return 'Dirt Oval';
-      if (categoryName.includes('oval')) return 'Oval';
-      if (categoryName.includes('prototype')) return 'Prototype';
-      if (categoryName.includes('sports') || categoryName.includes('road')) return 'Sports Car';
+// Helper function to map car to category using the unified CategoryMappingService
+async function mapCarToCategory(car: any): Promise<string> {
+  try {
+    // Use the unified category mapping service
+    const category = await CategoryMappingService.getCarCategory(car.carId);
+    if (category) {
+      return category;
     }
-  }
-  
-  // Fallback to car types if categories don't work
-  if (car.carTypes && car.carTypes.length > 0) {
-    const carType = car.carTypes[0];
-    if (carType.carType) {
-      const typeName = carType.carType.toLowerCase();
-      if (typeName.includes('formula')) return 'Formula Car';
-      if (typeName.includes('oval') && typeName.includes('dirt')) return 'Dirt Oval';
-      if (typeName.includes('oval')) return 'Oval';
-      if (typeName.includes('prototype')) return 'Prototype';
+    
+    // If carId lookup fails, fall back to manual analysis using the service's logic
+    // This maintains compatibility while using the service
+    if (car.categories && car.categories.length > 0) {
+      const categoryInfo = car.categories[0];
+      if (categoryInfo.categoryName) {
+        const mapped = await CategoryMappingService.mapApiCategoryToRaceCategory(categoryInfo.categoryName);
+        if (mapped) return mapped;
+      }
     }
-  }
-  
-  // Final fallback to car name analysis
-  const carName = (car.carName || '').toLowerCase();
-  if (carName.includes('formula') || carName.includes('skip barber') || carName.includes('f1') || carName.includes('f3') || carName.includes('fr2.0')) {
-    return 'Formula Car';
-  } else if (carName.includes('legends') || carName.includes('modified') || carName.includes('sprint') || carName.includes('late model') || carName.includes('super speedway')) {
-    return 'Oval';
-  } else if (carName.includes('dirt') && carName.includes('oval')) {
-    return 'Dirt Oval';
-  } else if (carName.includes('prototype') || carName.includes('lmp') || carName.includes('dpi') || carName.includes('radical')) {
-    return 'Prototype';
-  } else {
-    // Default for GT3, Challenge, and most road cars
-    return 'Sports Car';
+    
+    // Final fallback to car name analysis
+    const carName = (car.carName || '').toLowerCase();
+    if (carName.includes('formula') || carName.includes('skip barber') || carName.includes('f1') || carName.includes('f3') || carName.includes('fr2.0')) {
+      return 'Formula Car';
+    } else if (carName.includes('legends') || carName.includes('modified') || carName.includes('sprint') || carName.includes('late model') || carName.includes('super speedway')) {
+      return 'Oval';
+    } else if (carName.includes('dirt') && carName.includes('oval')) {
+      return 'Dirt Oval';
+    } else if (carName.includes('prototype') || carName.includes('lmp') || carName.includes('dpi') || carName.includes('radical')) {
+      return 'Prototype';
+    } else {
+      // Default for GT3, Challenge, and most road cars
+      return 'Sports Car';
+    }
+  } catch (error) {
+    console.error('Error mapping car to category:', error);
+    return 'Sports Car'; // Safe fallback
   }
 }
 

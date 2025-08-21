@@ -69,6 +69,12 @@ import {
   getAuthConfig
 } from './iracing-auth-persistent'
 
+// Import category mapping service
+import { CategoryMappingService } from './category-mapping-service'
+
+// Re-export CategoryMappingService for convenience
+export { CategoryMappingService }
+
 // Re-export for convenience
 export { 
   ApiError, 
@@ -1072,26 +1078,11 @@ export const getDriverData = async (custId: number): Promise<Driver | null> => {
 
     // Fetch iRating chart data for each active category using API-based category lookup
     const chartDataPromises = activeCategories.map(async (category) => {
-      // Use the new API-based category lookup instead of hardcoded mapping
-      const categoryId = await getCategoryId(category);
+      // Use the new unified category mapping service with fallback
+      const categoryId = await CategoryMappingService.getCategoryIdWithFallback(category);
       if (!categoryId) {
-        console.warn(`No category ID found for category: ${category}, trying fallback mapping`);
-        
-        // Fallback to hardcoded mapping if API lookup fails
-        const fallbackMapping: Record<RaceCategory, number> = {
-          'Sports Car': 2,      // Road
-          'Formula Car': 2,     // Road  
-          'Prototype': 2,       // Road
-          'Oval': 1,           // Oval
-          'Dirt Oval': 3,      // Dirt Oval
-        };
-        const fallbackId = fallbackMapping[category];
-        if (!fallbackId) {
-          console.warn(`No fallback category ID mapping found for category: ${category}`);
-          return { category, data: [] };
-        }
-        console.log(`Using fallback category ID ${fallbackId} for ${category}`);
-        return await fetchChartDataForCategory(currentApi, custId, category, fallbackId);
+        console.warn(`No category ID found for category: ${category} (including fallback)`);
+        return { category, data: [] };
       }
       
       return await fetchChartDataForCategory(currentApi, custId, category, categoryId);
@@ -1113,7 +1104,7 @@ export const getDriverData = async (custId: number): Promise<Driver | null> => {
     }
 
     // Also fetch safety rating data (try to use Road category, fallback to ID 2)
-    let srCategoryId = await getCategoryId('Road') || 2; // Default to Road category
+    let srCategoryId = await CategoryMappingService.getCategoryIdWithFallback('Road') || 2; // Default to Road category
     const srChartPromise = currentApi.member.getMemberChartData({ 
       customerId: custId, 
       chartType: 3, 
@@ -1463,18 +1454,15 @@ export const getCategoryId = async (categoryName: string): Promise<number | null
       return categoriesCache.get(categoryName)!;
     }
 
-    // Try fuzzy matching for common variations
-    const fuzzyMatches = [
-      ['Sports Car', 'Road'],
-      ['Formula Car', 'Road'],
-      ['Prototype', 'Road'],
-      ['Oval', 'Oval'],
-      ['Dirt Oval', 'Dirt']
-    ];
-    
-    for (const [input, apiName] of fuzzyMatches) {
-      if (categoryName === input && categoriesCache?.has(apiName)) {
-        return categoriesCache.get(apiName)!;
+    // Use the category mapping service for fuzzy matching
+    const mappedCategory = await CategoryMappingService.mapApiCategoryToRaceCategory(categoryName);
+    if (mappedCategory && categoriesCache) {
+      // Try to find the mapped category in our cache
+      for (const [apiName, id] of categoriesCache.entries()) {
+        const apiMapped = await CategoryMappingService.mapApiCategoryToRaceCategory(apiName);
+        if (apiMapped === mappedCategory) {
+          return id;
+        }
       }
     }
 
