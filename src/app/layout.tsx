@@ -3,6 +3,7 @@ import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
 import { Orbitron, Inter } from 'next/font/google';
 import { ThemeProvider } from '@/components/theme-provider';
+import ErrorBoundary from '@/components/error-boundary';
 
 const fontHeadline = Orbitron({
   subsets: ['latin'],
@@ -35,7 +36,9 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          {children}
+          <ErrorBoundary>
+            {children}
+          </ErrorBoundary>
           <Toaster />
         </ThemeProvider>
       </body>
