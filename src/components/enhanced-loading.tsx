@@ -55,7 +55,7 @@ export function EnhancedLoading({
   const getStepBadge = (step: LoadingStep) => {
     switch (step.status) {
       case 'completed':
-        return <Badge variant="success" className="text-xs">Done</Badge>;
+        return <Badge variant="default" className="text-xs bg-green-500 text-white">Done</Badge>;
       case 'loading':
         return <Badge variant="default" className="text-xs">Loading...</Badge>;
       case 'error':

@@ -8,6 +8,8 @@
  * - Background sync when online
  */
 
+import React from 'react';
+
 import { Driver, RecentRace } from '@/lib/iracing-types';
 
 // Network status interface
@@ -549,17 +551,14 @@ export const NetworkStatusIndicator: React.FC = () => {
     return null; // Don't show anything when everything is good
   }
 
-  return (
-    <div className={`fixed top-4 right-4 z-50 px-3 py-2 rounded-md text-sm font-medium ${
+  return React.createElement('div', {
+    className: `fixed top-4 right-4 z-50 px-3 py-2 rounded-md text-sm font-medium ${
       networkStatus.online 
         ? 'bg-orange-500 text-white' 
         : 'bg-red-500 text-white'
-    }`}>
-      {networkStatus.online ? (
-        `Slow Connection${networkStatus.effectiveType ? ` (${networkStatus.effectiveType})` : ''}`
-      ) : (
-        'Offline - Using Cached Data'
-      )}
-    </div>
+    }`
+  }, networkStatus.online ? 
+    `Slow Connection${networkStatus.effectiveType ? ` (${networkStatus.effectiveType})` : ''}` :
+    'Offline - Using Cached Data'
   );
 };
