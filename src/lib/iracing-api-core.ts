@@ -1081,10 +1081,27 @@ export const getDriverData = async (custId: number): Promise<Driver | null> => {
     // Fetch iRating chart data for each active category using API-based category lookup
     const chartDataPromises = activeCategories.map(async (category) => {
       // Use the new unified category mapping service with fallback
-      const categoryId = await CategoryMappingService.getCategoryIdWithFallback(category);
+      let categoryId: number | null = null;
+      
+      try {
+        categoryId = await CategoryMappingService.getCategoryIdWithFallback(category);
+      } catch (error) {
+        console.warn(`CategoryMappingService failed for ${category}, using direct fallback:`, error);
+      }
+      
+      // Direct fallback mapping if service fails
       if (!categoryId) {
-        console.warn(`No category ID found for category: ${category} (including fallback)`);
-        return { category, data: [] };
+        const fallbackMapping: Record<string, number> = {
+          'Sports Car': 2,      // Road
+          'Formula Car': 2,     // Road  
+          'Prototype': 2,       // Road
+          'Oval': 1,           // Oval
+          'Dirt Oval': 3,      // Dirt Oval
+          'Road': 2,           // Road (direct mapping)
+          'Dirt': 3,           // Dirt
+        };
+        categoryId = fallbackMapping[category] || 2; // Default to Road
+        console.warn(`Using direct fallback mapping for category ${category}: categoryId ${categoryId}`);
       }
       
       return await fetchChartDataForCategory(currentApi, custId, category, categoryId);
@@ -1106,11 +1123,23 @@ export const getDriverData = async (custId: number): Promise<Driver | null> => {
     }
 
     // Also fetch safety rating data (try to use Road category, fallback to ID 2)
-    let srCategoryId = await CategoryMappingService.getCategoryIdWithFallback('Road') || 2; // Default to Road category
+    let srCategoryId = 2; // Default to Road category
+    try {
+      const mappedCategoryId = await CategoryMappingService.getCategoryIdWithFallback('Road');
+      if (mappedCategoryId) {
+        srCategoryId = mappedCategoryId;
+      }
+    } catch (error) {
+      console.warn('CategoryMappingService failed for Safety Rating, using default Road category (2):', error);
+    }
+    
     const srChartPromise = currentApi.member.getMemberChartData({ 
       customerId: custId, 
       chartType: 3, 
       categoryId: srCategoryId
+    }).catch((error) => {
+      console.error(`Failed to fetch Safety Rating chart data for categoryId ${srCategoryId}:`, error);
+      return null; // Return null instead of throwing
     });
 
     const [chartDataResults, srChartResponse] = await Promise.all([
@@ -1125,14 +1154,46 @@ export const getDriverData = async (custId: number): Promise<Driver | null> => {
     const twelveMonthsAgo = new Date();
     twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 12);
     
+    console.log('Processing chart data results:', chartDataResults.length, 'categories');
+    
     for (const { category, data } of chartDataResults) {
       const chartData = data as IracingApiChartPoint[];
-      iratingHistories[category] = (chartData || [])
+      console.log(`Processing ${category} chart data:`, chartData?.length || 0, 'points');
+      
+      if (chartData && Array.isArray(chartData) && chartData.length > 0) {
+        iratingHistories[category] = chartData
+          .map((p: IracingApiChartPoint) => ({
+            // Store the original date for proper sorting
+            originalDate: new Date(p.when),
+            month: new Date(p.when).toLocaleString('en-US', { month: 'short', year: 'numeric', timeZone: 'UTC' }),
+            value: p.value,
+          }))
+          // Filter to show only the most recent 12 months
+          .filter(p => p.originalDate >= twelveMonthsAgo)
+          // Sort by actual date, not the formatted string
+          .sort((a, b) => a.originalDate.getTime() - b.originalDate.getTime())
+          // Remove the originalDate property from the final result
+          .map(({ originalDate, ...point }) => point);
+        
+        console.log(`✅ ${category} iRating history: ${iratingHistories[category].length} points (last 12 months)`);
+      } else {
+        console.warn(`⚠️ No valid chart data for category: ${category}`);
+        iratingHistories[category] = [];
+      }
+    }
+
+    const srChart: IracingApiChartData | null = srChartResponse as any;
+
+    console.log('Processing Safety Rating chart data:', srChart?.data?.length || 0, 'points');
+    
+    const safetyRatingHistory: HistoryPoint[] = [];
+    if (srChart?.data && Array.isArray(srChart.data) && srChart.data.length > 0) {
+      const processedSRData = srChart.data
         .map((p: IracingApiChartPoint) => ({
           // Store the original date for proper sorting
           originalDate: new Date(p.when),
           month: new Date(p.when).toLocaleString('en-US', { month: 'short', year: 'numeric', timeZone: 'UTC' }),
-          value: p.value,
+          value: p.value / 100, // SR values are often *100 in API
         }))
         // Filter to show only the most recent 12 months
         .filter(p => p.originalDate >= twelveMonthsAgo)
@@ -1140,23 +1201,12 @@ export const getDriverData = async (custId: number): Promise<Driver | null> => {
         .sort((a, b) => a.originalDate.getTime() - b.originalDate.getTime())
         // Remove the originalDate property from the final result
         .map(({ originalDate, ...point }) => point);
+      
+      safetyRatingHistory.push(...processedSRData);
+      console.log(`✅ Safety Rating history: ${safetyRatingHistory.length} points (last 12 months)`);
+    } else {
+      console.warn(`⚠️ No valid Safety Rating chart data available`);
     }
-
-    const srChart: IracingApiChartData | null = srChartResponse as any;
-
-    const safetyRatingHistory: HistoryPoint[] = (srChart?.data || [])
-      .map((p: IracingApiChartPoint) => ({
-        // Store the original date for proper sorting
-        originalDate: new Date(p.when),
-        month: new Date(p.when).toLocaleString('en-US', { month: 'short', year: 'numeric', timeZone: 'UTC' }),
-        value: p.value / 100, // SR values are often *100 in API
-      }))
-      // Filter to show only the most recent 12 months
-      .filter(p => p.originalDate >= twelveMonthsAgo)
-      // Sort by actual date, not the formatted string
-      .sort((a, b) => a.originalDate.getTime() - b.originalDate.getTime())
-      // Remove the originalDate property from the final result
-      .map(({ originalDate, ...point }) => point);
 
     const racePaceHistory: HistoryPoint[] = recentRaces
       .map(r => {

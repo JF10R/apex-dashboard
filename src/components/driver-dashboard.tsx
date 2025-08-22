@@ -201,7 +201,22 @@ export default function DriverDashboard({ custId, driverName }: { custId: number
     const sortedRaces = [...filteredRaces].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     const latestRace = sortedRaces[0];
     const driverParticipant = latestRace.participants.find(p => p.name === driver.name);
-    const iRating = driverParticipant ? driverParticipant.irating : driver.currentIRating;
+    
+    // Calculate iRating from the most recent race using change data
+    let calculatedIRating = driver.currentIRating;
+    if (latestRace && latestRace.iratingChange !== undefined) {
+      // Work backwards from current iRating using the most recent race's change
+      const racesNewerThanLatest = driver.recentRaces.filter(race => 
+        new Date(race.date) >= new Date(latestRace.date)
+      );
+      const totalChangeAfterLatest = racesNewerThanLatest.reduce((sum, race) => sum + (race.iratingChange || 0), 0);
+      calculatedIRating = driver.currentIRating - totalChangeAfterLatest;
+    }
+    
+    // Use participant iRating if available, otherwise use calculated value
+    const iRating = (driverParticipant && driverParticipant.irating > 0) ? 
+      driverParticipant.irating : 
+      calculatedIRating;
 
     return {
       iRating: iRating.toLocaleString('en-US'),
