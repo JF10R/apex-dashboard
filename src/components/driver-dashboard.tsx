@@ -13,6 +13,9 @@ import { lapTimeToSeconds } from '@/lib/utils';
 import SeriesPerformanceSummary from './series-performance-summary';
 import { getDriverPageData } from '../app/data-actions';
 import { useToast } from '@/hooks/use-toast';
+import { transformRecentRacesToPersonalBests } from '@/lib/personal-bests';
+import { PersonalBestCard } from './personal-best-card';
+import Link from 'next/link';
 
 function DashboardSkeleton() {
   return (
@@ -321,6 +324,23 @@ export default function DriverDashboard({ custId, driverName }: { custId: number
     return Object.values(statsBySeries).sort((a, b) => b.raceCount - a.raceCount);
   }, [filteredRaces, driver]);
 
+  const personalBestsPreview = useMemo(() => {
+    if (!driver) return [];
+    const { personalBests } = transformRecentRacesToPersonalBests(
+      custId,
+      driver.name,
+      driver.recentRaces
+    );
+    return Object.values(personalBests.seriesBests)
+      .flatMap(series =>
+        Object.values(series.trackLayoutBests).flatMap(layout =>
+          Object.values(layout.carBests)
+        )
+      )
+      .sort((a, b) => a.fastestLapMs - b.fastestLapMs)
+      .slice(0, 3);
+  }, [driver, custId]);
+
   if (isLoading) {
     return <DashboardSkeleton />;
   }
@@ -392,7 +412,7 @@ export default function DriverDashboard({ custId, driverName }: { custId: number
                 <div className="text-sm">
                   <p className="font-medium text-amber-800 dark:text-amber-200 mb-1">Limited Historical Data</p>
                   <p className="text-amber-700 dark:text-amber-300">
-                    iRacing's API only provides recent race data. Series performance and statistics for 
+                    iRacing&apos;s API only provides recent race data. Series performance and statistics for
                     <span className="font-medium"> {season}</span> may represent a subset of your actual participation in that season.
                   </p>
                 </div>
@@ -456,17 +476,42 @@ export default function DriverDashboard({ custId, driverName }: { custId: number
       </section>
 
       <section>
-         <Card>
-          <CardHeader>
-            <CardTitle className="font-headline">Recent Races</CardTitle>
-            <CardDescription>Filtered race performance. Click a race for full details.</CardDescription>
+        <Card>
+         <CardHeader>
+           <CardTitle className="font-headline">Recent Races</CardTitle>
+           <CardDescription>Filtered race performance. Click a race for full details.</CardDescription>
+         </CardHeader>
+         <CardContent>
+           <RecentRaces races={filteredRaces} driverId={custId} />
+         </CardContent>
+       </Card>
+      </section>
+
+      <section>
+        <Card>
+          <CardHeader className="flex items-center justify-between">
+            <CardTitle className="font-headline">Personal Bests</CardTitle>
+            <Link
+              href={`/personal-bests/${custId}`}
+              className="text-sm text-primary hover:underline"
+            >
+              View All →
+            </Link>
           </CardHeader>
           <CardContent>
-            <RecentRaces races={filteredRaces} driverId={custId} />
+            {personalBestsPreview.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No personal bests yet.</p>
+            ) : (
+              <div className="grid gap-4 md:grid-cols-3">
+                {personalBestsPreview.map(record => (
+                  <PersonalBestCard key={record.id} record={record} />
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
       </section>
-      
+
       <section>
         <SeriesPerformanceSummary seriesStats={seriesPerformanceStats} />
       </section>

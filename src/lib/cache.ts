@@ -106,6 +106,7 @@ export const cacheKeys = {
   raceResult: (raceId: string | number) => `race:${raceId}`,
   lapTimes: (raceId: string | number, driverId: string | number) => `laps:${raceId}:${driverId}`,
   driverSearch: (query: string) => `search:${query.toLowerCase()}`,
+  personalBests: (custId: string | number) => `personalBests:${custId}`,
 };
 
 // Cache TTL constants (in milliseconds)
@@ -114,6 +115,7 @@ export const cacheTTL = {
   RACE_RESULT: 60 * 60 * 1000,    // 1 hour (race results don't change)
   LAP_TIMES: 60 * 60 * 1000,      // 1 hour (lap times don't change)
   SEARCH_RESULTS: 5 * 60 * 1000,  // 5 minutes
+  PERSONAL_BESTS: Number(process.env.PERSONAL_BESTS_CACHE_TTL) || 60 * 60 * 1000, // default 1 hour
 };
 
 // Utility functions
