@@ -140,18 +140,27 @@ export function calculateIRatingDelta(
   currentIRating: number
 ): IRatingDelta {
   const delta = estimatedIRating - currentIRating
-  const percentageChange = currentIRating > 0 ? (delta / currentIRating) * 100 : 0
-  
-  // Determine assessment level
+
+  // Percentage change handling - avoid division by zero
+  let percentageChange = 0
+  if (currentIRating > 0) {
+    percentageChange = (delta / currentIRating) * 100
+  }
+
+  // Determine assessment level. For a zero baseline, use the sign of the delta
   let assessment: IRatingDelta['assessment']
-  if (percentageChange >= 15) assessment = 'significantly_above'
+  if (currentIRating === 0) {
+    if (delta > 0) assessment = 'significantly_above'
+    else if (delta < 0) assessment = 'significantly_below'
+    else assessment = 'consistent'
+  } else if (percentageChange >= 15) assessment = 'significantly_above'
   else if (percentageChange >= 5) assessment = 'moderately_above'
   else if (percentageChange >= 1) assessment = 'slightly_above'
   else if (percentageChange >= -1) assessment = 'consistent'
   else if (percentageChange >= -5) assessment = 'slightly_below'
   else if (percentageChange >= -15) assessment = 'moderately_below'
   else assessment = 'significantly_below'
-  
+
   return IRatingDeltaSchema.parse({
     delta,
     currentIRating,
