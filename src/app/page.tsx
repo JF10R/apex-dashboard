@@ -65,7 +65,7 @@ export default function Home() {
             <CardHeader>
               <CardTitle>Welcome to Apex Stats</CardTitle>
               <CardDescription>
-                Enter a driver's name above to see their stats, or click the star icon to track drivers for quick access.
+                Enter a driver&apos;s name above to see their stats, or click the star icon to track drivers for quick access.
               </CardDescription>
             </CardHeader>
           </Card>

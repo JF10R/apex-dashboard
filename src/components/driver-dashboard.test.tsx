@@ -9,7 +9,16 @@ import { useToast } from '@/hooks/use-toast';
 jest.mock('./stat-card', () => ({ StatCard: (props: any) => <div data-testid="stat-card" title={props.title}>{props.title}: {props.value}</div> }));
 jest.mock('./history-chart', () => ({ HistoryChart: (props: any) => <div data-testid="history-chart" title={props.title}>{props.title}</div> }));
 jest.mock('./recent-races', () => ({ RecentRaces: (props: any) => <div data-testid="recent-races">Races: {props.races.length}</div> }));
-jest.mock('./series-performance-summary', () => (props: any) => <div data-testid="series-summary">Series Stats: {props.seriesStats.length}</div>);
+jest.mock('./series-performance-summary', () => {
+  const SeriesPerformanceSummary = (props: any) => (
+    <div data-testid="series-summary">Series Stats: {props.seriesStats.length}</div>
+  );
+  SeriesPerformanceSummary.displayName = 'SeriesPerformanceSummary';
+  return {
+    __esModule: true,
+    default: SeriesPerformanceSummary,
+  };
+});
 jest.mock('@/hooks/use-toast', () => ({
   useToast: jest.fn(() => ({ toast: jest.fn() })),
 }));

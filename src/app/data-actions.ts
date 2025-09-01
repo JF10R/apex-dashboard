@@ -17,6 +17,8 @@ import { CategoryMappingService } from '@/lib/category-mapping-service';
 import { ApiError, ApiErrorType } from '@/lib/iracing-auth'
 import { type RecentRace, type Driver, type SearchedDriver, type RaceCategory } from '@/lib/iracing-types'
 import { cache, cacheKeys, cacheTTL } from '@/lib/cache'
+import { transformRecentRacesToPersonalBests } from '@/lib/personal-bests'
+import type { DriverPersonalBests } from '@/lib/personal-bests-types'
 
 export async function searchDriversAction(query: string): Promise<{ data: SearchedDriver[]; error: string | null }> {
   try {
@@ -347,6 +349,49 @@ async function mapCarToCategory(car: any): Promise<string> {
   } catch (error) {
     console.error('Error mapping car to category:', error);
     return 'Sports Car'; // Safe fallback
+  }
+}
+
+export async function getPersonalBestsData(
+  custId: number,
+  forceRefresh: boolean = false
+): Promise<{ data: DriverPersonalBests | null; error: string | null; fromCache?: boolean; cacheAge?: number }> {
+  try {
+    const cacheKey = cacheKeys.personalBests(custId);
+    if (!forceRefresh) {
+      const cacheInfo = cache.getCacheInfo(cacheKey);
+      const cached = cache.get<DriverPersonalBests>(cacheKey);
+      if (cached) {
+        return { data: cached, error: null, fromCache: true, cacheAge: cacheInfo.age };
+      }
+    }
+
+    const { data: driver, error } = await getDriverPageData(custId, forceRefresh);
+    if (error) {
+      // Fallback to expired cache if available
+      const expired = cache.getExpired<DriverPersonalBests>(cacheKey);
+      if (expired) {
+        const cacheInfo = cache.getCacheInfo(cacheKey);
+        return { data: expired, error, fromCache: true, cacheAge: cacheInfo.age };
+      }
+      return { data: null, error };
+    }
+
+    if (!driver) {
+      return { data: null, error: 'Driver not found' };
+    }
+
+    const { personalBests } = transformRecentRacesToPersonalBests(
+      custId,
+      driver.name,
+      driver.recentRaces
+    );
+
+    cache.set(cacheKey, personalBests, cacheTTL.PERSONAL_BESTS);
+    return { data: personalBests, error: null };
+  } catch (e) {
+    const message = e instanceof Error ? e.message : 'Unknown error';
+    return { data: null, error: message };
   }
 }
 

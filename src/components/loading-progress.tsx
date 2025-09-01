@@ -81,7 +81,7 @@ export function LoadingProgress({
 
         {phase === 'lap-data' && (
           <div className="text-xs text-muted-foreground bg-muted/50 p-2 rounded">
-            💡 <strong>What's happening?</strong> We're fetching detailed lap data for each driver to show you comprehensive race statistics. This helps avoid API rate limits while ensuring you get complete information.
+            💡 <strong>What&apos;s happening?</strong> We&apos;re fetching detailed lap data for each driver to show you comprehensive race statistics. This helps avoid API rate limits while ensuring you get complete information.
           </div>
         )}
       </CardContent>

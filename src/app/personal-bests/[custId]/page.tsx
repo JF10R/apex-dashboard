@@ -1,0 +1,79 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import { AppHeader } from '@/components/app-header';
+import { ThemeToggle } from '@/components/theme-toggle';
+import { Button } from '@/components/ui/button';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import type { DriverPersonalBests } from '@/lib/personal-bests-types';
+import { getPersonalBestsData } from '@/app/data-actions';
+import { PersonalBestsSeriesSection } from '@/components/personal-bests-series-section';
+
+export default function PersonalBestsPage() {
+  const params = useParams();
+  const router = useRouter();
+  const custId = Number(params.custId);
+  const [data, setData] = useState<DriverPersonalBests | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true);
+      const result = await getPersonalBestsData(custId);
+      if (result.error) {
+        setError(result.error);
+      }
+      setData(result.data);
+      setLoading(false);
+    };
+    if (!Number.isNaN(custId)) {
+      fetchData();
+    }
+  }, [custId]);
+
+  if (loading) {
+    return (
+      <main className="container mx-auto p-4 md:p-8">
+        <AppHeader subtitle="Loading personal bests..." />
+      </main>
+    );
+  }
+
+  if (error || !data) {
+    return (
+      <main className="container mx-auto p-4 md:p-8">
+        <AppHeader subtitle="Personal Bests" />
+        <Alert>
+          <AlertDescription>{error || 'No personal bests available'}</AlertDescription>
+        </Alert>
+        <Button variant="outline" className="mt-4" onClick={() => router.back()}>
+          Back
+        </Button>
+      </main>
+    );
+  }
+
+  const seriesList = Object.values(data.seriesBests);
+
+  return (
+    <main className="container mx-auto p-4 md:p-8 relative">
+      <div className="absolute top-4 right-4">
+        <ThemeToggle />
+      </div>
+      <AppHeader subtitle={`Personal Bests for ${data.driverName}`} />
+      <div className="mb-4">
+        <Button variant="outline" onClick={() => router.back()}>
+          Back
+        </Button>
+      </div>
+      <div className="space-y-8">
+        {seriesList.map((series) => (
+          <PersonalBestsSeriesSection key={series.seriesName} series={series} />
+        ))}
+      </div>
+    </main>
+  );
+}
+

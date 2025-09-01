@@ -23,6 +23,7 @@ Apex Stats is a modern, data-driven web application that provides comprehensive 
 - **Historical Charts**: Interactive visualizations showing performance progression over time
 - **Advanced Filtering**: Filter data by year, season, car category, tracks, and specific vehicles
 - **Performance Insights**: Detailed statistical analysis and performance summaries
+- **Personal Bests Tracking**: View fastest laps per car and track with direct navigation from the dashboard
 
 ### 🏁 Race Analysis
 - **Detailed Race Results**: Complete race breakdowns with all participant data
