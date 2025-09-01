@@ -358,8 +358,8 @@ export async function getPersonalBestsData(
 ): Promise<{ data: DriverPersonalBests | null; error: string | null; fromCache?: boolean; cacheAge?: number }> {
   try {
     const cacheKey = cacheKeys.personalBests(custId);
-    const cacheInfo = cache.getCacheInfo(cacheKey);
     if (!forceRefresh) {
+      const cacheInfo = cache.getCacheInfo(cacheKey);
       const cached = cache.get<DriverPersonalBests>(cacheKey);
       if (cached) {
         return { data: cached, error: null, fromCache: true, cacheAge: cacheInfo.age };
@@ -371,6 +371,7 @@ export async function getPersonalBestsData(
       // Fallback to expired cache if available
       const expired = cache.getExpired<DriverPersonalBests>(cacheKey);
       if (expired) {
+        const cacheInfo = cache.getCacheInfo(cacheKey);
         return { data: expired, error, fromCache: true, cacheAge: cacheInfo.age };
       }
       return { data: null, error };
