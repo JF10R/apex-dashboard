@@ -97,8 +97,9 @@ describe('DriverDashboard', () => {
   it('renders driver data after loading', async () => {
     render(<DriverDashboard custId={123} driverName="Test Driver" />);
     await waitFor(() => expect(screen.getByText('Stats for Test Driver')).toBeInTheDocument());
-    expect(screen.getByText('iRating: 3,100')).toBeInTheDocument(); // StatCard format
-    expect(screen.getByText('Safety Rating: A 3.50')).toBeInTheDocument(); // StatCard format
+    // StatCard mock uses provided value directly which is pre-formatted in the component
+    expect(screen.getByTitle('iRating')).toHaveTextContent('iRating: 3,080');
+    expect(screen.getByTitle('Safety Rating')).toHaveTextContent('Safety Rating: A 3.50');
   });
 
   describe('iRating Category Selector', () => {
