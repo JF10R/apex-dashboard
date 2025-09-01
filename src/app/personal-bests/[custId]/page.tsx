@@ -28,7 +28,7 @@ export default function PersonalBestsPage() {
       setData(result.data);
       setLoading(false);
     };
-    if (!isNaN(custId)) {
+    if (!Number.isNaN(custId)) {
       fetchData();
     }
   }, [custId]);
