@@ -8,6 +8,15 @@
 import { z } from 'zod'
 import { type RaceCategory } from './iracing-types'
 
+// Shared category schema to eliminate duplication across schemas
+export const CategorySchema = z.union([
+  z.literal('Formula Car'),
+  z.literal('Sports Car'), 
+  z.literal('Prototype'),
+  z.literal('Oval'),
+  z.literal('Dirt Oval')
+])
+
 // Core personal best record for a specific car on a specific track layout
 export const PersonalBestRecordSchema = z.object({
   // Unique identifier for this personal best record
@@ -28,13 +37,7 @@ export const PersonalBestRecordSchema = z.object({
   
   // Context information
   seriesName: z.string(),
-  category: z.union([
-    z.literal('Formula Car'),
-    z.literal('Sports Car'), 
-    z.literal('Prototype'),
-    z.literal('Oval'),
-    z.literal('Dirt Oval')
-  ]),
+  category: CategorySchema,
   
   // Race metadata
   subsessionId: z.string(), // Original race where this time was achieved
@@ -64,13 +67,7 @@ export const TrackLayoutPersonalBestsSchema = z.object({
   trackId: z.number(),
   
   // Category context
-  category: z.union([
-    z.literal('Formula Car'),
-    z.literal('Sports Car'), 
-    z.literal('Prototype'),
-    z.literal('Oval'),
-    z.literal('Dirt Oval')
-  ]),
+  category: CategorySchema,
   
   // Personal bests by car (Map-like structure stored as Record)
   carBests: z.record(z.string(), PersonalBestRecordSchema), // carName -> PersonalBestRecord
@@ -86,13 +83,7 @@ export const TrackLayoutPersonalBestsSchema = z.object({
 export const SeriesPersonalBestsSchema = z.object({
   // Series identification
   seriesName: z.string(),
-  category: z.union([
-    z.literal('Formula Car'),
-    z.literal('Sports Car'), 
-    z.literal('Prototype'),
-    z.literal('Oval'),
-    z.literal('Dirt Oval')
-  ]),
+  category: CategorySchema,
   
   // Track layout bests (Map-like structure stored as Record)
   trackLayoutBests: z.record(z.string(), TrackLayoutPersonalBestsSchema), // trackLayoutKey -> TrackLayoutPersonalBests

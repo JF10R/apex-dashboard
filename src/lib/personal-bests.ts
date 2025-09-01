@@ -85,46 +85,63 @@ function generateTrackIdFromName(trackName: string): number {
 }
 
 /**
+ * Shared fastest lap utility for consistent lap time comparison
+ * Atomic function following DRY principles
+ */
+export function findFastestLapTime(lapTimes: string[]): { fastestLap: string; fastestMs: number } {
+  if (!lapTimes || lapTimes.length === 0) {
+    return { fastestLap: 'N/A', fastestMs: Infinity }
+  }
+  
+  let fastestLap = 'N/A'
+  let fastestMs = Infinity
+  
+  for (const lapTime of lapTimes) {
+    if (lapTime && lapTime !== 'N/A') {
+      const lapMs = lapTimeToMs(lapTime)
+      if (lapMs < fastestMs && lapMs > 0) {
+        fastestMs = lapMs
+        fastestLap = lapTime
+      }
+    }
+  }
+  
+  return { fastestLap, fastestMs }
+}
+
+/**
  * Find the fastest valid lap time from race participants
- * Pure function following KISS principles
+ * Refactored to use shared fastest lap utility
  */
 export function findFastestLapInRace(participants: RaceParticipant[]): string {
   if (!participants || participants.length === 0) {
     return 'N/A'
   }
   
-  let fastestLap = 'N/A'
-  let fastestMs = Infinity
+  const lapTimes: string[] = []
   
   for (const participant of participants) {
+    // Add participant fastest lap
     if (participant.fastestLap && participant.fastestLap !== 'N/A') {
-      const lapMs = lapTimeToMs(participant.fastestLap)
-      if (lapMs < fastestMs && lapMs > 0) {
-        fastestMs = lapMs
-        fastestLap = participant.fastestLap
-      }
+      lapTimes.push(participant.fastestLap)
     }
     
-    // Also check individual lap times if available
+    // Add individual lap times if available
     if (participant.laps) {
       for (const lap of participant.laps) {
         if (!lap.invalid && lap.time !== 'N/A') {
-          const lapMs = lapTimeToMs(lap.time)
-          if (lapMs < fastestMs && lapMs > 0) {
-            fastestMs = lapMs
-            fastestLap = lap.time
-          }
+          lapTimes.push(lap.time)
         }
       }
     }
   }
   
-  return fastestLap
+  return findFastestLapTime(lapTimes).fastestLap
 }
 
 /**
  * Extract driver's fastest lap from a race
- * Assumes first participant is the driver (current implementation pattern)
+ * Refactored to use shared fastest lap utility
  */
 export function extractDriverFastestLap(race: RecentRace): string | null {
   if (!race.participants || race.participants.length === 0) {
@@ -133,30 +150,24 @@ export function extractDriverFastestLap(race: RecentRace): string | null {
   
   // Get the driver's participant data (assuming first participant is the driver)
   const driverParticipant = race.participants[0]
+  const lapTimes: string[] = []
   
+  // Add participant fastest lap if available
   if (driverParticipant.fastestLap && driverParticipant.fastestLap !== 'N/A') {
-    return driverParticipant.fastestLap
+    lapTimes.push(driverParticipant.fastestLap)
   }
   
-  // Fallback: find fastest lap from driver's individual lap times
+  // Add individual lap times if available
   if (driverParticipant.laps && driverParticipant.laps.length > 0) {
-    let fastest = 'N/A'
-    let fastestMs = Infinity
-    
     for (const lap of driverParticipant.laps) {
       if (!lap.invalid && lap.time !== 'N/A') {
-        const lapMs = lapTimeToMs(lap.time)
-        if (lapMs < fastestMs && lapMs > 0) {
-          fastestMs = lapMs
-          fastest = lap.time
-        }
+        lapTimes.push(lap.time)
       }
     }
-    
-    return fastest !== 'N/A' ? fastest : null
   }
   
-  return null
+  const result = findFastestLapTime(lapTimes)
+  return result.fastestLap !== 'N/A' ? result.fastestLap : null
 }
 
 /**
@@ -271,16 +282,9 @@ export function createTrackLayoutPersonalBests(
     // Find personal bests by car
     const carBests = findPersonalBestsByCarForTrackLayout(records)
     
-    // Calculate overall fastest lap
-    let fastestOverallMs = Infinity
-    let fastestOverall = 'N/A'
-    
-    for (const carBest of Object.values(carBests)) {
-      if (carBest.fastestLapMs < fastestOverallMs) {
-        fastestOverallMs = carBest.fastestLapMs
-        fastestOverall = carBest.fastestLap
-      }
-    }
+    // Calculate overall fastest lap using shared utility
+    const carBestTimes = Object.values(carBests).map(carBest => carBest.fastestLap)
+    const { fastestLap: fastestOverall, fastestMs: fastestOverallMs } = findFastestLapTime(carBestTimes)
     
     // Find most recent race
     const mostRecentRace = records
@@ -399,8 +403,184 @@ export function createSeriesPersonalBests(
 }
 
 /**
+ * Filter races based on transformation options
+ * Atomic function for race filtering logic
+ */
+export function filterRacesByOptions(
+  recentRaces: RecentRace[],
+  options: PersonalBestTransformOptions,
+  ignoredRaces: Array<{ raceId: string; reason: string }>
+): RecentRace[] {
+  return recentRaces.filter(race => {
+    // Category filter
+    if (options.categoryFilter && !options.categoryFilter.includes(race.category)) {
+      ignoredRaces.push({ raceId: race.id, reason: `Category ${race.category} not in filter` })
+      return false
+    }
+    
+    // Series filter
+    if (options.seriesFilter && !options.seriesFilter.includes(race.seriesName)) {
+      ignoredRaces.push({ raceId: race.id, reason: `Series ${race.seriesName} not in filter` })
+      return false
+    }
+    
+    // Date range filter
+    if (options.dateFrom || options.dateTo) {
+      const raceDate = new Date(race.date)
+      if (options.dateFrom && raceDate < options.dateFrom) {
+        ignoredRaces.push({ raceId: race.id, reason: 'Race date before filter range' })
+        return false
+      }
+      if (options.dateTo && raceDate > options.dateTo) {
+        ignoredRaces.push({ raceId: race.id, reason: 'Race date after filter range' })
+        return false
+      }
+    }
+    
+    // Strength of field filter
+    if (options.minStrengthOfField && race.strengthOfField < options.minStrengthOfField) {
+      ignoredRaces.push({ raceId: race.id, reason: `SoF ${race.strengthOfField} below minimum` })
+      return false
+    }
+    
+    return true
+  })
+}
+
+/**
+ * Build personal best records from filtered races
+ * Atomic function for record creation logic
+ */
+export function buildPersonalBestRecords(
+  filteredRaces: RecentRace[],
+  ignoredRaces: Array<{ raceId: string; reason: string }>
+): PersonalBestRecord[] {
+  const personalBestRecords: PersonalBestRecord[] = []
+  
+  for (const race of filteredRaces) {
+    const trackLayoutIdentifier = extractTrackLayoutIdentifier(race)
+    if (!trackLayoutIdentifier) {
+      ignoredRaces.push({ raceId: race.id, reason: 'Invalid track layout identifier' })
+      continue
+    }
+    
+    const fastestLap = extractDriverFastestLap(race)
+    if (!fastestLap) {
+      ignoredRaces.push({ raceId: race.id, reason: 'No valid fastest lap found' })
+      continue
+    }
+    
+    const record = createPersonalBestRecord(race, trackLayoutIdentifier, fastestLap)
+    if (record) {
+      personalBestRecords.push(record)
+    } else {
+      ignoredRaces.push({ raceId: race.id, reason: 'Failed to create personal best record' })
+    }
+  }
+  
+  return personalBestRecords
+}
+
+/**
+ * Aggregate personal best records into hierarchical structure
+ * Atomic function for data aggregation logic
+ */
+export function aggregateByHierarchy(
+  personalBestRecords: PersonalBestRecord[],
+  options: PersonalBestTransformOptions,
+  warnings: string[]
+): Record<string, SeriesPersonalBests> {
+  // Group records by track layout
+  const recordsByTrackLayout = groupRecordsByTrackLayout(personalBestRecords)
+  
+  // Create track layout personal bests
+  const trackLayoutBests: TrackLayoutPersonalBests[] = []
+  
+  for (const [trackLayoutKey, records] of Object.entries(recordsByTrackLayout)) {
+    // Apply minimum races filter
+    if (options.minRaces && records.length < options.minRaces) {
+      warnings.push(`Track layout ${trackLayoutKey} has only ${records.length} races, minimum is ${options.minRaces}`)
+      continue
+    }
+    
+    const trackLayoutPersonalBests = createTrackLayoutPersonalBests(trackLayoutKey, records)
+    if (trackLayoutPersonalBests) {
+      trackLayoutBests.push(trackLayoutPersonalBests)
+    }
+  }
+  
+  // Group by series
+  const trackLayoutsBySeries = groupTrackLayoutsBySeries(trackLayoutBests)
+  
+  // Create series personal bests
+  const seriesBests: Record<string, SeriesPersonalBests> = {}
+  
+  for (const [seriesName, trackLayouts] of Object.entries(trackLayoutsBySeries)) {
+    const seriesPersonalBests = createSeriesPersonalBests(seriesName, trackLayouts)
+    if (seriesPersonalBests) {
+      seriesBests[seriesName] = seriesPersonalBests
+    }
+  }
+  
+  return seriesBests
+}
+
+/**
+ * Calculate global driver statistics from series data
+ * Atomic function for statistics calculation
+ */
+export function calculateGlobalStatistics(
+  seriesBests: Record<string, SeriesPersonalBests>,
+  personalBestRecords: PersonalBestRecord[]
+): {
+  fastestLapOverall: string
+  fastestLapOverallMs: number
+  fastestLapTrack: string
+  fastestLapCar: string
+  totalTrackLayouts: number
+  totalCars: number
+} {
+  let fastestLapOverallMs = Infinity
+  let fastestLapOverall = 'N/A'
+  let fastestLapTrack = ''
+  let fastestLapCar = ''
+  let totalTrackLayouts = 0
+  
+  for (const series of Object.values(seriesBests)) {
+    totalTrackLayouts += series.uniqueTrackLayouts
+    
+    if (series.bestOverallLapMs < fastestLapOverallMs) {
+      fastestLapOverallMs = series.bestOverallLapMs
+      fastestLapOverall = series.bestOverallLap
+      
+      // Find the track and car for this fastest lap
+      for (const trackLayout of Object.values(series.trackLayoutBests)) {
+        for (const carBest of Object.values(trackLayout.carBests)) {
+          if (carBest.fastestLapMs === fastestLapOverallMs) {
+            fastestLapTrack = trackLayout.trackName
+            fastestLapCar = carBest.carName
+            break
+          }
+        }
+      }
+    }
+  }
+  
+  const totalCars = new Set(personalBestRecords.map(r => r.carName)).size
+  
+  return {
+    fastestLapOverall,
+    fastestLapOverallMs,
+    fastestLapTrack,
+    fastestLapCar,
+    totalTrackLayouts,
+    totalCars
+  }
+}
+
+/**
  * Main transformation function: Convert recent races to personal bests
- * Implements comprehensive personal bests transformation following atomic principles
+ * Refactored to use smaller, focused helper functions
  */
 export function transformRecentRacesToPersonalBests(
   custId: number,
@@ -414,123 +594,19 @@ export function transformRecentRacesToPersonalBests(
   const ignoredRaces: Array<{ raceId: string; reason: string }> = []
   
   try {
-    // Filter races based on options
-    let filteredRaces = recentRaces.filter(race => {
-      // Category filter
-      if (options.categoryFilter && !options.categoryFilter.includes(race.category)) {
-        ignoredRaces.push({ raceId: race.id, reason: `Category ${race.category} not in filter` })
-        return false
-      }
-      
-      // Series filter
-      if (options.seriesFilter && !options.seriesFilter.includes(race.seriesName)) {
-        ignoredRaces.push({ raceId: race.id, reason: `Series ${race.seriesName} not in filter` })
-        return false
-      }
-      
-      // Date range filter
-      if (options.dateFrom || options.dateTo) {
-        const raceDate = new Date(race.date)
-        if (options.dateFrom && raceDate < options.dateFrom) {
-          ignoredRaces.push({ raceId: race.id, reason: 'Race date before filter range' })
-          return false
-        }
-        if (options.dateTo && raceDate > options.dateTo) {
-          ignoredRaces.push({ raceId: race.id, reason: 'Race date after filter range' })
-          return false
-        }
-      }
-      
-      // Strength of field filter
-      if (options.minStrengthOfField && race.strengthOfField < options.minStrengthOfField) {
-        ignoredRaces.push({ raceId: race.id, reason: `SoF ${race.strengthOfField} below minimum` })
-        return false
-      }
-      
-      return true
-    })
+    // Step 1: Filter races based on options
+    const filteredRaces = filterRacesByOptions(recentRaces, options, ignoredRaces)
     
-    // Step 1: Convert races to personal best records
-    const personalBestRecords: PersonalBestRecord[] = []
+    // Step 2: Convert races to personal best records
+    const personalBestRecords = buildPersonalBestRecords(filteredRaces, ignoredRaces)
     
-    for (const race of filteredRaces) {
-      const trackLayoutIdentifier = extractTrackLayoutIdentifier(race)
-      if (!trackLayoutIdentifier) {
-        ignoredRaces.push({ raceId: race.id, reason: 'Invalid track layout identifier' })
-        continue
-      }
-      
-      const fastestLap = extractDriverFastestLap(race)
-      if (!fastestLap) {
-        ignoredRaces.push({ raceId: race.id, reason: 'No valid fastest lap found' })
-        continue
-      }
-      
-      const record = createPersonalBestRecord(race, trackLayoutIdentifier, fastestLap)
-      if (record) {
-        personalBestRecords.push(record)
-      } else {
-        ignoredRaces.push({ raceId: race.id, reason: 'Failed to create personal best record' })
-      }
-    }
+    // Step 3: Aggregate into hierarchical structure
+    const seriesBests = aggregateByHierarchy(personalBestRecords, options, warnings)
     
-    // Step 2: Group records by track layout
-    const recordsByTrackLayout = groupRecordsByTrackLayout(personalBestRecords)
+    // Step 4: Calculate global statistics
+    const globalStats = calculateGlobalStatistics(seriesBests, personalBestRecords)
     
-    // Step 3: Create track layout personal bests
-    const trackLayoutBests: TrackLayoutPersonalBests[] = []
-    
-    for (const [trackLayoutKey, records] of Object.entries(recordsByTrackLayout)) {
-      // Apply minimum races filter
-      if (options.minRaces && records.length < options.minRaces) {
-        warnings.push(`Track layout ${trackLayoutKey} has only ${records.length} races, minimum is ${options.minRaces}`)
-        continue
-      }
-      
-      const trackLayoutPersonalBests = createTrackLayoutPersonalBests(trackLayoutKey, records)
-      if (trackLayoutPersonalBests) {
-        trackLayoutBests.push(trackLayoutPersonalBests)
-      }
-    }
-    
-    // Step 4: Group by series
-    const trackLayoutsBySeries = groupTrackLayoutsBySeries(trackLayoutBests)
-    
-    // Step 5: Create series personal bests
-    const seriesBests: Record<string, SeriesPersonalBests> = {}
-    
-    for (const [seriesName, trackLayouts] of Object.entries(trackLayoutsBySeries)) {
-      const seriesPersonalBests = createSeriesPersonalBests(seriesName, trackLayouts)
-      if (seriesPersonalBests) {
-        seriesBests[seriesName] = seriesPersonalBests
-      }
-    }
-    
-    // Step 6: Calculate global statistics
-    let fastestLapOverallMs = Infinity
-    let fastestLapOverall = 'N/A'
-    let fastestLapTrack = ''
-    let fastestLapCar = ''
-    
-    for (const series of Object.values(seriesBests)) {
-      if (series.bestOverallLapMs < fastestLapOverallMs) {
-        fastestLapOverallMs = series.bestOverallLapMs
-        fastestLapOverall = series.bestOverallLap
-        
-        // Find the track and car for this fastest lap
-        for (const trackLayout of Object.values(series.trackLayoutBests)) {
-          for (const carBest of Object.values(trackLayout.carBests)) {
-            if (carBest.fastestLapMs === fastestLapOverallMs) {
-              fastestLapTrack = trackLayout.trackName
-              fastestLapCar = carBest.carName
-              break
-            }
-          }
-        }
-      }
-    }
-    
-    // Step 7: Create final driver personal bests object
+    // Step 5: Create final driver personal bests object
     const driverPersonalBests: DriverPersonalBests = {
       custId,
       driverName,
@@ -539,12 +615,12 @@ export function transformRecentRacesToPersonalBests(
       seriesBests,
       totalRaces: personalBestRecords.length,
       totalSeries: Object.keys(seriesBests).length,
-      totalTrackLayouts: trackLayoutBests.length,
-      totalCars: new Set(personalBestRecords.map(r => r.carName)).size,
-      fastestLapOverall,
-      fastestLapOverallMs,
-      fastestLapTrack,
-      fastestLapCar,
+      totalTrackLayouts: globalStats.totalTrackLayouts,
+      totalCars: globalStats.totalCars,
+      fastestLapOverall: globalStats.fastestLapOverall,
+      fastestLapOverallMs: globalStats.fastestLapOverallMs,
+      fastestLapTrack: globalStats.fastestLapTrack,
+      fastestLapCar: globalStats.fastestLapCar,
     }
     
     // Validate final result

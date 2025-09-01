@@ -15,6 +15,11 @@ import {
   getPersonalBestForCarAndTrack,
   getPersonalBestsForCar,
   getPersonalBestsForTrack,
+  filterRacesByOptions,
+  buildPersonalBestRecords,
+  aggregateByHierarchy,
+  calculateGlobalStatistics,
+  findFastestLapTime,
 } from '../personal-bests'
 import type { RecentRace, RaceParticipant, Lap } from '../iracing-types'
 
@@ -352,5 +357,391 @@ describe('Personal Bests - Utility Functions', () => {
     
     expect(silverstoneBests).toHaveLength(2)
     expect(silverstoneBests.map(b => b.carName).sort()).toEqual(['Ferrari 488 GT3', 'McLaren 720S GT3'])
+  })
+})
+
+describe('Personal Bests - Shared Fastest Lap Utility', () => {
+  test('findFastestLapTime - finds fastest from array', () => {
+    const lapTimes = ['1:26.123', '1:24.456', '1:27.789']
+    const result = findFastestLapTime(lapTimes)
+    
+    expect(result.fastestLap).toBe('1:24.456')
+    expect(result.fastestMs).toBeGreaterThan(0)
+  })
+  
+  test('findFastestLapTime - handles empty array', () => {
+    const result = findFastestLapTime([])
+    
+    expect(result.fastestLap).toBe('N/A')
+    expect(result.fastestMs).toBe(Infinity)
+  })
+  
+  test('findFastestLapTime - ignores invalid lap times', () => {
+    const lapTimes = ['N/A', '1:26.123', '', '1:24.456']
+    const result = findFastestLapTime(lapTimes)
+    
+    expect(result.fastestLap).toBe('1:24.456')
+  })
+})
+
+describe('Personal Bests - Filter Functions', () => {
+  test('filterRacesByOptions - category filter', () => {
+    const races = [
+      createMockRace({ id: '1', category: 'Sports Car' }),
+      createMockRace({ id: '2', category: 'Formula Car' }),
+      createMockRace({ id: '3', category: 'Sports Car' }),
+    ]
+    const ignoredRaces: Array<{ raceId: string; reason: string }> = []
+    
+    const filtered = filterRacesByOptions(races, { categoryFilter: ['Sports Car'] }, ignoredRaces)
+    
+    expect(filtered).toHaveLength(2)
+    expect(filtered.map(r => r.id)).toEqual(['1', '3'])
+    expect(ignoredRaces).toHaveLength(1)
+    expect(ignoredRaces[0].reason).toContain('Formula Car not in filter')
+  })
+  
+  test('filterRacesByOptions - series filter', () => {
+    const races = [
+      createMockRace({ id: '1', seriesName: 'Global GT Sprint' }),
+      createMockRace({ id: '2', seriesName: 'Formula Sprint' }),
+    ]
+    const ignoredRaces: Array<{ raceId: string; reason: string }> = []
+    
+    const filtered = filterRacesByOptions(races, { seriesFilter: ['Global GT Sprint'] }, ignoredRaces)
+    
+    expect(filtered).toHaveLength(1)
+    expect(filtered[0].id).toBe('1')
+    expect(ignoredRaces).toHaveLength(1)
+  })
+  
+  test('filterRacesByOptions - date range filter', () => {
+    const races = [
+      createMockRace({ id: '1', date: '2024-01-01T00:00:00Z' }),
+      createMockRace({ id: '2', date: '2024-02-01T00:00:00Z' }),
+      createMockRace({ id: '3', date: '2024-03-01T00:00:00Z' }),
+    ]
+    const ignoredRaces: Array<{ raceId: string; reason: string }> = []
+    
+    const filtered = filterRacesByOptions(races, {
+      dateFrom: new Date('2024-01-15T00:00:00Z'),
+      dateTo: new Date('2024-02-15T00:00:00Z')
+    }, ignoredRaces)
+    
+    expect(filtered).toHaveLength(1)
+    expect(filtered[0].id).toBe('2')
+    expect(ignoredRaces).toHaveLength(2)
+  })
+  
+  test('filterRacesByOptions - strength of field filter', () => {
+    const races = [
+      createMockRace({ id: '1', strengthOfField: 1500 }),
+      createMockRace({ id: '2', strengthOfField: 2500 }),
+      createMockRace({ id: '3', strengthOfField: 3500 }),
+    ]
+    const ignoredRaces: Array<{ raceId: string; reason: string }> = []
+    
+    const filtered = filterRacesByOptions(races, { minStrengthOfField: 2000 }, ignoredRaces)
+    
+    expect(filtered).toHaveLength(2)
+    expect(filtered.map(r => r.id)).toEqual(['2', '3'])
+    expect(ignoredRaces).toHaveLength(1)
+    expect(ignoredRaces[0].reason).toContain('SoF 1500 below minimum')
+  })
+})
+
+describe('Personal Bests - Build Records Function', () => {
+  test('buildPersonalBestRecords - creates valid records', () => {
+    const races = [
+      createMockRace({
+        id: '1',
+        participants: [createMockParticipant({ fastestLap: '1:25.123' })]
+      }),
+      createMockRace({
+        id: '2',
+        participants: [createMockParticipant({ fastestLap: '1:26.456' })]
+      }),
+    ]
+    const ignoredRaces: Array<{ raceId: string; reason: string }> = []
+    
+    const records = buildPersonalBestRecords(races, ignoredRaces)
+    
+    expect(records).toHaveLength(2)
+    expect(records[0].fastestLap).toBe('1:25.123')
+    expect(records[1].fastestLap).toBe('1:26.456')
+    expect(ignoredRaces).toHaveLength(0)
+  })
+  
+  test('buildPersonalBestRecords - handles invalid track layouts', () => {
+    const races = [
+      createMockRace({
+        id: '1',
+        trackName: '', // Invalid track name
+        participants: [createMockParticipant({ fastestLap: '1:25.123' })]
+      }),
+    ]
+    const ignoredRaces: Array<{ raceId: string; reason: string }> = []
+    
+    const records = buildPersonalBestRecords(races, ignoredRaces)
+    
+    expect(records).toHaveLength(0)
+    expect(ignoredRaces).toHaveLength(1)
+    expect(ignoredRaces[0].reason).toBe('Invalid track layout identifier')
+  })
+  
+  test('buildPersonalBestRecords - handles missing fastest laps', () => {
+    const races = [
+      createMockRace({
+        id: '1',
+        participants: [] // No participants
+      }),
+    ]
+    const ignoredRaces: Array<{ raceId: string; reason: string }> = []
+    
+    const records = buildPersonalBestRecords(races, ignoredRaces)
+    
+    expect(records).toHaveLength(0)
+    expect(ignoredRaces).toHaveLength(1)
+    expect(ignoredRaces[0].reason).toBe('No valid fastest lap found')
+  })
+})
+
+describe('Personal Bests - Aggregation Function', () => {
+  test('aggregateByHierarchy - creates series structure', () => {
+    const records = [
+      {
+        id: '1',
+        trackId: 123,
+        trackName: 'Silverstone',
+        carName: 'McLaren 720S GT3',
+        fastestLap: '1:25.123',
+        fastestLapMs: 85123,
+        seriesName: 'Global GT Sprint',
+        category: 'Sports Car' as const,
+        subsessionId: '12345',
+        raceDate: '2024-01-15T14:30:00Z',
+        year: 2024,
+        season: 'Season 1',
+        strengthOfField: 2500,
+        finishPosition: 3,
+        totalRaceIncidents: 2,
+      }
+    ]
+    const warnings: string[] = []
+    
+    const result = aggregateByHierarchy(records, {}, warnings)
+    
+    expect(Object.keys(result)).toHaveLength(1)
+    expect(result['Global GT Sprint']).toBeTruthy()
+    expect(result['Global GT Sprint'].seriesName).toBe('Global GT Sprint')
+    expect(warnings).toHaveLength(0)
+  })
+  
+  test('aggregateByHierarchy - applies minimum races filter', () => {
+    const records = [
+      {
+        id: '1',
+        trackId: 123,
+        trackName: 'Silverstone',
+        carName: 'McLaren 720S GT3',
+        fastestLap: '1:25.123',
+        fastestLapMs: 85123,
+        seriesName: 'Global GT Sprint',
+        category: 'Sports Car' as const,
+        subsessionId: '12345',
+        raceDate: '2024-01-15T14:30:00Z',
+        year: 2024,
+        season: 'Season 1',
+        strengthOfField: 2500,
+        finishPosition: 3,
+        totalRaceIncidents: 2,
+      }
+    ]
+    const warnings: string[] = []
+    
+    const result = aggregateByHierarchy(records, { minRaces: 5 }, warnings)
+    
+    expect(Object.keys(result)).toHaveLength(0)
+    expect(warnings).toHaveLength(1)
+    expect(warnings[0]).toContain('has only 1 races, minimum is 5')
+  })
+})
+
+describe('Personal Bests - Global Statistics Function', () => {
+  test('calculateGlobalStatistics - computes correct stats', () => {
+    const seriesBests = {
+      'Global GT Sprint': {
+        seriesName: 'Global GT Sprint',
+        category: 'Sports Car' as const,
+        trackLayoutBests: {
+          '123_default': {
+            trackLayoutKey: '123_default',
+            trackName: 'Silverstone',
+            trackId: 123,
+            category: 'Sports Car' as const,
+            carBests: {
+              'McLaren 720S GT3': {
+                id: '1',
+                trackId: 123,
+                trackName: 'Silverstone',
+                carName: 'McLaren 720S GT3',
+                fastestLap: '1:24.500',
+                fastestLapMs: 84500,
+                seriesName: 'Global GT Sprint',
+                category: 'Sports Car' as const,
+                subsessionId: '12345',
+                raceDate: '2024-01-15T14:30:00Z',
+                year: 2024,
+                season: 'Season 1',
+                strengthOfField: 2500,
+                finishPosition: 1,
+                totalRaceIncidents: 0,
+              }
+            },
+            totalRaces: 1,
+            fastestOverall: '1:24.500',
+            fastestOverallMs: 84500,
+            mostRecentRace: '2024-01-15T14:30:00Z',
+          }
+        },
+        totalRaces: 1,
+        uniqueTrackLayouts: 1,
+        uniqueCars: 1,
+        averageSoF: 2500,
+        bestOverallLap: '1:24.500',
+        bestOverallLapMs: 84500,
+      }
+    }
+    const personalBestRecords = [
+      {
+        id: '1',
+        trackId: 123,
+        trackName: 'Silverstone',
+        carName: 'McLaren 720S GT3',
+        fastestLap: '1:24.500',
+        fastestLapMs: 84500,
+        seriesName: 'Global GT Sprint',
+        category: 'Sports Car' as const,
+        subsessionId: '12345',
+        raceDate: '2024-01-15T14:30:00Z',
+        year: 2024,
+        season: 'Season 1',
+        strengthOfField: 2500,
+        finishPosition: 1,
+        totalRaceIncidents: 0,
+      }
+    ]
+    
+    const stats = calculateGlobalStatistics(seriesBests, personalBestRecords)
+    
+    expect(stats.fastestLapOverall).toBe('1:24.500')
+    expect(stats.fastestLapOverallMs).toBe(84500)
+    expect(stats.fastestLapTrack).toBe('Silverstone')
+    expect(stats.fastestLapCar).toBe('McLaren 720S GT3')
+    expect(stats.totalTrackLayouts).toBe(1)
+    expect(stats.totalCars).toBe(1)
+  })
+})
+
+describe('Personal Bests - Error Conditions', () => {
+  test('transformRecentRacesToPersonalBests - handles schema validation failures gracefully', () => {
+    // Create race with invalid data that would cause schema validation to fail
+    const invalidRace = createMockRace({
+      id: '1',
+      participants: [createMockParticipant({ 
+        fastestLap: '1:25.123' 
+      })],
+      // Missing required fields that would cause validation to fail
+      category: undefined as any,
+    })
+    
+    const result = transformRecentRacesToPersonalBests(123456, 'Test Driver', [invalidRace])
+    
+    // Should handle gracefully with warnings/errors rather than throwing
+    expect(result.personalBests).toBeTruthy()
+    expect(result.context.ignoredRaces.length).toBeGreaterThan(0)
+  })
+  
+  test('transformRecentRacesToPersonalBests - handles empty race list', () => {
+    const result = transformRecentRacesToPersonalBests(123456, 'Test Driver', [])
+    
+    expect(result.personalBests.totalRaces).toBe(0)
+    expect(result.personalBests.totalSeries).toBe(0)
+    expect(result.personalBests.fastestLapOverall).toBe('N/A')
+    expect(result.errors).toHaveLength(0)
+  })
+  
+  test('transformRecentRacesToPersonalBests - handles all races filtered out', () => {
+    const races = [
+      createMockRace({ 
+        category: 'Formula Car',
+        participants: [createMockParticipant({ fastestLap: '1:25.123' })]
+      }),
+    ]
+    
+    const result = transformRecentRacesToPersonalBests(
+      123456, 
+      'Test Driver', 
+      races,
+      { categoryFilter: ['Sports Car'] } // Filter out all races
+    )
+    
+    expect(result.personalBests.totalRaces).toBe(0)
+    expect(result.context.ignoredRaces).toHaveLength(1)
+    expect(result.personalBests.fastestLapOverall).toBe('N/A')
+  })
+})
+
+describe('Personal Bests - Complex Filter Combinations', () => {
+  test('transformRecentRacesToPersonalBests - multiple filters applied together', () => {
+    const races = [
+      createMockRace({
+        id: '1',
+        category: 'Sports Car',
+        seriesName: 'Global GT Sprint',
+        strengthOfField: 2500,
+        date: '2024-02-01T00:00:00Z',
+        participants: [createMockParticipant({ fastestLap: '1:25.123' })]
+      }),
+      createMockRace({
+        id: '2',
+        category: 'Formula Car', // Wrong category
+        seriesName: 'Global GT Sprint',
+        strengthOfField: 2500,
+        date: '2024-02-01T00:00:00Z',
+        participants: [createMockParticipant({ fastestLap: '1:15.123' })]
+      }),
+      createMockRace({
+        id: '3',
+        category: 'Sports Car',
+        seriesName: 'Formula Sprint', // Wrong series
+        strengthOfField: 2500,
+        date: '2024-02-01T00:00:00Z',
+        participants: [createMockParticipant({ fastestLap: '1:25.456' })]
+      }),
+      createMockRace({
+        id: '4',
+        category: 'Sports Car',
+        seriesName: 'Global GT Sprint',
+        strengthOfField: 1500, // Too low SoF
+        date: '2024-02-01T00:00:00Z',
+        participants: [createMockParticipant({ fastestLap: '1:25.789' })]
+      }),
+    ]
+    
+    const result = transformRecentRacesToPersonalBests(
+      123456,
+      'Test Driver',
+      races,
+      {
+        categoryFilter: ['Sports Car'],
+        seriesFilter: ['Global GT Sprint'],
+        minStrengthOfField: 2000,
+      }
+    )
+    
+    expect(result.personalBests.totalRaces).toBe(1)
+    expect(result.context.ignoredRaces).toHaveLength(3)
+    expect(result.personalBests.fastestLapOverall).toBe('1:25.123')
   })
 })
