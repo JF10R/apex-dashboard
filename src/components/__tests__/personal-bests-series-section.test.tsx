@@ -1,6 +1,7 @@
-import { render, screen, fireEvent } from '@testing-library/react'
-import { PersonalBestsSeriesSection } from '../personal-bests-series-section'
-import type { SeriesPersonalBests, PersonalBestRecord } from '@/lib/personal-bests-types'
+import { render, screen, fireEvent } from '@testing-library/react';
+import '@testing-library/jest-dom';
+import { PersonalBestsSeriesSection } from '../personal-bests-series-section';
+import type { SeriesPersonalBests, PersonalBestRecord } from '@/lib/personal-bests-types';
 
 describe('PersonalBestsSeriesSection', () => {
   const mockRecord: PersonalBestRecord = {
@@ -21,7 +22,7 @@ describe('PersonalBestsSeriesSection', () => {
     strengthOfField: 2500,
     finishPosition: 1,
     totalRaceIncidents: 0,
-  }
+  };
 
   const mockSeries: SeriesPersonalBests = {
     seriesName: 'GT3 Challenge',
@@ -48,14 +49,14 @@ describe('PersonalBestsSeriesSection', () => {
     averageSoF: 2500,
     bestOverallLap: '1:55.000',
     bestOverallLapMs: 115000,
-  }
+  };
 
   test('renders series section with cards and opens modal', () => {
-    render(<PersonalBestsSeriesSection series={mockSeries} />)
-    expect(screen.getByText('GT3 Challenge')).toBeDefined()
-    expect(screen.getByText('Nurburgring (GP)')).toBeDefined()
+    render(<PersonalBestsSeriesSection series={mockSeries} />);
+    expect(screen.getByText('GT3 Challenge')).toBeInTheDocument();
+    expect(screen.getByText('Nurburgring (GP)')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByText('1:55.000'))
-    expect(screen.getByText('Strength of Field')).toBeDefined()
-  })
-})
+    fireEvent.click(screen.getByText('1:55.000'));
+    expect(screen.getByText('Strength of Field')).toBeInTheDocument();
+  });
+});
