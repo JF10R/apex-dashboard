@@ -7,6 +7,7 @@
 
 import { z } from 'zod'
 import { type RaceCategory } from './iracing-types'
+import { IRatingAnalysisSchema } from './irating-analyzer-types'
 
 // Shared category schema to eliminate duplication across schemas
 export const CategorySchema = z.union([
@@ -56,6 +57,9 @@ export const PersonalBestRecordSchema = z.object({
     trackCondition: z.string().optional(), // Dry, Wet, etc.
     windSpeed: z.number().optional(),
   }).optional(),
+  
+  // iRating analysis (optional, calculated on-demand)
+  iratingAnalysis: IRatingAnalysisSchema.optional(),
 })
 
 // Track layout grouping - combines all cars for a specific track configuration

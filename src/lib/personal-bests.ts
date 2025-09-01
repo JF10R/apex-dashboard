@@ -749,3 +749,156 @@ export function getPersonalBestsForTrack(
   
   return results
 }
+
+/**
+ * Add iRating analysis to a personal best record
+ * Utility function for on-demand analysis integration
+ */
+export function addIRatingAnalysisToPersonalBest(
+  personalBest: PersonalBestRecord,
+  race: RecentRace,
+  currentDriverIRating: number
+): PersonalBestRecord {
+  // Import here to avoid circular dependencies
+  const { analyzePersonalBestIRating } = require('./irating-analyzer')
+  
+  const analysisResult = analyzePersonalBestIRating(
+    personalBest,
+    race,
+    currentDriverIRating
+  )
+  
+  return {
+    ...personalBest,
+    iratingAnalysis: analysisResult.success ? analysisResult.analysis : undefined,
+  }
+}
+
+/**
+ * Batch add iRating analysis to multiple personal best records
+ * Utility function for processing driver's complete personal best collection
+ */
+export function addIRatingAnalysisToDriverPersonalBests(
+  personalBests: DriverPersonalBests,
+  races: RecentRace[],
+  currentDriverIRating: number
+): DriverPersonalBests {
+  // Import here to avoid circular dependencies
+  const { analyzeBatchPersonalBests } = require('./irating-analyzer')
+  
+  // Collect all personal best records
+  const allPersonalBestRecords: PersonalBestRecord[] = []
+  for (const series of Object.values(personalBests.seriesBests)) {
+    for (const trackLayout of Object.values(series.trackLayoutBests)) {
+      for (const carBest of Object.values(trackLayout.carBests)) {
+        allPersonalBestRecords.push(carBest)
+      }
+    }
+  }
+  
+  // Batch analyze
+  const analysisResults = analyzeBatchPersonalBests(
+    allPersonalBestRecords,
+    races,
+    currentDriverIRating
+  )
+  
+  // Apply results back to the nested structure
+  const updatedSeriesBests = { ...personalBests.seriesBests }
+  
+  for (const [seriesName, series] of Object.entries(updatedSeriesBests)) {
+    const updatedTrackLayoutBests = { ...series.trackLayoutBests }
+    
+    for (const [trackLayoutKey, trackLayout] of Object.entries(updatedTrackLayoutBests)) {
+      const updatedCarBests = { ...trackLayout.carBests }
+      
+      for (const [carName, carBest] of Object.entries(updatedCarBests)) {
+        const analysisResult = analysisResults.get(carBest.id)
+        if (analysisResult?.success && analysisResult.analysis) {
+          updatedCarBests[carName] = {
+            ...carBest,
+            iratingAnalysis: analysisResult.analysis,
+          }
+        }
+      }
+      
+      updatedTrackLayoutBests[trackLayoutKey] = {
+        ...trackLayout,
+        carBests: updatedCarBests,
+      }
+    }
+    
+    updatedSeriesBests[seriesName] = {
+      ...series,
+      trackLayoutBests: updatedTrackLayoutBests,
+    }
+  }
+  
+  return {
+    ...personalBests,
+    seriesBests: updatedSeriesBests,
+  }
+}
+
+/**
+ * Get personal best records with iRating analysis above a threshold
+ * Utility function for filtering high-performance laps
+ */
+export function getPersonalBestsWithHighIRatingAnalysis(
+  personalBests: DriverPersonalBests,
+  thresholdIRating: number
+): PersonalBestRecord[] {
+  const results: PersonalBestRecord[] = []
+  
+  for (const series of Object.values(personalBests.seriesBests)) {
+    for (const trackLayout of Object.values(series.trackLayoutBests)) {
+      for (const carBest of Object.values(trackLayout.carBests)) {
+        if (
+          carBest.iratingAnalysis &&
+          carBest.iratingAnalysis.iratingEquivalency.estimatedIRating >= thresholdIRating
+        ) {
+          results.push(carBest)
+        }
+      }
+    }
+  }
+  
+  // Sort by estimated iRating descending
+  return results.sort((a, b) => {
+    const aEstimated = a.iratingAnalysis?.iratingEquivalency.estimatedIRating || 0
+    const bEstimated = b.iratingAnalysis?.iratingEquivalency.estimatedIRating || 0
+    return bEstimated - aEstimated
+  })
+}
+
+/**
+ * Get personal best records showing significant improvement potential
+ * Utility function for identifying breakthrough performances
+ */
+export function getPersonalBestsWithSignificantImprovement(
+  personalBests: DriverPersonalBests,
+  minimumDelta: number = 100 // Minimum iRating improvement
+): PersonalBestRecord[] {
+  const results: PersonalBestRecord[] = []
+  
+  for (const series of Object.values(personalBests.seriesBests)) {
+    for (const trackLayout of Object.values(series.trackLayoutBests)) {
+      for (const carBest of Object.values(trackLayout.carBests)) {
+        if (
+          carBest.iratingAnalysis &&
+          carBest.iratingAnalysis.iratingDelta.delta >= minimumDelta &&
+          carBest.iratingAnalysis.iratingEquivalency.confidence >= 60
+        ) {
+          results.push(carBest)
+        }
+      }
+    }
+  }
+  
+  // Sort by delta descending
+  return results.sort((a, b) => {
+    const aDelta = a.iratingAnalysis?.iratingDelta.delta || 0
+    const bDelta = b.iratingAnalysis?.iratingDelta.delta || 0
+    return bDelta - aDelta
+  })
+}
