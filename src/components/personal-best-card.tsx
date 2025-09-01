@@ -2,6 +2,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import type { PersonalBestRecord } from '@/lib/personal-bests-types';
+import { useCallback } from 'react';
 
 interface PersonalBestCardProps {
   record: PersonalBestRecord;
@@ -9,14 +10,17 @@ interface PersonalBestCardProps {
 }
 
 export function PersonalBestCard({ record, onSelect }: PersonalBestCardProps) {
-  const handleSelect = () => onSelect?.(record);
+  const handleSelect = useCallback(() => onSelect?.(record), [onSelect, record]);
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault();
-      handleSelect();
-    }
-  };
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLDivElement>) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        handleSelect();
+      }
+    },
+    [handleSelect],
+  );
 
   return (
     <Card
