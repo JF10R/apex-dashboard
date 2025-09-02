@@ -16,7 +16,7 @@ export const CategorySchema = z.union([
   z.literal('Prototype'),
   z.literal('Oval'),
   z.literal('Dirt Oval')
-])
+]).catch('Sports Car') // Fallback to 'Sports Car' for invalid values
 
 // Core personal best record for a specific car on a specific track layout
 export const PersonalBestRecordSchema = z.object({

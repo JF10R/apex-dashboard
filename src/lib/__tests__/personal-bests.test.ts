@@ -651,8 +651,8 @@ describe('Personal Bests - Error Conditions', () => {
       participants: [createMockParticipant({ 
         fastestLap: '1:25.123' 
       })],
-      // Missing required fields that would cause validation to fail
-      category: undefined as any,
+      // Set an invalid trackName to cause validation failure
+      trackName: '', // Empty track name should fail validation
     })
     
     const result = transformRecentRacesToPersonalBests(123456, 'Test Driver', [invalidRace])

@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
+import Link from 'next/link';
 import { AppHeader } from '@/components/app-header';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { Button } from '@/components/ui/button';
@@ -12,7 +13,6 @@ import { PersonalBestsSeriesSection } from '@/components/personal-bests-series-s
 
 export default function PersonalBestsPage() {
   const params = useParams();
-  const router = useRouter();
   const custId = Number(params.custId);
   const [data, setData] = useState<DriverPersonalBests | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -48,9 +48,11 @@ export default function PersonalBestsPage() {
         <Alert>
           <AlertDescription>{error || 'No personal bests available'}</AlertDescription>
         </Alert>
-        <Button variant="outline" className="mt-4" onClick={() => router.back()}>
-          Back
-        </Button>
+        <Link href={`/${custId}`}>
+          <Button variant="outline" className="mt-4">
+            Back to Dashboard
+          </Button>
+        </Link>
       </main>
     );
   }
@@ -64,14 +66,25 @@ export default function PersonalBestsPage() {
       </div>
       <AppHeader subtitle={`Personal Bests for ${data.driverName}`} />
       <div className="mb-4">
-        <Button variant="outline" onClick={() => router.back()}>
-          Back
-        </Button>
+        <Link href={`/${custId}`}>
+          <Button variant="outline">
+            Back to Dashboard
+          </Button>
+        </Link>
       </div>
+      
       <div className="space-y-8">
-        {seriesList.map((series) => (
-          <PersonalBestsSeriesSection key={series.seriesName} series={series} />
-        ))}
+        {seriesList.length === 0 ? (
+          <Alert>
+            <AlertDescription>
+              No personal bests found yet. Personal bests will appear as you complete more races.
+            </AlertDescription>
+          </Alert>
+        ) : (
+          seriesList.map((series) => (
+            <PersonalBestsSeriesSection key={series.seriesName} series={series} />
+          ))
+        )}
       </div>
     </main>
   );

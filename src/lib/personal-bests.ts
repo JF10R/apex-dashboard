@@ -211,7 +211,7 @@ export function createPersonalBestRecord(
     const validatedRecord = PersonalBestRecordSchema.parse(record)
     return validatedRecord
   } catch (error) {
-    console.warn(`Failed to create personal best record for race ${race.id}:`, error)
+    // Silently ignore validation failures - they are handled gracefully
     return null
   }
 }
