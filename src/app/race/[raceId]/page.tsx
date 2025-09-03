@@ -1,7 +1,6 @@
 'use client';
 
 import React from 'react';
-import Link from 'next/link';
 import { useRouter, useSearchParams, useParams } from 'next/navigation';
 import { ArrowLeft, Award, ShieldAlert, Timer, Users } from 'lucide-react';
 import { StatCard } from '@/components/stat-card';
@@ -15,6 +14,23 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useProgressiveRaceLoading } from '@/hooks/use-progressive-race-loading';
 import { getOverallFastestLap } from '@/lib/iracing-data-transform';
+import RaceEventsLog from '@/components/race-events-log';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ErrorBoundary } from '@/components/error-boundary';
+
+function EventLogError({ error, resetError }: { error: Error; resetError: () => void }) {
+  return (
+    <div className="p-4">
+      <Alert variant="destructive">
+        <ShieldAlert className="h-4 w-4" />
+        <AlertDescription>{error.message || 'Failed to load event log.'}</AlertDescription>
+      </Alert>
+      <Button onClick={resetError} className="mt-4">
+        Retry
+      </Button>
+    </div>
+  );
+}
 
 export default function RaceDetailsPage() {
   const router = useRouter();
@@ -53,6 +69,9 @@ export default function RaceDetailsPage() {
     if (!race?.participants || !Array.isArray(race.participants)) return null;
     return getOverallFastestLap(race.participants);
   }, [race?.participants]);
+
+  const simsessionNumber = (race as any)?.simsessionNumber ?? 0;
+  const subsessionIdNumber = React.useMemo(() => parseInt(subsessionId, 10), [subsessionId]);
 
   const handleBack = () => {
     const fromDriver = searchParams?.get('from');
@@ -237,27 +256,40 @@ export default function RaceDetailsPage() {
       </section>
 
       <section>
-        <Card>
-          <CardHeader>
-            <CardTitle>Race Results</CardTitle>
-            <CardDescription>
-              Final positions and race statistics
-              {loading && progress.phase !== 'complete' && (
-                <span className="ml-2 text-blue-600">
-                  (Loading detailed lap data...)
-                </span>
-              )}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <RaceResultsTable 
-              participants={race.participants || []}
-              overallFastestLap={fastestLap || ''}
-              raceId={raceId}
-              onDriverClick={handleDriverClick}
-            />
-          </CardContent>
-        </Card>
+        <Tabs defaultValue="results">
+          <TabsList className="mb-4">
+            <TabsTrigger value="results">Results</TabsTrigger>
+            <TabsTrigger value="events">Event Log</TabsTrigger>
+          </TabsList>
+          <TabsContent value="results">
+            <Card>
+              <CardHeader>
+                <CardTitle>Race Results</CardTitle>
+                <CardDescription>
+                  Final positions and race statistics
+                  {loading && progress.phase !== 'complete' && (
+                    <span className="ml-2 text-blue-600">
+                      (Loading detailed lap data...)
+                    </span>
+                  )}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <RaceResultsTable
+                  participants={race.participants || []}
+                  overallFastestLap={fastestLap || ''}
+                  raceId={raceId}
+                  onDriverClick={handleDriverClick}
+                />
+              </CardContent>
+            </Card>
+          </TabsContent>
+          <TabsContent value="events">
+            <ErrorBoundary fallback={EventLogError}>
+              <RaceEventsLog subsessionId={subsessionIdNumber} simsessionNumber={simsessionNumber} />
+            </ErrorBoundary>
+          </TabsContent>
+        </Tabs>
       </section>
     </main>
   );

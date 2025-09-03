@@ -6,7 +6,6 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   AlertTriangle, 
   Car, 
@@ -126,11 +125,14 @@ export const RaceEventsLog: React.FC<RaceEventsLogProps> = ({
         getResultsLapChartData(subsessionId, simsessionNumber)
       ]);
 
-      if (eventLogResponse && eventLogResponse.eventLog) {
+      if (!eventLogResponse) {
+        setError('Failed to load race events. Please try again.');
+        setEvents([]);
+      } else if (eventLogResponse.eventLog) {
         const transformedEvents = eventLogResponse.eventLog.map(event => {
           const eventCode = event.eventCode || 999;
           const eventInfo = EVENT_CODES[eventCode as keyof typeof EVENT_CODES] || EVENT_CODES[999];
-          
+
           return {
             eventSeq: event.eventSeq,
             sessionTime: event.sessionTime,
