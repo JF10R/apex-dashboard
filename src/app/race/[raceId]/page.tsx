@@ -1,23 +1,21 @@
 'use client';
 
 import React from 'react';
-import Link from 'next/link';
-import { useRouter, useSearchParams, useParams } from 'next/navigation';
+import { useSearchParams, useParams } from 'next/navigation';
 import { ArrowLeft, Award, ShieldAlert, Timer, Users } from 'lucide-react';
 import { StatCard } from '@/components/stat-card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import RaceResultsTable from '@/components/race-results-table';
 import { ThemeToggle } from '@/components/theme-toggle';
-import { LoadingProgress } from '@/components/loading-progress';
-import { type RaceParticipant, type RecentRace } from '@/lib/iracing-types';
+import { EnhancedLoading, useLoadingSteps } from '@/components/enhanced-loading';
+import { type RaceParticipant } from '@/lib/iracing-types';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useProgressiveRaceLoading } from '@/hooks/use-progressive-race-loading';
 import { getOverallFastestLap } from '@/lib/iracing-data-transform';
 
 export default function RaceDetailsPage() {
-  const router = useRouter();
   const params = useParams();
   const searchParams = useSearchParams();
   const raceId = params?.raceId as string;
@@ -31,23 +29,67 @@ export default function RaceDetailsPage() {
     progress
   } = useProgressiveRaceLoading(subsessionId);
 
+  const {
+    steps,
+    startStep,
+    completeStep,
+    errorStep,
+    updateStep
+  } = useLoadingSteps([
+    { id: 'initial', label: 'Loading race data' },
+    { id: 'lap-data', label: 'Processing lap data' },
+    { id: 'complete', label: 'Complete' }
+  ]);
+
+  const prevPhase = React.useRef<typeof progress.phase | null>(null);
+
+  React.useEffect(() => {
+    if (progress.phase !== prevPhase.current) {
+      switch (progress.phase) {
+        case 'initial':
+          startStep('initial');
+          break;
+        case 'lap-data':
+          completeStep('initial');
+          startStep('lap-data');
+          break;
+        case 'complete':
+          completeStep('lap-data');
+          completeStep('complete');
+          break;
+        case 'error':
+          errorStep(prevPhase.current === 'initial' ? 'initial' : 'lap-data', error || 'Failed to load race data');
+          break;
+      }
+      prevPhase.current = progress.phase;
+    }
+  }, [progress.phase, startStep, completeStep, errorStep, error]);
+
+  React.useEffect(() => {
+    if (progress.phase === 'lap-data') {
+      updateStep('lap-data', {
+        progress: progress.totalParticipants
+          ? (progress.participantsProcessed / progress.totalParticipants) * 100
+          : 0,
+        message: progress.currentParticipant
+          ? `Processing ${progress.currentParticipant}'s lap times...`
+          : undefined,
+      });
+    }
+  }, [
+    progress.phase,
+    progress.participantsProcessed,
+    progress.totalParticipants,
+    progress.currentParticipant,
+    updateStep,
+  ]);
+
   // Use enhanced data if available, otherwise fall back to initial data
   const race = enhancedData || initialData;
 
   const trackName = React.useMemo(() => {
     return race?.trackName || '';
   }, [race?.trackName]);
-
-  const safeLaps = React.useMemo(() => {
-    // Ensure participants is an array before processing
-    if (!race?.participants || !Array.isArray(race.participants)) {
-      return [];
-    }
-    
-    return race.participants.map((participant: RaceParticipant) => 
-      participant.laps || []
-    ).flat();
-  }, [race?.participants]);
 
   const fastestLap = React.useMemo(() => {
     if (!race?.participants || !Array.isArray(race.participants)) return null;
@@ -56,11 +98,8 @@ export default function RaceDetailsPage() {
 
   const handleBack = () => {
     const fromDriver = searchParams?.get('from');
-    if (fromDriver) {
-      router.push(`/${fromDriver}`);
-    } else {
-      router.push('/');
-    }
+    const target = fromDriver ? `/${fromDriver}` : '/';
+    window.location.href = target;
   };
 
   if (!subsessionId) {
@@ -118,13 +157,7 @@ export default function RaceDetailsPage() {
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back
           </Button>
-          <LoadingProgress 
-            phase={progress.phase}
-            percentage={progress.percentage}
-            currentParticipant={progress.currentParticipant}
-            participantsProcessed={progress.participantsProcessed}
-            totalParticipants={progress.totalParticipants}
-          />
+          <EnhancedLoading steps={steps} showTimestamp />
         </div>
       </main>
     );
@@ -153,10 +186,9 @@ export default function RaceDetailsPage() {
 
   // Handler for when a driver name is clicked in the results table
   const handleDriverClick = (driverName: string) => {
-    // Look for customer ID in participants
     const participant = race.participants?.find((p: RaceParticipant) => p.name === driverName);
     if (participant?.custId) {
-      router.push(`/${participant.custId}`);
+      window.location.href = `/${participant.custId}`;
     }
   };
 
@@ -176,13 +208,7 @@ export default function RaceDetailsPage() {
       {/* Progressive Loading Indicator */}
       {loading && (
         <div className="mb-6">
-          <LoadingProgress 
-            phase={progress.phase}
-            percentage={progress.percentage}
-            currentParticipant={progress.currentParticipant}
-            participantsProcessed={progress.participantsProcessed}
-            totalParticipants={progress.totalParticipants}
-          />
+          <EnhancedLoading steps={steps} showTimestamp />
         </div>
       )}
 
