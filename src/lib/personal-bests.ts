@@ -641,12 +641,12 @@ export function transformRecentRacesToPersonalBests(
       transformedAt: new Date().toISOString(),
       processingTimeMs: Math.round(processingTimeMs),
       ignoredRaces,
+      warnings,
     }
-    
+
     return {
       personalBests: validated,
       context,
-      warnings,
       errors,
     }
     
@@ -678,12 +678,12 @@ export function transformRecentRacesToPersonalBests(
       transformedAt: new Date().toISOString(),
       processingTimeMs: Math.round(processingTimeMs),
       ignoredRaces,
+      warnings,
     }
-    
+
     return {
       personalBests: emptyResult,
       context,
-      warnings,
       errors,
     }
   }

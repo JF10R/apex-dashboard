@@ -122,7 +122,7 @@ export async function GET(request: NextRequest) {
       seriesNames: Object.keys(transformResult.personalBests.seriesBests),
       ignoredRaces: transformResult.context.ignoredRaces.length,
       errors: transformResult.errors.length,
-      warnings: transformResult.warnings.length
+      warnings: transformResult.context.warnings.length
     })
 
     // Step 4: Return comprehensive diagnostic data
@@ -151,7 +151,7 @@ export async function GET(request: NextRequest) {
           personalBests: transformResult.personalBests,
           context: transformResult.context,
           errors: transformResult.errors,
-          warnings: transformResult.warnings
+          warnings: transformResult.context.warnings
         },
         metrics: {
           racesProcessed: transformResult.personalBests.totalRaces,
@@ -170,7 +170,7 @@ export async function GET(request: NextRequest) {
       failures: {
         ignoredRaces: transformResult.context.ignoredRaces,
         errors: transformResult.errors,
-        warnings: transformResult.warnings,
+        warnings: transformResult.context.warnings,
         potentialCauses: {
           noValidLapTimes: racesAnalysis.lapTimeDistribution.withFastestLap === 0,
           noParticipants: racesAnalysis.lapTimeDistribution.withParticipants === 0,
