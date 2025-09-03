@@ -77,7 +77,7 @@ export default function PersonalBestsPage() {
         {seriesList.length === 0 ? (
           <Alert>
             <AlertDescription>
-              No personal bests found yet. Personal bests will appear as you complete more races.
+              No personal bests found yet. Personal bests will appear as you complete more races with valid lap timing data.
             </AlertDescription>
           </Alert>
         ) : (

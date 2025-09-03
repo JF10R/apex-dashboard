@@ -13,6 +13,7 @@ import {
 } from '@/lib/iracing-api-core';
 
 import { CategoryMappingService } from '@/lib/category-mapping-service';
+import { formatLapTime } from '@/lib/iracing-data-transform';
 
 import { ApiError, ApiErrorType } from '@/lib/iracing-auth'
 import { type RecentRace, type Driver, type SearchedDriver, type RaceCategory } from '@/lib/iracing-types'
@@ -366,31 +367,115 @@ export async function getPersonalBestsData(
       }
     }
 
-    const { data: driver, error } = await getDriverPageData(custId, forceRefresh);
-    if (error) {
+    console.log(`🏁 Starting enhanced Personal Bests data fetch for custId: ${custId}`);
+
+    // Step 1: Get basic driver info and recent races summary (fast)
+    const { data: driver, error: driverError } = await getDriverPageData(custId, forceRefresh);
+    if (driverError) {
       // Fallback to expired cache if available
       const expired = cache.getExpired<DriverPersonalBests>(cacheKey);
       if (expired) {
         const cacheInfo = cache.getCacheInfo(cacheKey);
-        return { data: expired, error, fromCache: true, cacheAge: cacheInfo.age };
+        return { data: expired, error: driverError, fromCache: true, cacheAge: cacheInfo.age };
       }
-      return { data: null, error };
+      return { data: null, error: driverError };
     }
 
-    if (!driver) {
-      return { data: null, error: 'Driver not found' };
+    if (!driver || !driver.recentRaces || driver.recentRaces.length === 0) {
+      console.log(`📊 No recent races found for custId: ${custId}`);
+      const emptyPersonalBests: DriverPersonalBests = {
+        custId,
+        driverName: driver?.name || `Driver ${custId}`,
+        totalRaces: 0,
+        totalSeries: 0,
+        seriesBests: {}
+      };
+      cache.set(cacheKey, emptyPersonalBests, cacheTTL.PERSONAL_BESTS);
+      return { data: emptyPersonalBests, error: null };
     }
 
+    console.log(`🏎️ Found ${driver.recentRaces.length} recent races, fetching detailed data...`);
+
+    // Step 2: Fetch detailed race data in parallel (with caching)
+    const detailedRacesPromises = driver.recentRaces.map(async (race) => {
+      try {
+        const subsessionId = parseInt(race.id);
+        if (isNaN(subsessionId)) {
+          console.warn(`Invalid subsessionId for race: ${race.id}`);
+          return null;
+        }
+
+        // Get detailed race result data (this is cached internally)
+        const detailedRace = await getRaceResultData(subsessionId);
+        if (!detailedRace) {
+          console.warn(`No detailed data available for race ${subsessionId}`);
+          return null;
+        }
+
+        console.log(`✅ Fetched detailed data for race ${subsessionId} (${detailedRace.trackName})`);
+        return detailedRace;
+      } catch (error) {
+        console.warn(`Failed to fetch detailed data for race ${race.id}:`, error);
+        return null;
+      }
+    });
+
+    // Wait for all detailed race data (parallel fetching)
+    const detailedRacesResults = await Promise.allSettled(detailedRacesPromises);
+    const detailedRaces = detailedRacesResults
+      .filter((result): result is PromiseFulfilledResult<any> => 
+        result.status === 'fulfilled' && result.value !== null)
+      .map(result => result.value);
+
+    const failedFetches = detailedRacesResults.filter(result => 
+      result.status === 'rejected' || 
+      (result.status === 'fulfilled' && result.value === null)
+    ).length;
+
+    console.log(`📊 Personal Bests data summary: ${detailedRaces.length} detailed races fetched, ${failedFetches} failed/skipped`);
+
+    // Step 3: Transform detailed race data to Personal Bests
+    if (detailedRaces.length === 0) {
+      console.log(`⚠️ No detailed race data available for custId: ${custId}`);
+      const emptyPersonalBests: DriverPersonalBests = {
+        custId,
+        driverName: driver.name,
+        totalRaces: 0,
+        totalSeries: 0,
+        seriesBests: {}
+      };
+      cache.set(cacheKey, emptyPersonalBests, cacheTTL.PERSONAL_BESTS);
+      return { data: emptyPersonalBests, error: null };
+    }
+
+    // Transform using the detailed race data
     const { personalBests } = transformRecentRacesToPersonalBests(
       custId,
       driver.name,
-      driver.recentRaces
+      detailedRaces
     );
+
+    console.log(`🏆 Personal Bests transformation complete: ${personalBests.totalSeries} series, ${personalBests.totalRaces} races processed`);
 
     cache.set(cacheKey, personalBests, cacheTTL.PERSONAL_BESTS);
     return { data: personalBests, error: null };
   } catch (e) {
+    console.error('Error in enhanced getPersonalBestsData:', e);
     const message = e instanceof Error ? e.message : 'Unknown error';
+    
+    // Try to return expired cache data if available
+    try {
+      const cacheKey = cacheKeys.personalBests(custId);
+      const expired = cache.getExpired<DriverPersonalBests>(cacheKey);
+      if (expired) {
+        const cacheInfo = cache.getCacheInfo(cacheKey);
+        console.log(`🔄 Returning expired cache data due to error`);
+        return { data: expired, error: `Error occurred, using cached data: ${message}`, fromCache: true, cacheAge: cacheInfo.age };
+      }
+    } catch (cacheError) {
+      console.error('Error accessing expired cache:', cacheError);
+    }
+    
     return { data: null, error: message };
   }
 }
