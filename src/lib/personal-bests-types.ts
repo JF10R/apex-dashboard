@@ -149,6 +149,7 @@ export const PersonalBestTransformContextSchema = z.object({
     raceId: z.string(),
     reason: z.string(), // e.g., "Invalid lap time", "Missing track data"
   })),
+  warnings: z.array(z.string()),
 })
 
 // Export TypeScript types derived from schemas
@@ -190,6 +191,5 @@ export interface PersonalBestTransformOptions {
 export interface PersonalBestTransformResult {
   personalBests: DriverPersonalBests
   context: PersonalBestTransformContext
-  warnings: string[]
   errors: string[]
 }
