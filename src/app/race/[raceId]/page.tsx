@@ -14,7 +14,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useProgressiveRaceLoading } from '@/hooks/use-progressive-race-loading';
 import { getOverallFastestLap } from '@/lib/iracing-data-transform';
-import RaceEventsLog from '@/components/race-events-log';
+import { RaceEventsLog } from '@/components/race-events-log';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ErrorBoundary } from '@/components/error-boundary';
 
@@ -70,7 +70,7 @@ export default function RaceDetailsPage() {
     return getOverallFastestLap(race.participants);
   }, [race?.participants]);
 
-  const simsessionNumber = (race as any)?.simsessionNumber ?? 0;
+  const simsessionNumber = race?.simsessionNumber ?? 0;
   const subsessionIdNumber = React.useMemo(() => parseInt(subsessionId, 10), [subsessionId]);
 
   const handleBack = () => {

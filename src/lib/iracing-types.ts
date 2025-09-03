@@ -457,6 +457,7 @@ export type RaceCategory = 'Formula Car' | 'Sports Car' | 'Prototype' | 'Oval' |
 
 export interface RecentRace {
   id: string;
+  simsessionNumber?: number;
   trackName: string;
   date: string;
   year: number;
