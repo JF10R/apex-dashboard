@@ -96,7 +96,8 @@ export async function GET(request: NextRequest) {
       transformResult = transformRecentRacesToPersonalBests(
         custId,
         driver.name,
-        recentRaces
+        recentRaces,
+        driver.currentIRating
       );
     } catch (transformError) {
       return NextResponse.json({
