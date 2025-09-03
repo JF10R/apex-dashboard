@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { useRouter, useSearchParams, useParams } from 'next/navigation';
+import { useSearchParams, useParams } from 'next/navigation';
 import { ArrowLeft, Award, ShieldAlert, Timer, Users } from 'lucide-react';
 import { StatCard } from '@/components/stat-card';
 import { Button } from '@/components/ui/button';
@@ -16,7 +16,6 @@ import { useProgressiveRaceLoading } from '@/hooks/use-progressive-race-loading'
 import { getOverallFastestLap } from '@/lib/iracing-data-transform';
 
 export default function RaceDetailsPage() {
-  const router = useRouter();
   const params = useParams();
   const searchParams = useSearchParams();
   const raceId = params?.raceId as string;
@@ -99,11 +98,8 @@ export default function RaceDetailsPage() {
 
   const handleBack = () => {
     const fromDriver = searchParams?.get('from');
-    if (fromDriver) {
-      router.push(`/${fromDriver}`);
-    } else {
-      router.push('/');
-    }
+    const target = fromDriver ? `/${fromDriver}` : '/';
+    window.location.href = target;
   };
 
   if (!subsessionId) {
@@ -190,10 +186,9 @@ export default function RaceDetailsPage() {
 
   // Handler for when a driver name is clicked in the results table
   const handleDriverClick = (driverName: string) => {
-    // Look for customer ID in participants
     const participant = race.participants?.find((p: RaceParticipant) => p.name === driverName);
     if (participant?.custId) {
-      router.push(`/${participant.custId}`);
+      window.location.href = `/${participant.custId}`;
     }
   };
 
