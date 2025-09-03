@@ -99,6 +99,16 @@ export interface SubsessionResult {
   lap_data?: LapData[];
 }
 
+interface LapChunkInfo {
+  chunkSize: number;
+  totalRows: number;
+}
+
+const normalizeChunkInfo = (chunk?: any): LapChunkInfo => ({
+  chunkSize: chunk?.chunkSize ?? chunk?.chunk_size ?? 0,
+  totalRows: chunk?.rows ?? chunk?.total ?? 0,
+});
+
 export interface ResultsSearchOptions {
   custId?: number;
   seasonId?: number;
@@ -120,28 +130,43 @@ export const getSubsessionResults = async (subsessionId: number): Promise<Subses
     async () => {
       const iracingApi = await ensureApiInitialized();
       console.log(`🏁 Fetching results for subsession: ${subsessionId}`);
-      
-      // Use the available getSeasonResults method as a proxy
-      // Note: This might need adjustment based on actual API capabilities
-      const response = await iracingApi.results.getSeasonResults({
-        eventType: 1, // Race event type
-        seasonId: new Date().getFullYear(), // Use current year as default
-        raceWeekNumber: 1, // Default race week
-      });
-      
-      if (!response || !response.success) {
+
+      // Fetch subsession results from the official endpoint
+      const response = await iracingApi.results.getResult({ subsessionId });
+
+      if (!response || !response.sessionResults) {
         console.warn(`No results found for subsession ${subsessionId}`);
         return null;
       }
-      
-      console.log(`✅ Fetched results for subsession ${subsessionId} (using season results)`);
-      
-      // Map API response to our expected format
+
+      // Determine the race session (usually named "Race")
+      const raceSession =
+        response.sessionResults.find(
+          (s: any) =>
+            s.simsessionName && s.simsessionName.toUpperCase().includes('RACE')
+        ) || response.sessionResults[0];
+
+      const raceInfo = {
+        subsessionId: response.subsessionId,
+        seriesId: response.seriesId,
+        seriesName: response.seriesName,
+        seasonId: response.seasonId,
+        raceWeekNum: response.raceWeekNum,
+        sessionId: response.sessionId,
+        startTime: response.startTime,
+      };
+
+      const results = Array.isArray(raceSession?.results)
+        ? raceSession.results.map((r: any) => mapResultToRaceResult({ ...raceInfo, ...r }))
+        : [];
+
+      console.log(`✅ Fetched ${results.length} results for subsession ${subsessionId}`);
+
       return {
-        subsession_id: subsessionId,
-        season_id: response.seasonId || 0,
-        session_id: 0,
-        subsession_results: Array.isArray(response.resultsList) ? response.resultsList.map(mapResultToRaceResult) : [],
+        subsession_id: response.subsessionId,
+        season_id: response.seasonId,
+        session_id: response.sessionId,
+        subsession_results: results,
         lap_data: undefined,
       } as SubsessionResult;
     },
@@ -164,14 +189,48 @@ export const getSubsessionLapData = async (
     async () => {
       const iracingApi = await ensureApiInitialized();
       console.log(`🏁 Fetching lap data for subsession: ${subsessionId}${custId ? ` and customer: ${custId}` : ''}`);
-      
-      // Since getSubsessionLapData doesn't exist, we'll return mock lap data
-      // This can be updated when the actual API method is available
-      const lapData: LapData[] = [];
-      
-      console.log(`✅ Fetched ${lapData.length} lap entries for subsession ${subsessionId} (mock data)`);
-      
-      return lapData;
+
+      const allLaps: LapData[] = [];
+      let startLap = 0;
+      let page = 0;
+      const MAX_PAGES = 1000;
+
+      while (page < MAX_PAGES) {
+        const params: any = {
+          subsessionId,
+          simsessionNumber: 0,
+          startLap,
+        };
+        if (custId !== undefined) {
+          params.customerId = custId;
+        }
+        const response: any = await iracingApi.results.getResultsLapData(params);
+
+        const laps = Array.isArray(response?.lapData)
+          ? response.lapData.map(mapApiLapToLapData)
+          : [];
+
+        allLaps.push(...laps);
+
+        const chunk = normalizeChunkInfo(response?.chunkInfo ?? (response as any).chunk_info);
+        const noMoreData =
+          laps.length === 0 ||
+          chunk.chunkSize === 0 ||
+          (chunk.totalRows > 0 && allLaps.length >= chunk.totalRows);
+
+        if (noMoreData) {
+          break;
+        }
+
+        startLap += chunk.chunkSize > 0 ? chunk.chunkSize : laps.length;
+        page += 1;
+      }
+
+      console.log(
+        `✅ Fetched ${allLaps.length} lap entries for subsession ${subsessionId}${custId ? ` cust ${custId}` : ''}`
+      );
+
+      return allLaps;
     },
     1800 // 30 minutes cache for lap data
   );
@@ -334,6 +393,29 @@ export const getEnrichedRaceResults = async (subsessionId: number): Promise<{
     };
   }
 };
+
+/**
+ * Map API lap data to internal LapData format
+ */
+function mapApiLapToLapData(lap: any): LapData {
+  return {
+    group_id: lap.groupId || 0,
+    name: lap.name || '',
+    cust_id: lap.custId || 0,
+    display_name: lap.displayName || '',
+    lap_number: lap.lapNumber || 0,
+    flags: lap.flags || 0,
+    incident: lap.incident || false,
+    session_time: lap.sessionTime || 0,
+    session_start_time: lap.sessionStartTime || 0,
+    lap_time: lap.lapTime || 0,
+    team_fastest_lap: lap.teamFastestLap || false,
+    personal_best_lap: lap.personalBestLap || false,
+    license_level: lap.licenseLevel || 0,
+    car_number: lap.carNumber || '',
+    lap_events: lap.lapEvents || [],
+  };
+}
 
 /**
  * Helper function to map API race data to RaceResult format
