@@ -99,6 +99,16 @@ export interface SubsessionResult {
   lap_data?: LapData[];
 }
 
+interface LapChunkInfo {
+  chunkSize: number;
+  totalRows: number;
+}
+
+const normalizeChunkInfo = (chunk?: any): LapChunkInfo => ({
+  chunkSize: chunk?.chunkSize ?? chunk?.chunk_size ?? 0,
+  totalRows: chunk?.rows ?? chunk?.total ?? 0,
+});
+
 export interface ResultsSearchOptions {
   custId?: number;
   seasonId?: number;
@@ -182,14 +192,19 @@ export const getSubsessionLapData = async (
 
       const allLaps: LapData[] = [];
       let startLap = 0;
+      let page = 0;
+      const MAX_PAGES = 1000;
 
-      while (true) {
-        const response = await iracingApi.results.getResultsLapData({
+      while (page < MAX_PAGES) {
+        const params: any = {
           subsessionId,
-          custId,
           simsessionNumber: 0,
           startLap,
-        });
+        };
+        if (custId !== undefined) {
+          params.customerId = custId;
+        }
+        const response: any = await iracingApi.results.getResultsLapData(params);
 
         const laps = Array.isArray(response?.lapData)
           ? response.lapData.map(mapApiLapToLapData)
@@ -197,15 +212,18 @@ export const getSubsessionLapData = async (
 
         allLaps.push(...laps);
 
-        const chunk = (response && (response.chunkInfo || (response as any).chunk_info)) || {};
-        const chunkSize = chunk.chunkSize || chunk.chunk_size || laps.length;
-        const totalRows = chunk.rows || chunk.total || allLaps.length;
+        const chunk = normalizeChunkInfo(response?.chunkInfo ?? (response as any).chunk_info);
+        const noMoreData =
+          laps.length === 0 ||
+          chunk.chunkSize === 0 ||
+          (chunk.totalRows > 0 && allLaps.length >= chunk.totalRows);
 
-        if (allLaps.length >= totalRows || laps.length === 0) {
+        if (noMoreData) {
           break;
         }
 
-        startLap += chunkSize;
+        startLap += chunk.chunkSize > 0 ? chunk.chunkSize : laps.length;
+        page += 1;
       }
 
       console.log(
