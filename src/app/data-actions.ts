@@ -386,9 +386,17 @@ export async function getPersonalBestsData(
       const emptyPersonalBests: DriverPersonalBests = {
         custId,
         driverName: driver?.name || `Driver ${custId}`,
+        lastUpdated: new Date().toISOString(),
+        dataSource: 'recentRaces',
+        seriesBests: {},
         totalRaces: 0,
         totalSeries: 0,
-        seriesBests: {}
+        totalTrackLayouts: 0,
+        totalCars: 0,
+        fastestLapOverall: 'N/A',
+        fastestLapOverallMs: Infinity,
+        fastestLapTrack: '',
+        fastestLapCar: ''
       };
       cache.set(cacheKey, emptyPersonalBests, cacheTTL.PERSONAL_BESTS);
       return { data: emptyPersonalBests, error: null };
@@ -437,13 +445,21 @@ export async function getPersonalBestsData(
     // Step 3: Transform detailed race data to Personal Bests
     if (detailedRaces.length === 0) {
       console.log(`⚠️ No detailed race data available for custId: ${custId}`);
-      const emptyPersonalBests: DriverPersonalBests = {
-        custId,
-        driverName: driver.name,
-        totalRaces: 0,
-        totalSeries: 0,
-        seriesBests: {}
-      };
+        const emptyPersonalBests: DriverPersonalBests = {
+          custId,
+          driverName: driver.name,
+          lastUpdated: new Date().toISOString(),
+          dataSource: 'recentRaces',
+          seriesBests: {},
+          totalRaces: 0,
+          totalSeries: 0,
+          totalTrackLayouts: 0,
+          totalCars: 0,
+          fastestLapOverall: 'N/A',
+          fastestLapOverallMs: Infinity,
+          fastestLapTrack: '',
+          fastestLapCar: ''
+        };
       cache.set(cacheKey, emptyPersonalBests, cacheTTL.PERSONAL_BESTS);
       return { data: emptyPersonalBests, error: null };
     }
@@ -452,7 +468,8 @@ export async function getPersonalBestsData(
     const { personalBests } = transformRecentRacesToPersonalBests(
       custId,
       driver.name,
-      detailedRaces
+      detailedRaces,
+      driver.currentIRating
     );
 
     console.log(`🏆 Personal Bests transformation complete: ${personalBests.totalSeries} series, ${personalBests.totalRaces} races processed`);

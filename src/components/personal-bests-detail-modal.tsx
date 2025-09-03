@@ -47,12 +47,17 @@ export function PersonalBestsDetailModal({ record, open, onOpenChange }: Persona
                 <span className="font-medium">{new Date(record.raceDate).toLocaleDateString()}</span>
               </div>
               {record.iratingAnalysis && (
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">iR Est.</span>
-                  <span className="font-medium">
-                    {record.iratingAnalysis.iratingEquivalency.estimatedIRating}
-                  </span>
-                </div>
+                <>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">iR Est.</span>
+                    <span className="font-medium">
+                      {record.iratingAnalysis.iratingEquivalency.estimatedIRating}
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {record.iratingAnalysis.summary}
+                  </p>
+                </>
               )}
               {record.weatherConditions?.temperature && (
                 <div className="flex justify-between">

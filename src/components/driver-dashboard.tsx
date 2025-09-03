@@ -329,7 +329,8 @@ export default function DriverDashboard({ custId, driverName }: { custId: number
     const { personalBests } = transformRecentRacesToPersonalBests(
       custId,
       driver.name,
-      driver.recentRaces
+      driver.recentRaces,
+      driver.currentIRating
     );
     return Object.values(personalBests.seriesBests)
       .flatMap(series =>
