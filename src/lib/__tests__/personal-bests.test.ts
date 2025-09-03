@@ -231,7 +231,7 @@ describe('Personal Bests - Full Transformation', () => {
       }),
     ]
     
-    const result = transformRecentRacesToPersonalBests(123456, 'Test Driver', recentRaces)
+    const result = transformRecentRacesToPersonalBests(123456, 'Test Driver', recentRaces, 2500)
     
     expect(result.errors).toHaveLength(0)
     expect(result.personalBests.custId).toBe(123456)
@@ -270,6 +270,7 @@ describe('Personal Bests - Full Transformation', () => {
       123456,
       'Test Driver',
       recentRaces,
+      2500,
       { categoryFilter: ['Sports Car'] }
     )
     
@@ -290,7 +291,7 @@ describe('Personal Bests - Utility Functions', () => {
       }),
     ]
     
-    const result = transformRecentRacesToPersonalBests(123456, 'Test Driver', recentRaces)
+    const result = transformRecentRacesToPersonalBests(123456, 'Test Driver', recentRaces, 2500)
     const personalBest = getPersonalBestForCarAndTrack(
       result.personalBests,
       'McLaren 720S GT3',
@@ -323,7 +324,7 @@ describe('Personal Bests - Utility Functions', () => {
       }),
     ]
     
-    const result = transformRecentRacesToPersonalBests(123456, 'Test Driver', recentRaces)
+    const result = transformRecentRacesToPersonalBests(123456, 'Test Driver', recentRaces, 2500)
     const mclarenBests = getPersonalBestsForCar(result.personalBests, 'McLaren 720S GT3')
     
     expect(mclarenBests).toHaveLength(2)
@@ -352,7 +353,7 @@ describe('Personal Bests - Utility Functions', () => {
       }),
     ]
     
-    const result = transformRecentRacesToPersonalBests(123456, 'Test Driver', recentRaces)
+    const result = transformRecentRacesToPersonalBests(123456, 'Test Driver', recentRaces, 2500)
     const silverstoneBests = getPersonalBestsForTrack(result.personalBests, 'Silverstone')
     
     expect(silverstoneBests).toHaveLength(2)
@@ -655,7 +656,7 @@ describe('Personal Bests - Error Conditions', () => {
       trackName: '', // Empty track name should fail validation
     })
     
-    const result = transformRecentRacesToPersonalBests(123456, 'Test Driver', [invalidRace])
+    const result = transformRecentRacesToPersonalBests(123456, 'Test Driver', [invalidRace], 2500)
     
     // Should handle gracefully with warnings/errors rather than throwing
     expect(result.personalBests).toBeTruthy()
@@ -663,7 +664,7 @@ describe('Personal Bests - Error Conditions', () => {
   })
   
   test('transformRecentRacesToPersonalBests - handles empty race list', () => {
-    const result = transformRecentRacesToPersonalBests(123456, 'Test Driver', [])
+    const result = transformRecentRacesToPersonalBests(123456, 'Test Driver', [], 2500)
     
     expect(result.personalBests.totalRaces).toBe(0)
     expect(result.personalBests.totalSeries).toBe(0)
@@ -680,15 +681,76 @@ describe('Personal Bests - Error Conditions', () => {
     ]
     
     const result = transformRecentRacesToPersonalBests(
-      123456, 
-      'Test Driver', 
+      123456,
+      'Test Driver',
       races,
+      2500,
       { categoryFilter: ['Sports Car'] } // Filter out all races
     )
     
     expect(result.personalBests.totalRaces).toBe(0)
     expect(result.context.ignoredRaces).toHaveLength(1)
     expect(result.personalBests.fastestLapOverall).toBe('N/A')
+  })
+})
+
+describe('Personal Bests - iRating Analysis Integration', () => {
+  test('attaches iRating analysis when sufficient race data is available', () => {
+    const participants = Array.from({ length: 8 }, (_, i) =>
+      createMockParticipant({
+        custId: i + 1,
+        name: `Driver ${i + 1}`,
+        fastestLap: `1:2${5 + i}.000`,
+        finishPosition: i + 1,
+      })
+    )
+
+    const race = createMockRace({ trackName: 'Test Track', participants })
+
+    const result = transformRecentRacesToPersonalBests(
+      123456,
+      'Test Driver',
+      [race],
+      2500
+    )
+
+    const record = getPersonalBestForCarAndTrack(
+      result.personalBests,
+      'McLaren 720S GT3',
+      'Test Track'
+    )
+
+    expect(record?.iratingAnalysis).toBeDefined()
+    expect(result.personalBests.iratingAnalysisSummary?.successfulAnalyses).toBe(1)
+  })
+
+  test('handles missing analysis data gracefully', () => {
+    const participants = Array.from({ length: 3 }, (_, i) =>
+      createMockParticipant({
+        custId: i + 1,
+        name: `Driver ${i + 1}`,
+        fastestLap: '1:30.000',
+        finishPosition: i + 1,
+      })
+    )
+
+    const race = createMockRace({ trackName: 'Test Track', participants })
+
+    const result = transformRecentRacesToPersonalBests(
+      123456,
+      'Test Driver',
+      [race],
+      2500
+    )
+
+    const record = getPersonalBestForCarAndTrack(
+      result.personalBests,
+      'McLaren 720S GT3',
+      'Test Track'
+    )
+
+    expect(record?.iratingAnalysis).toBeUndefined()
+    expect(result.personalBests.iratingAnalysisSummary?.failedAnalyses).toBe(1)
   })
 })
 
@@ -733,6 +795,7 @@ describe('Personal Bests - Complex Filter Combinations', () => {
       123456,
       'Test Driver',
       races,
+      2500,
       {
         categoryFilter: ['Sports Car'],
         seriesFilter: ['Global GT Sprint'],

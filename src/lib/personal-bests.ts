@@ -586,6 +586,7 @@ export function transformRecentRacesToPersonalBests(
   custId: number,
   driverName: string,
   recentRaces: RecentRace[],
+  currentIRating: number,
   options: PersonalBestTransformOptions = {}
 ): PersonalBestTransformResult {
   const startTime = performance.now()
@@ -622,9 +623,15 @@ export function transformRecentRacesToPersonalBests(
       fastestLapTrack: globalStats.fastestLapTrack,
       fastestLapCar: globalStats.fastestLapCar,
     }
-    
+
+    const personalBestsWithAnalysis = addIRatingAnalysisToDriverPersonalBests(
+      driverPersonalBests,
+      filteredRaces,
+      currentIRating
+    )
+
     // Validate final result
-    const validated = DriverPersonalBestsSchema.parse(driverPersonalBests)
+    const validated = DriverPersonalBestsSchema.parse(personalBestsWithAnalysis)
     
     const endTime = performance.now()
     const processingTimeMs = endTime - startTime
@@ -634,12 +641,12 @@ export function transformRecentRacesToPersonalBests(
       transformedAt: new Date().toISOString(),
       processingTimeMs: Math.round(processingTimeMs),
       ignoredRaces,
+      warnings,
     }
-    
+
     return {
       personalBests: validated,
       context,
-      warnings,
       errors,
     }
     
@@ -671,12 +678,12 @@ export function transformRecentRacesToPersonalBests(
       transformedAt: new Date().toISOString(),
       processingTimeMs: Math.round(processingTimeMs),
       ignoredRaces,
+      warnings,
     }
-    
+
     return {
       personalBests: emptyResult,
       context,
-      warnings,
       errors,
     }
   }
@@ -802,6 +809,13 @@ export function addIRatingAnalysisToDriverPersonalBests(
     races,
     currentDriverIRating
   )
+
+  let successfulAnalyses = 0
+  let failedAnalyses = 0
+  for (const result of analysisResults.values()) {
+    if (result.success && result.analysis) successfulAnalyses++
+    else failedAnalyses++
+  }
   
   // Apply results back to the nested structure
   const updatedSeriesBests = { ...personalBests.seriesBests }
@@ -837,6 +851,11 @@ export function addIRatingAnalysisToDriverPersonalBests(
   return {
     ...personalBests,
     seriesBests: updatedSeriesBests,
+    iratingAnalysisSummary: {
+      totalRecords: allPersonalBestRecords.length,
+      successfulAnalyses,
+      failedAnalyses,
+    },
   }
 }
 

@@ -101,6 +101,16 @@ export const SeriesPersonalBestsSchema = z.object({
   bestOverallLapMs: z.number(),
 })
 
+// Summary statistics for iRating analysis across a driver's personal bests
+export const IRatingAnalysisSummarySchema = z.object({
+  // Total personal best records processed for analysis
+  totalRecords: z.number(),
+  // Successful analyses with valid results
+  successfulAnalyses: z.number(),
+  // Analyses that failed due to missing or invalid data
+  failedAnalyses: z.number(),
+})
+
 // Top-level personal bests collection for a driver
 export const DriverPersonalBestsSchema = z.object({
   // Driver identification
@@ -119,6 +129,9 @@ export const DriverPersonalBestsSchema = z.object({
   totalSeries: z.number(),
   totalTrackLayouts: z.number(),
   totalCars: z.number(),
+
+  // iRating analysis summary
+  iratingAnalysisSummary: IRatingAnalysisSummarySchema.optional(),
   
   // Overall fastest lap across all categories
   fastestLapOverall: z.string(),
@@ -136,6 +149,7 @@ export const PersonalBestTransformContextSchema = z.object({
     raceId: z.string(),
     reason: z.string(), // e.g., "Invalid lap time", "Missing track data"
   })),
+  warnings: z.array(z.string()),
 })
 
 // Export TypeScript types derived from schemas
@@ -143,6 +157,7 @@ export type PersonalBestRecord = z.infer<typeof PersonalBestRecordSchema>
 export type TrackLayoutPersonalBests = z.infer<typeof TrackLayoutPersonalBestsSchema>
 export type SeriesPersonalBests = z.infer<typeof SeriesPersonalBestsSchema>
 export type DriverPersonalBests = z.infer<typeof DriverPersonalBestsSchema>
+export type IRatingAnalysisSummary = z.infer<typeof IRatingAnalysisSummarySchema>
 export type PersonalBestTransformContext = z.infer<typeof PersonalBestTransformContextSchema>
 
 // Utility type for track layout key generation
@@ -176,6 +191,5 @@ export interface PersonalBestTransformOptions {
 export interface PersonalBestTransformResult {
   personalBests: DriverPersonalBests
   context: PersonalBestTransformContext
-  warnings: string[]
   errors: string[]
 }
